@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+import "google/protobuf/any.proto";
+import "store/type.proto";
+
+option go_package = "github.com/streamingfast/magic-store-server/pb/store";
+
+service StoreKV {
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc GetAll(GetAllRequest) returns (GetAllResponse);
+
+//  rpc Exist(ExistRequest) returns (ExistResponse);
+//  rpc ExistAll(ExistAllRequest) returns (ExistAllResponse);
+}
+
+message GetRequest {
+  uint64 block_number = 1;
+  bool omit_deleted = 3;
+  bytes key = 4;
+}
+
+message GetResponse {
+  ResponseCode response = 4;
+  google.protobuf.Any value = 5;
+}
+
+message GetAllRequest {
+  uint64 block_number = 1;
+  bool omit_deleted = 3;
+  repeated bytes keys = 4;
+}
+
+message ResponseEntry {
+  bytes key = 1;
+  GetResponse response = 2;
+}
+
+message GetAllResponse {
+  repeated ResponseEntry entries= 1;
+}
+
+enum ResponseCode {
+  UNSET = 0;
+  FOUND = 1;
+  NOT_FOUND = 2;
+  NOT_FOUND_FINALIZE = 4;
+}

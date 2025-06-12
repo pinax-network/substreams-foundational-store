@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+import "google/protobuf/any.proto";
+import "sf/substreams/sink/sql/schema/v1/schema.proto";
+option go_package = "github.com/streamingfast/magic-store-server/pb/store";
+
+message Entry {
+  option (schema.table) = {
+    name: "entries"
+  };
+  uint64 block_number =1;
+  bytes key = 2;
+  google.protobuf.Any value = 4 [(schema.field) = {primary_key: true}];
+}

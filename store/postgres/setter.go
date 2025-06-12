@@ -1,0 +1,65 @@
+package postgres
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/streamingfast/substreams-foundationnal-store/pb/store"
+)
+
+func (s *Store) Set(entry *store.Entry) error {
+	if entry == nil {
+		return fmt.Errorf("entry cannot be nil")
+	}
+
+	// Use the prepared insert statement to insert the entry
+	// The statement expects: block_number, key, value, create_time
+	_, err := s.insertStatement.Exec(entry.BlockNumber, entry.Key, entry.Value.Value, time.Now())
+	if err != nil {
+		return fmt.Errorf("failed to insert entry: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Store) SetAll(entries []*store.Entry) error {
+	if len(entries) == 0 {
+		return nil
+	}
+
+	// Begin a transaction
+	tx, err := s.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	// Use the existing prepared statement from the store
+	insertStmt := s.insertStatement
+	if insertStmt == nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("insert statement is nil")
+	}
+
+	// Insert each entry
+	for _, entry := range entries {
+		if entry == nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("entry cannot be nil")
+		}
+
+		// Use the block_number from the Entry model
+		_, err := insertStmt.Exec(entry.BlockNumber, entry.Key, entry.Value.Value, time.Now())
+		if err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("failed to insert entry: %w", err)
+		}
+	}
+
+	// Commit the transaction
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
