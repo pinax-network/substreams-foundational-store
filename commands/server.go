@@ -8,17 +8,30 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/streamingfast/logging"
 	"github.com/streamingfast/substreams-foundationnal-store/server"
+	"github.com/streamingfast/substreams-foundationnal-store/sink"
 	"github.com/streamingfast/substreams-foundationnal-store/store"
 	"github.com/streamingfast/substreams-foundationnal-store/store/badger"
+	"github.com/streamingfast/substreams-foundationnal-store/store/cache"
 	"github.com/streamingfast/substreams-foundationnal-store/store/postgres"
+	subsink "github.com/streamingfast/substreams-sink"
+	"go.uber.org/zap"
 )
 
 var (
-	serverAddr    string
-	serverDSN     string
-	serverTypeUrl string
-	serverWorkers int
+	serverAddr         string
+	serverDSN          string
+	serverTypeUrl      string
+	serverWorkers      int
+	zlog               *zap.Logger
+	substreamsEndpoint string
+	manifestPath       string
+	outputModuleName   string
+	startBlock         string
+	stopBlock          string
+	network            string
+	outputType         string
 )
 
 // ServerCmd represents the server command
@@ -43,7 +56,7 @@ The server supports various store implementations (PostgreSQL, Badger) with diff
 		}
 
 		// Create the store based on the DSN driver
-		var storeImpl store.Store
+		var baseStore store.Store
 		var badgerStore *badger.Store
 
 		switch dsn.Driver() {
@@ -54,16 +67,19 @@ The server supports various store implementations (PostgreSQL, Badger) with diff
 			if err != nil {
 				return fmt.Errorf("failed to create Badger store: %w", err)
 			}
-			storeImpl = badgerStore
+			baseStore = badgerStore
 		case "postgres":
 			pgStore, err := postgres.NewStore(dsn, serverTypeUrl)
 			if err != nil {
 				return fmt.Errorf("failed to create Postgres store: %w", err)
 			}
-			storeImpl = pgStore
+			baseStore = pgStore
 		default:
 			return fmt.Errorf("unsupported store driver: %s", dsn.Driver())
 		}
+
+		// Wrap the store with a cache store
+		storeImpl := cache.NewStore(baseStore)
 
 		// Ensure we close the Badger store when we're done
 		if badgerStore != nil {
@@ -74,6 +90,34 @@ The server supports various store implementations (PostgreSQL, Badger) with diff
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
+		// Calculate the block range from start-block and stop-block
+		blockRange := ""
+		if startBlock != "" {
+			blockRange = startBlock
+		}
+		blockRange += ":"
+		if stopBlock != "0" {
+			blockRange += stopBlock
+		}
+
+		// Create a substreams sink using Viper configuration
+		substreamsClient, err := subsink.NewFromViper(
+			cmd,
+			outputType,
+			substreamsEndpoint,
+			manifestPath,
+			outputModuleName,
+			blockRange,
+			zlog,
+			nil, // tracer is nil
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create substreams sink: %w", err)
+		}
+
+		// Create a handler for the substreams sink
+		handler := sink.NewSinker(serverTypeUrl, storeImpl, zlog)
+
 		// Start the gRPC server in a goroutine
 		errCh := make(chan error, 1)
 		go func() {
@@ -81,14 +125,31 @@ The server supports various store implementations (PostgreSQL, Badger) with diff
 			errCh <- server.Serve(serverAddr, storeImpl)
 		}()
 
+		// Start the substreams sink in a goroutine
+		sinkerDone := make(chan struct{})
+		go func() {
+			substreamsClient.Run(cmd.Context(), nil, handler)
+			substreamsClient.OnTerminating(func(err error) {
+				zlog.Error("sinker terminating", zap.Error(err))
+				close(sinkerDone)
+			})
+
+		}()
+
 		// Wait for an interrupt signal or an error from the server
 		select {
 		case <-sigCh:
 			fmt.Println("Received interrupt signal, shutting down...")
+			substreamsClient.Shutdown(nil)
 			return nil
 		case err := <-errCh:
+			substreamsClient.Shutdown(err)
 			return fmt.Errorf("server error: %w", err)
+		case <-sinkerDone:
+			fmt.Println("Sinker done")
+			return nil
 		}
+
 	},
 }
 
@@ -97,6 +158,13 @@ func init() {
 	ServerCmd.Flags().StringVar(&serverDSN, "dsn", "", "DSN for the store (e.g. badger:///path/to/db or postgres://user:pass@host:port/dbname)")
 	ServerCmd.Flags().StringVar(&serverTypeUrl, "type-url", "", "Type URL for the stored values")
 	ServerCmd.Flags().IntVar(&serverWorkers, "workers", 10, "Number of workers for parallel operations")
+	ServerCmd.Flags().StringVar(&substreamsEndpoint, "substreams-endpoint", "", "Substreams endpoint")
+	ServerCmd.Flags().StringVar(&manifestPath, "manifest-path", "", "Path to the manifest file")
+	ServerCmd.Flags().StringVar(&outputModuleName, "output-module-name", "", "Name of the output module")
+	ServerCmd.Flags().StringVar(&startBlock, "start-block", "", "Start block")
+	ServerCmd.Flags().StringVar(&stopBlock, "stop-block", "0", "Stop block")
+	ServerCmd.Flags().StringVar(&network, "network", "", "Network")
+	ServerCmd.Flags().StringVar(&outputType, "output-type", "", "Output type")
 
 	ServerCmd.MarkFlagRequired("dsn")
 	ServerCmd.MarkFlagRequired("type-url")
@@ -105,4 +173,14 @@ func init() {
 	viper.BindPFlag("server.dsn", ServerCmd.Flags().Lookup("dsn"))
 	viper.BindPFlag("server.type_url", ServerCmd.Flags().Lookup("type-url"))
 	viper.BindPFlag("server.workers", ServerCmd.Flags().Lookup("workers"))
+	viper.BindPFlag("substreams.endpoint", ServerCmd.Flags().Lookup("substreams-endpoint"))
+	viper.BindPFlag("substreams.manifest_path", ServerCmd.Flags().Lookup("manifest-path"))
+	viper.BindPFlag("substreams.output_module_name", ServerCmd.Flags().Lookup("output-module-name"))
+	viper.BindPFlag("substreams.start_block", ServerCmd.Flags().Lookup("start-block"))
+	viper.BindPFlag("substreams.stop_block", ServerCmd.Flags().Lookup("stop-block"))
+	viper.BindPFlag("substreams.network", ServerCmd.Flags().Lookup("network"))
+	viper.BindPFlag("substreams.output_type", ServerCmd.Flags().Lookup("output-type"))
+
+	// Initialize logger
+	zlog, _ = logging.ApplicationLogger("server", "info")
 }
