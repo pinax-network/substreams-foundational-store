@@ -32,6 +32,7 @@ var (
 	stopBlock          string
 	network            string
 	outputType         string
+	cursorFilePath     string
 )
 
 // ServerCmd represents the server command
@@ -116,7 +117,15 @@ The server supports various store implementations (PostgreSQL, Badger) with diff
 		}
 
 		// Create a handler for the substreams sink
-		handler := sink.NewSinker(serverTypeUrl, storeImpl, zlog)
+		handler := sink.NewSinker(serverTypeUrl, storeImpl, zlog, cursorFilePath)
+
+		// Load cursor from file if it exists
+		cursor := sink.LoadCursorFromFile(zlog, cursorFilePath)
+		if cursor != nil {
+			zlog.Info("Loaded cursor from file, will resume from saved position")
+		} else {
+			zlog.Info("No cursor file found, will start from the beginning")
+		}
 
 		// Start the gRPC server in a goroutine
 		errCh := make(chan error, 1)
@@ -128,7 +137,7 @@ The server supports various store implementations (PostgreSQL, Badger) with diff
 		// Start the substreams sink in a goroutine
 		sinkerDone := make(chan struct{})
 		go func() {
-			substreamsClient.Run(cmd.Context(), nil, handler)
+			substreamsClient.Run(cmd.Context(), cursor, handler)
 			substreamsClient.OnTerminating(func(err error) {
 				zlog.Error("sinker terminating", zap.Error(err))
 				close(sinkerDone)
@@ -165,6 +174,7 @@ func init() {
 	ServerCmd.Flags().StringVar(&stopBlock, "stop-block", "0", "Stop block")
 	ServerCmd.Flags().StringVar(&network, "network", "", "Network")
 	ServerCmd.Flags().StringVar(&outputType, "output-type", "", "Output type")
+	ServerCmd.Flags().StringVar(&cursorFilePath, "cursor-file-path", "", "Path to the cursor file")
 
 	ServerCmd.MarkFlagRequired("dsn")
 	ServerCmd.MarkFlagRequired("type-url")
@@ -180,6 +190,7 @@ func init() {
 	viper.BindPFlag("substreams.stop_block", ServerCmd.Flags().Lookup("stop-block"))
 	viper.BindPFlag("substreams.network", ServerCmd.Flags().Lookup("network"))
 	viper.BindPFlag("substreams.output_type", ServerCmd.Flags().Lookup("output-type"))
+	viper.BindPFlag("server.cursor_file_path", ServerCmd.Flags().Lookup("cursor-file-path"))
 
 	// Initialize logger
 	zlog, _ = logging.ApplicationLogger("server", "info")
