@@ -29,6 +29,7 @@ func init() {
 
 	// Add commands
 	rootCmd.AddCommand(commands.AccountListCmd)
+	rootCmd.AddCommand(commands.GetCmd)
 	rootCmd.AddCommand(commands.LoaderCmd)
 	rootCmd.AddCommand(commands.LookupCmd)
 	rootCmd.AddCommand(commands.PerfCmd)
