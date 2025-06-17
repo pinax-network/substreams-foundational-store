@@ -180,8 +180,8 @@ func init() {
 	ServerCmd.Flags().String("output-type", "", "Output type")
 	ServerCmd.Flags().String("cursor-file-path", "", "Path to the cursor file")
 
-	ServerCmd.Flags().String(subsink.FlagAPITokenEnvvar, "", "name of env var that contains the token")
-	ServerCmd.Flags().String(subsink.FlagAPIKeyEnvvar, "", "name of env var that contains the key")
+	ServerCmd.Flags().String(subsink.FlagAPITokenEnvvar, "SUBSTREAMS_API_TOKEN", "name of env var that contains the token")
+	ServerCmd.Flags().String(subsink.FlagAPIKeyEnvvar, "SUBSTREAMS_API_KEY", "name of env var that contains the key")
 
 	ServerCmd.MarkFlagRequired("dsn")
 	ServerCmd.MarkFlagRequired("type-url")
