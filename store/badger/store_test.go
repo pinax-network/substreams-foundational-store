@@ -31,7 +31,7 @@ func setupTestStore(t *testing.T) *testStore {
 	require.NoError(t, err)
 
 	// Create a new badger foundational-store
-	typeURL := "type.googleapis.com/AccountOwner"
+	typeURL := "type.googleapis.com/foundational_store.AccountOwner"
 	badgerStore, err := NewStore(dsn, typeURL)
 	require.NoError(t, err)
 
@@ -72,9 +72,8 @@ func createEntry(blockNumber uint64, key []byte, accountOwner *pbstore.AccountOw
 
 	// Create an Entry to foundational-store
 	return &pbstore.Entry{
-		BlockNumber: blockNumber,
-		Key:         key,
-		Value:       anyValue,
+		Key:   key,
+		Value: anyValue,
 	}, nil
 }
 
@@ -127,7 +126,7 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 			entry, err := createEntry(tc.blockNumber, tc.key, accountOwner, ts.typeURL)
 			require.NoError(t, err)
 
-			err = ts.store.Set(entry)
+			err = ts.store.Set(entry, tc.blockNumber)
 			require.NoError(t, err)
 
 			// Create a GetRequest to retrieve the Entry
@@ -274,7 +273,7 @@ func TestGetWithBlockNumber(t *testing.T) {
 				entry, err := createEntry(setup.blockNumber, setup.key, accountOwner, ts.typeURL)
 				require.NoError(t, err)
 
-				err = ts.store.Set(entry)
+				err = ts.store.Set(entry, setup.blockNumber)
 				require.NoError(t, err)
 			}
 
@@ -382,7 +381,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 			}
 
 			// Store all entries using SetAll
-			err := ts.store.SetAll(entries)
+			err := ts.store.SetAll(entries, tc.blockNumber)
 			require.NoError(t, err)
 
 			// Create a GetAllRequest to retrieve all entries
@@ -646,8 +645,8 @@ func TestGetAllWithBlockNumber(t *testing.T) {
 			}
 
 			// Store entries for each block
-			for _, entries := range entriesByBlock {
-				err := ts.store.SetAll(entries)
+			for blockNumber, entries := range entriesByBlock {
+				err := ts.store.SetAll(entries, blockNumber)
 				require.NoError(t, err)
 			}
 
@@ -770,7 +769,7 @@ func TestSetAllAndGetAllWithNonExistentKey(t *testing.T) {
 			}
 
 			// Store all entries using SetAll
-			err := ts.store.SetAll(entries)
+			err := ts.store.SetAll(entries, tc.blockNumber)
 			require.NoError(t, err)
 
 			// Create non-existent keys

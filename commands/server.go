@@ -10,12 +10,12 @@ import (
 	"github.com/spf13/viper"
 	"github.com/streamingfast/logging"
 	"github.com/streamingfast/substreams-foundational-store/server"
-	"github.com/streamingfast/substreams-foundational-store/sink"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	"github.com/streamingfast/substreams-foundational-store/store/ForkAware"
 	"github.com/streamingfast/substreams-foundational-store/store/badger"
 	"github.com/streamingfast/substreams-foundational-store/store/postgres"
-	subsink "github.com/streamingfast/substreams-sink"
+
+	// subsink "github.com/streamingfast/substreams-sink"
 	"go.uber.org/zap"
 )
 
@@ -102,30 +102,30 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		}
 
 		// Create a substreams sink using Viper configuration
-		substreamsClient, err := subsink.NewFromViper(
-			cmd,
-			outputType,
-			substreamsEndpoint,
-			manifestPath,
-			outputModuleName,
-			blockRange,
-			zlog,
-			nil, // tracer is nil
-		)
-		if err != nil {
-			return fmt.Errorf("failed to create substreams sink: %w", err)
-		}
+		// substreamsClient, err := subsink.NewFromViper(
+		// 	cmd,
+		// 	outputType,
+		// 	substreamsEndpoint,
+		// 	manifestPath,
+		// 	outputModuleName,
+		// 	blockRange,
+		// 	zlog,
+		// 	nil, // tracer is nil
+		// )
+		// if err != nil {
+		// 	return fmt.Errorf("failed to create substreams sink: %w", err)
+		// }
 
 		// Create a handler for the substreams sink
-		handler := sink.NewSinker(serverTypeUrl, storeImpl, zlog, cursorFilePath)
+		// handler := sink.NewSinker(serverTypeUrl, storeImpl, zlog, cursorFilePath)
 
 		// Load cursor from file if it exists
-		cursor := sink.LoadCursorFromFile(zlog, cursorFilePath)
-		if cursor != nil {
-			zlog.Info("Loaded cursor from file, will resume from saved position")
-		} else {
-			zlog.Info("No cursor file found, will start from the beginning")
-		}
+		// cursor := sink.LoadCursorFromFile(zlog, cursorFilePath)
+		// if cursor != nil {
+		// 	zlog.Info("Loaded cursor from file, will resume from saved position")
+		// } else {
+		// 	zlog.Info("No cursor file found, will start from the beginning")
+		// }
 
 		// Start the gRPC server in a goroutine
 		errCh := make(chan error, 1)
@@ -135,28 +135,28 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		}()
 
 		// Start the substreams sink in a goroutine
-		sinkerDone := make(chan struct{})
-		go func() {
-			substreamsClient.Run(cmd.Context(), cursor, handler)
-			substreamsClient.OnTerminating(func(err error) {
-				zlog.Error("sinker terminating", zap.Error(err))
-				close(sinkerDone)
-			})
+		// sinkerDone := make(chan struct{})
+		// go func() {
+		// 	substreamsClient.Run(cmd.Context(), cursor, handler)
+		// 	substreamsClient.OnTerminating(func(err error) {
+		// 		zlog.Error("sinker terminating", zap.Error(err))
+		// 		close(sinkerDone)
+		// 	})
 
-		}()
+		// }()
 
 		// Wait for an interrupt signal or an error from the server
 		select {
 		case <-sigCh:
 			fmt.Println("Received interrupt signal, shutting down...")
-			substreamsClient.Shutdown(nil)
+			// substreamsClient.Shutdown(nil)
 			return nil
 		case err := <-errCh:
-			substreamsClient.Shutdown(err)
+			// substreamsClient.Shutdown(err)
 			return fmt.Errorf("server error: %w", err)
-		case <-sinkerDone:
-			fmt.Println("Sinker done")
-			return nil
+			// case <-sinkerDone:
+			// 	fmt.Println("Sinker done")
+			// 	return nil
 		}
 
 	},

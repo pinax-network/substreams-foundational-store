@@ -10,7 +10,7 @@ import (
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	sink "github.com/streamingfast/substreams-sink"
-	"github.com/streamingfast/substreams/pb/sf/substreams/rpc/v2"
+	pbsubstreamsrpc "github.com/streamingfast/substreams/pb/sf/substreams/rpc/v2"
 	"go.uber.org/zap"
 )
 
@@ -78,7 +78,7 @@ func (h *Handler) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsr
 	}
 
 	// Store the entry using the provided foundational-store
-	if err := h.store.Set(entry); err != nil {
+	if err := h.store.Set(entry, data.GetClock().Number); err != nil {
 		return fmt.Errorf("failed to foundational-store entry: %w", err)
 	}
 
@@ -95,7 +95,7 @@ func (h *Handler) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsr
 	}
 
 	h.logger.Debug("Stored and flushed entry",
-		zap.Uint64("block_number", entry.BlockNumber),
+		zap.Uint64("block_number", data.GetClock().Number),
 		zap.String("key", fmt.Sprintf("%x", entry.Key)),
 		zap.String("type_url", h.typeUrl))
 

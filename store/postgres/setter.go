@@ -7,14 +7,14 @@ import (
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 )
 
-func (s *Store) Set(entry *pbstore.Entry) error {
+func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 	if entry == nil {
 		return fmt.Errorf("entry cannot be nil")
 	}
 
 	// Use the prepared insert statement to insert the entry
 	// The statement expects: block_number, key, value, create_time
-	_, err := s.insertStatement.Exec(entry.BlockNumber, entry.Key, entry.Value.Value, time.Now())
+	_, err := s.insertStatement.Exec(blockNumber, entry.Key, entry.Value.Value, time.Now())
 	if err != nil {
 		return fmt.Errorf("failed to insert entry: %w", err)
 	}
@@ -22,7 +22,7 @@ func (s *Store) Set(entry *pbstore.Entry) error {
 	return nil
 }
 
-func (s *Store) SetAll(entries []*pbstore.Entry) error {
+func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 	if len(entries) == 0 {
 		return nil
 	}
@@ -48,7 +48,7 @@ func (s *Store) SetAll(entries []*pbstore.Entry) error {
 		}
 
 		// Use the block_number from the Entry model
-		_, err := insertStmt.Exec(entry.BlockNumber, entry.Key, entry.Value.Value, time.Now())
+		_, err := insertStmt.Exec(blockNumber, entry.Key, entry.Value.Value, time.Now())
 		if err != nil {
 			_ = tx.Rollback()
 			return fmt.Errorf("failed to insert entry: %w", err)

@@ -9,10 +9,10 @@ import (
 )
 
 // Set stores a single entry in Badger
-func (s *Store) Set(entry *pbstore.Entry) error {
+func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 	// Prepend block_number as bytes to the value
 	blockNumBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(blockNumBytes, entry.BlockNumber)
+	binary.BigEndian.PutUint64(blockNumBytes, blockNumber)
 
 	// Combine block number bytes with the value
 	valueWithBlockNum := append(blockNumBytes, entry.Value.Value...)
@@ -34,7 +34,7 @@ func (s *Store) Set(entry *pbstore.Entry) error {
 }
 
 // SetAll stores multiple entries in Badger
-func (s *Store) SetAll(entries []*pbstore.Entry) error {
+func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 	if len(entries) == 0 {
 		return nil
 	}
@@ -46,7 +46,7 @@ func (s *Store) SetAll(entries []*pbstore.Entry) error {
 	for _, entry := range entries {
 		// Prepend block_number as bytes to the value
 		blockNumBytes := make([]byte, 8)
-		binary.BigEndian.PutUint64(blockNumBytes, entry.BlockNumber)
+		binary.BigEndian.PutUint64(blockNumBytes, blockNumber)
 
 		// Combine block number bytes with the value
 		valueWithBlockNum := append(blockNumBytes, entry.Value.Value...)

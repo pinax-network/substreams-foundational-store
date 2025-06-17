@@ -75,9 +75,11 @@ Example DSNs:
 		var storeEntries []*pbstore.Entry
 		for {
 			record, err := reader.Read()
+			// Parse block number to use in the foundational-store.Entry
+			blockNumber, _ := strconv.ParseUint(record[0], 10, 64)
 			if err != nil {
 				if err.Error() == "EOF" { // Detect end of file
-					err = batchInsert(dataStore, storeEntries)
+					err = batchInsert(dataStore, storeEntries, blockNumber)
 					if err != nil {
 						return fmt.Errorf("failed to insert batch: %w", err)
 					}
@@ -86,8 +88,6 @@ Example DSNs:
 				}
 				return fmt.Errorf("failed to read CSV record: %w", err)
 			}
-			// Parse block number to use in the foundational-store.Entry
-			blockNumber, _ := strconv.ParseUint(record[0], 10, 64)
 			deleted, _ := strconv.ParseBool(record[3])
 			if deleted {
 				continue
@@ -115,15 +115,14 @@ Example DSNs:
 
 			// Create a foundational-store.Entry
 			entry := &pbstore.Entry{
-				BlockNumber: blockNumber,
-				Key:         storelib.MustBase58Decode(Account),
-				Value:       anyValue,
+				Key:   storelib.MustBase58Decode(Account),
+				Value: anyValue,
 			}
 
 			storeEntries = append(storeEntries, entry)
 
 			if len(storeEntries) >= 1000 {
-				err := batchInsert(dataStore, storeEntries)
+				err := batchInsert(dataStore, storeEntries, blockNumber)
 				if err != nil {
 					return fmt.Errorf("failed to insert batch: %w", err)
 				}
@@ -139,9 +138,9 @@ Example DSNs:
 	},
 }
 
-func batchInsert(store storelib.Store, entries []*pbstore.Entry) error {
+func batchInsert(store storelib.Store, entries []*pbstore.Entry, blockNumber uint64) error {
 	// Use the foundational-store's SetAll method to insert all entries
-	err := store.SetAll(entries)
+	err := store.SetAll(entries, blockNumber)
 	if err != nil {
 		return fmt.Errorf("failed to insert batch: %w", err)
 	}

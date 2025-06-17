@@ -8,11 +8,16 @@ import (
 	"github.com/streamingfast/substreams-foundational-store/store"
 )
 
+type cachedEntry struct {
+	entry       *pbstore.Entry
+	blockNumber uint64
+}
+
 // Store implements the foundational-store.Store interface by wrapping another foundational-store
 // and caching entries in memory until flushUpToBlock is changed.
 type Store struct {
 	wrapped        store.Store
-	cache          map[string]*pbstore.Entry // key -> Entry
+	cache          map[string]cachedEntry // key -> Entry
 	flushUpToBlock uint64
 	mu             sync.RWMutex
 }
@@ -21,23 +26,26 @@ type Store struct {
 func NewStore(wrapped store.Store) *Store {
 	return &Store{
 		wrapped:        wrapped,
-		cache:          make(map[string]*pbstore.Entry),
+		cache:          make(map[string]cachedEntry),
 		flushUpToBlock: 0,
 	}
 }
 
 // Set stores a single entry in the ForkAware.
 // If the entry's block number is <= flushUpToBlock, it's also stored in the wrapped foundational-store.
-func (s *Store) Set(entry *pbstore.Entry) error {
+func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	// Store in ForkAware
-	s.cache[string(entry.Key)] = entry
+	s.cache[string(entry.Key)] = cachedEntry{
+		entry:       entry,
+		blockNumber: blockNumber,
+	}
 
 	// If the entry's block number is <= flushUpToBlock, also foundational-store it in the wrapped foundational-store
-	if entry.BlockNumber <= s.flushUpToBlock {
-		if err := s.wrapped.Set(entry); err != nil {
+	if blockNumber <= s.flushUpToBlock {
+		if err := s.wrapped.Set(entry, blockNumber); err != nil {
 			return fmt.Errorf("failed to set entry in wrapped foundational-store: %w", err)
 		}
 	}
@@ -47,26 +55,29 @@ func (s *Store) Set(entry *pbstore.Entry) error {
 
 // SetAll stores multiple entries in the ForkAware.
 // Entries with block numbers <= flushUpToBlock are also stored in the wrapped foundational-store.
-func (s *Store) SetAll(entries []*pbstore.Entry) error {
+func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	// Store all entries in ForkAware
 	for _, entry := range entries {
-		s.cache[string(entry.Key)] = entry
+		s.cache[string(entry.Key)] = cachedEntry{
+			entry:       entry,
+			blockNumber: blockNumber,
+		}
 	}
 
 	// Collect entries that need to be flushed to the wrapped foundational-store
 	var toFlush []*pbstore.Entry
 	for _, entry := range entries {
-		if entry.BlockNumber <= s.flushUpToBlock {
+		if blockNumber <= s.flushUpToBlock {
 			toFlush = append(toFlush, entry)
 		}
 	}
 
 	// Flush collected entries to the wrapped foundational-store
 	if len(toFlush) > 0 {
-		if err := s.wrapped.SetAll(toFlush); err != nil {
+		if err := s.wrapped.SetAll(toFlush, blockNumber); err != nil {
 			return fmt.Errorf("failed to set entries in wrapped foundational-store: %w", err)
 		}
 	}
@@ -81,12 +92,12 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 	defer s.mu.RUnlock()
 
 	// Check ForkAware first
-	if entry, ok := s.cache[string(request.Key)]; ok {
-		// If the entry's block number is <= the requested block number, return it
-		if entry.BlockNumber <= request.BlockNumber {
+	if cached, ok := s.cache[string(request.Key)]; ok {
+		// If the block number is <= the requested block number, return it
+		if cached.blockNumber <= request.BlockNumber {
 			return &pbstore.GetResponse{
 				Response: pbstore.ResponseCode_FOUND,
-				Value:    entry.Value,
+				Value:    cached.entry.Value,
 			}, nil
 		}
 	}
@@ -112,14 +123,14 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 	// Check ForkAware first for each key
 	for _, key := range request.Keys {
 		keyStr := string(key)
-		if entry, ok := s.cache[keyStr]; ok {
-			// If the entry's block number is <= the requested block number, use it
-			if entry.BlockNumber <= request.BlockNumber {
+		if cached, ok := s.cache[keyStr]; ok {
+			// If the block number is <= the requested block number, use it
+			if cached.blockNumber <= request.BlockNumber {
 				response.Entries = append(response.Entries, &pbstore.ResponseEntry{
 					Key: key,
 					Response: &pbstore.GetResponse{
 						Response: pbstore.ResponseCode_FOUND,
-						Value:    entry.Value,
+						Value:    cached.entry.Value,
 					},
 				})
 				continue
@@ -160,15 +171,15 @@ func (s *Store) FlushUpToBlock(blockNum uint64) error {
 
 	// Collect entries to flush
 	var toFlush []*pbstore.Entry
-	for _, entry := range s.cache {
-		if entry.BlockNumber <= blockNum {
-			toFlush = append(toFlush, entry)
+	for _, cached := range s.cache {
+		if cached.blockNumber <= blockNum {
+			toFlush = append(toFlush, cached.entry)
 		}
 	}
 
 	// Flush collected entries to the wrapped foundational-store
 	if len(toFlush) > 0 {
-		if err := s.wrapped.SetAll(toFlush); err != nil {
+		if err := s.wrapped.SetAll(toFlush, blockNum); err != nil {
 			return fmt.Errorf("failed to flush entries to wrapped foundational-store: %w", err)
 		}
 
@@ -188,8 +199,8 @@ func (s *Store) EvictUpToBlock(upToBlockNumber uint64) error {
 
 	// Collect keys to evict
 	var keysToEvict []string
-	for key, entry := range s.cache {
-		if entry.BlockNumber >= upToBlockNumber {
+	for key, cached := range s.cache {
+		if cached.blockNumber >= upToBlockNumber {
 			keysToEvict = append(keysToEvict, key)
 		}
 	}

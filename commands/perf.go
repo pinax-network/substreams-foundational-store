@@ -195,15 +195,14 @@ func runRandomDataInsertion(ctx context.Context, storeInstance store.Store, type
 
 				// Create a foundational-store.Entry
 				entries[i] = &pbStore.Entry{
-					BlockNumber: uint64(localRand.Intn(1000)), // Random block number
-					Key:         store.MustBase58Decode(randomAccount),
-					Value:       anyValue,
+					Key:   store.MustBase58Decode(randomAccount),
+					Value: anyValue,
 				}
 			}
 
 			// Insert the entries using SetAll
 			insertStart := time.Now()
-			err := storeInstance.SetAll(entries)
+			err := storeInstance.SetAll(entries, uint64(localRand.Intn(1000)))
 			insertTime := time.Since(insertStart)
 			totalInsertTime += insertTime
 

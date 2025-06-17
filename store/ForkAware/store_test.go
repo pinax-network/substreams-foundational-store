@@ -7,39 +7,50 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+type mockStoreCachedEntry struct {
+	entry       *pbstore.Entry
+	blockNumber uint64
+}
+
 // mockStore is a simple in-memory implementation of the foundational-store.Store interface for testing
 type mockStore struct {
-	entries map[string]*pbstore.Entry
+	entries map[string]mockStoreCachedEntry
 }
 
 func newMockStore() *mockStore {
 	return &mockStore{
-		entries: make(map[string]*pbstore.Entry),
+		entries: make(map[string]mockStoreCachedEntry),
 	}
 }
 
-func (m *mockStore) Set(entry *pbstore.Entry) error {
-	m.entries[string(entry.Key)] = entry
+func (m *mockStore) Set(entry *pbstore.Entry, blockNumber uint64) error {
+	m.entries[string(entry.Key)] = mockStoreCachedEntry{
+		entry:       entry,
+		blockNumber: blockNumber,
+	}
 	return nil
 }
 
-func (m *mockStore) SetAll(entries []*pbstore.Entry) error {
+func (m *mockStore) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 	for _, entry := range entries {
-		m.entries[string(entry.Key)] = entry
+		m.entries[string(entry.Key)] = mockStoreCachedEntry{
+			entry:       entry,
+			blockNumber: blockNumber,
+		}
 	}
 	return nil
 }
 
 func (m *mockStore) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
-	entry, ok := m.entries[string(request.Key)]
-	if !ok || entry.BlockNumber > request.BlockNumber {
+	cached, ok := m.entries[string(request.Key)]
+	if !ok || cached.blockNumber > request.BlockNumber {
 		return &pbstore.GetResponse{
 			Response: pbstore.ResponseCode_NOT_FOUND,
 		}, nil
 	}
 	return &pbstore.GetResponse{
 		Response: pbstore.ResponseCode_FOUND,
-		Value:    entry.Value,
+		Value:    cached.entry.Value,
 	}, nil
 }
 
@@ -48,8 +59,8 @@ func (m *mockStore) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllRespo
 		Entries: make([]*pbstore.ResponseEntry, 0, len(request.Keys)),
 	}
 	for _, key := range request.Keys {
-		entry, ok := m.entries[string(key)]
-		if !ok || entry.BlockNumber > request.BlockNumber {
+		cached, ok := m.entries[string(key)]
+		if !ok || cached.blockNumber > request.BlockNumber {
 			response.Entries = append(response.Entries, &pbstore.ResponseEntry{
 				Key: key,
 				Response: &pbstore.GetResponse{
@@ -61,7 +72,7 @@ func (m *mockStore) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllRespo
 				Key: key,
 				Response: &pbstore.GetResponse{
 					Response: pbstore.ResponseCode_FOUND,
-					Value:    entry.Value,
+					Value:    cached.entry.Value,
 				},
 			})
 		}
@@ -78,29 +89,26 @@ func TestCacheStore(t *testing.T) {
 
 	// Create some test entries
 	entry1 := &pbstore.Entry{
-		BlockNumber: 100,
-		Key:         []byte("key1"),
-		Value:       &anypb.Any{TypeUrl: "test", Value: []byte("value1")},
+		Key:   []byte("key1"),
+		Value: &anypb.Any{TypeUrl: "test", Value: []byte("value1")},
 	}
 	entry2 := &pbstore.Entry{
-		BlockNumber: 200,
-		Key:         []byte("key2"),
-		Value:       &anypb.Any{TypeUrl: "test", Value: []byte("value2")},
+		Key:   []byte("key2"),
+		Value: &anypb.Any{TypeUrl: "test", Value: []byte("value2")},
 	}
 	entry3 := &pbstore.Entry{
-		BlockNumber: 300,
-		Key:         []byte("key3"),
-		Value:       &anypb.Any{TypeUrl: "test", Value: []byte("value3")},
+		Key:   []byte("key3"),
+		Value: &anypb.Any{TypeUrl: "test", Value: []byte("value3")},
 	}
 
 	// Set entries in the ForkAware foundational-store
-	if err := cacheStore.Set(entry1); err != nil {
+	if err := cacheStore.Set(entry1, 100); err != nil {
 		t.Fatalf("Failed to set entry1: %v", err)
 	}
-	if err := cacheStore.Set(entry2); err != nil {
+	if err := cacheStore.Set(entry2, 200); err != nil {
 		t.Fatalf("Failed to set entry2: %v", err)
 	}
-	if err := cacheStore.Set(entry3); err != nil {
+	if err := cacheStore.Set(entry3, 300); err != nil {
 		t.Fatalf("Failed to set entry3: %v", err)
 	}
 
@@ -134,10 +142,12 @@ func TestCacheStore(t *testing.T) {
 
 	// Verify that entry1 and entry2 are no longer in the ForkAware
 	// by checking if the mock foundational-store is used for retrieval
-	mockStore.entries["key1"] = &pbstore.Entry{
-		BlockNumber: 100,
-		Key:         []byte("key1"),
-		Value:       &anypb.Any{TypeUrl: "test", Value: []byte("modified1")},
+	mockStore.entries["key1"] = mockStoreCachedEntry{
+		blockNumber: 100,
+		entry: &pbstore.Entry{
+			Key:   []byte("key1"),
+			Value: &anypb.Any{TypeUrl: "test", Value: []byte("modified1")},
+		},
 	}
 
 	resp1, err = cacheStore.Get(&pbstore.GetRequest{

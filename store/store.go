@@ -5,8 +5,8 @@ import (
 )
 
 type Store interface {
-	Set(entry *pbstore.Entry) error
-	SetAll(entries []*pbstore.Entry) error
+	Set(entry *pbstore.Entry, blockNumber uint64) error
+	SetAll(entries []*pbstore.Entry, blockNumber uint64) error
 	Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error)
 	GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error)
 }
