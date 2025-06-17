@@ -2,9 +2,9 @@ version: v1
 managed:
   enabled: true
   go_package_prefix:
-    default: github.com/streamingfast/substreams-sink-sql/pb/schema
-    override:
-      buf.build/streamingfast/substreams-sink-sql: github.com/streamingfast/substreams-foundational-store/pb
+    default: github.com/streamingfast/substreams-foundational-store/pb
+#    override:
+#      buf.build/streamingfast/substreams-sink-sql: github.com/streamingfast/substreams-foundational-store/pb
 plugins:
   - name: go
     out: pb
