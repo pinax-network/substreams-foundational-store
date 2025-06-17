@@ -72,31 +72,29 @@ func (h *Handler) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsr
 	}
 
 	// According to the issue description, data.Output.MapOutput is a pb.foundational-store.Entry
-	entry := &pbstore.Entry{}
-	if err := data.Output.MapOutput.UnmarshalTo(entry); err != nil {
-		return fmt.Errorf("failed to unmarshal map output to Entry: %w", err)
+	entries := &pbstore.Entries{}
+	if err := data.Output.MapOutput.UnmarshalTo(entries); err != nil {
+		return fmt.Errorf("unmarshalling map output to Entry: %w", err)
 	}
 
 	// Store the entry using the provided foundational-store
-	if err := h.store.Set(entry, data.GetClock().Number); err != nil {
-		return fmt.Errorf("failed to foundational-store entry: %w", err)
+	if err := h.store.SetAll(entries.Entries, data.GetClock().Number); err != nil {
+		return fmt.Errorf("setting foundational-store entry: %w", err)
 	}
 
 	lib := cursor.LIB.Num()
 
 	if err := h.store.FlushUpToBlock(lib); err != nil {
-		return fmt.Errorf("failed to flush data up to block %d: %w", lib, err)
+		return fmt.Errorf("flushing data up to block %d: %w", lib, err)
 	}
 
 	// Save the cursor to a file
 	if err := h.saveCursorToFile(cursor); err != nil {
-		h.logger.Warn("Failed to save cursor to file", zap.Error(err))
-		// Don't return an error here, as we don't want to fail the processing
+		return fmt.Errorf("saving cursor to file %w", err)
 	}
 
 	h.logger.Debug("Stored and flushed entry",
 		zap.Uint64("block_number", data.GetClock().Number),
-		zap.String("key", fmt.Sprintf("%x", entry.Key)),
 		zap.String("type_url", h.typeUrl))
 
 	return nil
@@ -108,12 +106,12 @@ func (h *Handler) saveCursorToFile(cursor *sink.Cursor) error {
 	// Marshal the cursor to JSON
 	data, err := json.Marshal(cursor)
 	if err != nil {
-		return fmt.Errorf("failed to marshal cursor: %w", err)
+		return fmt.Errorf("marshalling cursor: %w", err)
 	}
 
 	// Write the cursor to the file
 	if err := os.WriteFile(h.cursorFilePath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write cursor to file: %w", err)
+		return fmt.Errorf("writing cursor to file: %w", err)
 	}
 
 	h.logger.Debug("Saved cursor to file", zap.String("path", h.cursorFilePath))

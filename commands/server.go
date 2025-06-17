@@ -103,7 +103,6 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		}
 
 		// Create a substreams sink using Viper configuration
-		fmt.Println("new from viper")
 		substreamsClient, err := subsink.NewFromViper(
 			cmd,
 			outputType,
@@ -119,7 +118,6 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		}
 
 		// Create a handler for the substreams sink
-		fmt.Println("new from sink")
 		handler := sink.NewSinker(serverTypeUrl, storeImpl, zlog, cursorFilePath)
 
 		// Load cursor from file if it exists
@@ -139,7 +137,6 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 
 		// Start the substreams sink in a goroutine
 		sinkerDone := make(chan struct{})
-		fmt.Println("new from RUN")
 		go func() {
 			substreamsClient.OnTerminating(func(err error) {
 				zlog.Error("sinker terminating", zap.Error(err))
@@ -177,14 +174,8 @@ func init() {
 	ServerCmd.Flags().String("output-module-name", "", "Name of the output module")
 	ServerCmd.Flags().String("start-block", "", "Start block")
 	ServerCmd.Flags().String("stop-block", "0", "Stop block")
-	// ServerCmd.Flags().String("network", "", "Network")
 	ServerCmd.Flags().String("output-type", "", "Output type")
-	ServerCmd.Flags().String("cursor-file-path", "", "Path to the cursor file")
-
-	// ServerCmd.Flags().String(subsink.FlagAPITokenEnvvar, "", "name of env var that contains the token")
-	// ServerCmd.Flags().String(subsink.FlagAPIKeyEnvvar, "", "name of env var that contains the key")
-	// ServerCmd.Flags().Bool(subsink.FlagInsecure, false, "runs insecurely")
-	// ServerCmd.Flags().Bool(subsink.FlagPlaintext, false, "uses plain text")
+	ServerCmd.Flags().String("cursor-file-path", "/tmp/cursor.txt", "Path to the cursor file")
 
 	ServerCmd.MarkFlagRequired("dsn")
 	ServerCmd.MarkFlagRequired("type-url")
