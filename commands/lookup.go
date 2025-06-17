@@ -8,8 +8,8 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/streamingfast/substreams-foundationnal-store/store"
-	"github.com/streamingfast/substreams-foundationnal-store/store/badger"
+	"github.com/streamingfast/substreams-foundational-store/store"
+	"github.com/streamingfast/substreams-foundational-store/store/badger"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -29,8 +29,8 @@ type LookupResult struct {
 // LookupCmd represents the lookup command
 var LookupCmd = &cobra.Command{
 	Use:   "lookup",
-	Short: "Lookup keys with a prefix in a Badger store",
-	Long: `Lookup keys with a prefix in a Badger store and display the results.
+	Short: "Lookup keys with a prefix in a Badger foundational-store",
+	Long: `Lookup keys with a prefix in a Badger foundational-store and display the results.
 This command only works with Badger stores.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if lookupPrefixStr == "" {
@@ -43,19 +43,19 @@ This command only works with Badger stores.`,
 			return fmt.Errorf("failed to parse DSN: %w", err)
 		}
 
-		// Ensure we're using a Badger store
+		// Ensure we're using a Badger foundational-store
 		if dsn.Driver() != "badger" {
 			return fmt.Errorf("this tool only works with Badger stores. Got: %s", dsn.Driver())
 		}
 
-		// Create the Badger store
+		// Create the Badger foundational-store
 		badgerStore, err := badger.NewStore(dsn, lookupTypeUrl)
 		if err != nil {
-			return fmt.Errorf("failed to create Badger store: %w", err)
+			return fmt.Errorf("failed to create Badger foundational-store: %w", err)
 		}
 		defer badgerStore.Close()
 
-		fmt.Printf("Connected to Badger store at %s\n", dsn.Database)
+		fmt.Printf("Connected to Badger foundational-store at %s\n", dsn.Database)
 		fmt.Printf("Looking up prefix: %s\n", lookupPrefixStr)
 
 		// Decode the prefix from base58 if it's encoded
@@ -86,7 +86,7 @@ This command only works with Badger stores.`,
 	},
 }
 
-// performPrefixLookup performs a prefix lookup in the Badger store
+// performPrefixLookup performs a prefix lookup in the Badger foundational-store
 func performPrefixLookup(s *badger.Store, prefix []byte) ([]LookupResult, error) {
 	var results []LookupResult
 
@@ -153,8 +153,8 @@ func performPrefixLookup(s *badger.Store, prefix []byte) ([]LookupResult, error)
 
 func init() {
 	LookupCmd.Flags().StringVar(&lookupTypeUrl, "type-url", "AccountOwner", "Type URL for the stored values")
-	LookupCmd.Flags().StringVar(&lookupDSN, "dsn", "badger:///tmp/badger-db", "Data Source Name (DSN) for the Badger store")
-	LookupCmd.Flags().StringVar(&lookupPrefixStr, "prefix", "", "Prefix to lookup in the Badger store")
+	LookupCmd.Flags().StringVar(&lookupDSN, "dsn", "badger:///tmp/badger-db", "Data Source Name (DSN) for the Badger foundational-store")
+	LookupCmd.Flags().StringVar(&lookupPrefixStr, "prefix", "", "Prefix to lookup in the Badger foundational-store")
 	LookupCmd.MarkFlagRequired("prefix")
 
 	viper.BindPFlag("lookup.type_url", LookupCmd.Flags().Lookup("type-url"))

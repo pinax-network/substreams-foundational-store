@@ -1,13 +1,13 @@
-package cache
+package ForkAware
 
 import (
 	"testing"
 
-	pbstore "github.com/streamingfast/substreams-foundationnal-store/pb/store"
+	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-// mockStore is a simple in-memory implementation of the store.Store interface for testing
+// mockStore is a simple in-memory implementation of the foundational-store.Store interface for testing
 type mockStore struct {
 	entries map[string]*pbstore.Entry
 }
@@ -70,10 +70,10 @@ func (m *mockStore) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllRespo
 }
 
 func TestCacheStore(t *testing.T) {
-	// Create a mock store
+	// Create a mock foundational-store
 	mockStore := newMockStore()
 
-	// Create a cache store that wraps the mock store
+	// Create a ForkAware foundational-store that wraps the mock foundational-store
 	cacheStore := NewStore(mockStore)
 
 	// Create some test entries
@@ -93,7 +93,7 @@ func TestCacheStore(t *testing.T) {
 		Value:       &anypb.Any{TypeUrl: "test", Value: []byte("value3")},
 	}
 
-	// Set entries in the cache store
+	// Set entries in the ForkAware foundational-store
 	if err := cacheStore.Set(entry1); err != nil {
 		t.Fatalf("Failed to set entry1: %v", err)
 	}
@@ -104,13 +104,13 @@ func TestCacheStore(t *testing.T) {
 		t.Fatalf("Failed to set entry3: %v", err)
 	}
 
-	// Verify that entries are in the cache but not in the mock store
+	// Verify that entries are in the ForkAware but not in the mock foundational-store
 	// (since flushUpToBlock is 0 by default)
 	if len(mockStore.entries) != 0 {
-		t.Errorf("Expected 0 entries in mock store, got %d", len(mockStore.entries))
+		t.Errorf("Expected 0 entries in mock foundational-store, got %d", len(mockStore.entries))
 	}
 
-	// Get entry1 from the cache store
+	// Get entry1 from the ForkAware foundational-store
 	resp1, err := cacheStore.Get(&pbstore.GetRequest{
 		BlockNumber: 150,
 		Key:         []byte("key1"),
@@ -127,13 +127,13 @@ func TestCacheStore(t *testing.T) {
 		t.Fatalf("Failed to flush entries: %v", err)
 	}
 
-	// Verify that entry1 and entry2 are now in the mock store
+	// Verify that entry1 and entry2 are now in the mock foundational-store
 	if len(mockStore.entries) != 2 {
-		t.Errorf("Expected 2 entries in mock store, got %d", len(mockStore.entries))
+		t.Errorf("Expected 2 entries in mock foundational-store, got %d", len(mockStore.entries))
 	}
 
-	// Verify that entry1 and entry2 are no longer in the cache
-	// by checking if the mock store is used for retrieval
+	// Verify that entry1 and entry2 are no longer in the ForkAware
+	// by checking if the mock foundational-store is used for retrieval
 	mockStore.entries["key1"] = &pbstore.Entry{
 		BlockNumber: 100,
 		Key:         []byte("key1"),
@@ -151,7 +151,7 @@ func TestCacheStore(t *testing.T) {
 		t.Errorf("Expected modified value for entry1, got %s", string(resp1.Value.Value))
 	}
 
-	// Verify that entry3 is still in the cache
+	// Verify that entry3 is still in the ForkAware
 	resp3, err := cacheStore.Get(&pbstore.GetRequest{
 		BlockNumber: 350,
 		Key:         []byte("key3"),

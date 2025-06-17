@@ -9,12 +9,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/streamingfast/logging"
-	"github.com/streamingfast/substreams-foundationnal-store/server"
-	"github.com/streamingfast/substreams-foundationnal-store/sink"
-	"github.com/streamingfast/substreams-foundationnal-store/store"
-	"github.com/streamingfast/substreams-foundationnal-store/store/badger"
-	"github.com/streamingfast/substreams-foundationnal-store/store/cache"
-	"github.com/streamingfast/substreams-foundationnal-store/store/postgres"
+	"github.com/streamingfast/substreams-foundational-store/server"
+	"github.com/streamingfast/substreams-foundational-store/sink"
+	"github.com/streamingfast/substreams-foundational-store/store"
+	"github.com/streamingfast/substreams-foundational-store/store/ForkAware"
+	"github.com/streamingfast/substreams-foundational-store/store/badger"
+	"github.com/streamingfast/substreams-foundational-store/store/postgres"
 	subsink "github.com/streamingfast/substreams-sink"
 	"go.uber.org/zap"
 )
@@ -39,8 +39,8 @@ var (
 var ServerCmd = &cobra.Command{
 	Use:   "server",
 	Short: "Start the gRPC server",
-	Long: `Start the gRPC server that provides access to the store.
-The server supports various store implementations (PostgreSQL, Badger) with different configurations.`,
+	Long: `Start the gRPC server that provides access to the foundational-store.
+The server supports various foundational-store implementations (PostgreSQL, Badger) with different configurations.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if serverDSN == "" {
 			return fmt.Errorf("DSN is required")
@@ -56,7 +56,7 @@ The server supports various store implementations (PostgreSQL, Badger) with diff
 			return fmt.Errorf("failed to parse DSN: %w", err)
 		}
 
-		// Create the store based on the DSN driver
+		// Create the foundational-store based on the DSN driver
 		var baseStore store.Store
 		var badgerStore *badger.Store
 
@@ -66,23 +66,23 @@ The server supports various store implementations (PostgreSQL, Badger) with diff
 				badger.WithNumWorkers(serverWorkers),
 			)
 			if err != nil {
-				return fmt.Errorf("failed to create Badger store: %w", err)
+				return fmt.Errorf("failed to create Badger foundational-store: %w", err)
 			}
 			baseStore = badgerStore
 		case "postgres":
 			pgStore, err := postgres.NewStore(dsn, serverTypeUrl)
 			if err != nil {
-				return fmt.Errorf("failed to create Postgres store: %w", err)
+				return fmt.Errorf("failed to create Postgres foundational-store: %w", err)
 			}
 			baseStore = pgStore
 		default:
-			return fmt.Errorf("unsupported store driver: %s", dsn.Driver())
+			return fmt.Errorf("unsupported foundational-store driver: %s", dsn.Driver())
 		}
 
-		// Wrap the store with a cache store
-		storeImpl := cache.NewStore(baseStore)
+		// Wrap the foundational-store with a ForkAware foundational-store
+		storeImpl := ForkAware.NewStore(baseStore)
 
-		// Ensure we close the Badger store when we're done
+		// Ensure we close the Badger foundational-store when we're done
 		if badgerStore != nil {
 			defer badgerStore.Close()
 		}
@@ -164,7 +164,7 @@ The server supports various store implementations (PostgreSQL, Badger) with diff
 
 func init() {
 	ServerCmd.Flags().StringVar(&serverAddr, "addr", ":50051", "Address to listen on")
-	ServerCmd.Flags().StringVar(&serverDSN, "dsn", "", "DSN for the store (e.g. badger:///path/to/db or postgres://user:pass@host:port/dbname)")
+	ServerCmd.Flags().StringVar(&serverDSN, "dsn", "", "DSN for the foundational-store (e.g. badger:///path/to/db or postgres://user:pass@host:port/dbname)")
 	ServerCmd.Flags().StringVar(&serverTypeUrl, "type-url", "", "Type URL for the stored values")
 	ServerCmd.Flags().IntVar(&serverWorkers, "workers", 10, "Number of workers for parallel operations")
 	ServerCmd.Flags().StringVar(&substreamsEndpoint, "substreams-endpoint", "", "Substreams endpoint")

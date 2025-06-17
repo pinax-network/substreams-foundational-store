@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/streamingfast/substreams-foundationnal-store/pb/store"
+	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 )
 
-func (s *Store) Set(entry *store.Entry) error {
+func (s *Store) Set(entry *pbstore.Entry) error {
 	if entry == nil {
 		return fmt.Errorf("entry cannot be nil")
 	}
@@ -22,7 +22,7 @@ func (s *Store) Set(entry *store.Entry) error {
 	return nil
 }
 
-func (s *Store) SetAll(entries []*store.Entry) error {
+func (s *Store) SetAll(entries []*pbstore.Entry) error {
 	if len(entries) == 0 {
 		return nil
 	}
@@ -33,7 +33,7 @@ func (s *Store) SetAll(entries []*store.Entry) error {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	// Use the existing prepared statement from the store
+	// Use the existing prepared statement from the foundational-store
 	insertStmt := s.insertStatement
 	if insertStmt == nil {
 		_ = tx.Rollback()

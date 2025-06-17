@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+option go_package = "github.com/streamingfast/magic-foundational-store-server/pb/test";
+
+message AccountOwner {
+  bytes mint = 1;
+  bytes owner = 2;
+}

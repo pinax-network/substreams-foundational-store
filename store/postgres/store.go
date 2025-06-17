@@ -6,7 +6,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/streamingfast/substreams-foundationnal-store/store"
+	"github.com/streamingfast/substreams-foundational-store/store"
 )
 
 type Store struct {

@@ -1,4 +1,4 @@
-module github.com/streamingfast/substreams-foundationnal-store
+module github.com/streamingfast/substreams-foundational-store
 
 go 1.24
 

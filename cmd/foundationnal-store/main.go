@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/streamingfast/substreams-foundationnal-store/commands"
+	"github.com/streamingfast/substreams-foundational-store/commands"
 )
 
 var (
@@ -15,9 +15,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "foundational-store",
-	Short: "A foundational store server and utilities",
-	Long: `A foundational store server and utilities for managing and interacting with 
+	Use:   "foundational-foundational-store",
+	Short: "A foundational foundational-store server and utilities",
+	Long: `A foundational foundational-store server and utilities for managing and interacting with 
 various storage backends including PostgreSQL, Badger, and more.`,
 }
 
@@ -25,7 +25,7 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	// Add global flags
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.foundational-store.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.foundational-foundational-store.yaml)")
 
 	// Add commands
 	rootCmd.AddCommand(commands.AccountListCmd)
@@ -47,9 +47,9 @@ func initConfig() {
 			os.Exit(1)
 		}
 
-		// Search config in home directory with name ".foundational-store" (without extension)
+		// Search config in home directory with name ".foundational-foundational-store" (without extension)
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".foundational-store")
+		viper.SetConfigName(".foundational-foundational-store")
 	}
 
 	// Read in environment variables that match

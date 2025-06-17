@@ -2,7 +2,10 @@ syntax = "proto3";
 
 import "google/protobuf/any.proto";
 import "sf/substreams/sink/sql/schema/v1/schema.proto";
-option go_package = "github.com/streamingfast/magic-store-server/pb/store";
+
+package foundational_store;
+
+option go_package = "github.com/streamingfast/magic-foundational-store-server/pb/foundational-store";
 
 message Entry {
   option (schema.table) = {

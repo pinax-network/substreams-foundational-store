@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             (unknown)
-// source: store/service.proto
+// source: sf/substreams/foundational-store/v1/service.proto
 
-package store
+package v1
 
 import (
 	context "context"
@@ -36,7 +36,7 @@ func NewStoreKVClient(cc grpc.ClientConnInterface) StoreKVClient {
 
 func (c *storeKVClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error) {
 	out := new(GetResponse)
-	err := c.cc.Invoke(ctx, "/StoreKV/Get", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/foundational_store.StoreKV/Get", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func (c *storeKVClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.Ca
 
 func (c *storeKVClient) GetAll(ctx context.Context, in *GetAllRequest, opts ...grpc.CallOption) (*GetAllResponse, error) {
 	out := new(GetAllResponse)
-	err := c.cc.Invoke(ctx, "/StoreKV/GetAll", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/foundational_store.StoreKV/GetAll", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func _StoreKV_Get_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/StoreKV/Get",
+		FullMethod: "/foundational_store.StoreKV/Get",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StoreKVServer).Get(ctx, req.(*GetRequest))
@@ -112,7 +112,7 @@ func _StoreKV_GetAll_Handler(srv interface{}, ctx context.Context, dec func(inte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/StoreKV/GetAll",
+		FullMethod: "/foundational_store.StoreKV/GetAll",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StoreKVServer).GetAll(ctx, req.(*GetAllRequest))
@@ -124,7 +124,7 @@ func _StoreKV_GetAll_Handler(srv interface{}, ctx context.Context, dec func(inte
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var StoreKV_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "StoreKV",
+	ServiceName: "foundational_store.StoreKV",
 	HandlerType: (*StoreKVServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -137,5 +137,5 @@ var StoreKV_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "store/service.proto",
+	Metadata: "sf/substreams/foundational-store/v1/service.proto",
 }

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/lib/pq"
-	"github.com/streamingfast/substreams-foundationnal-store/pb/store"
+	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -20,20 +20,20 @@ type Entry struct {
 	CreateTime  time.Time `db:"create_time"`
 }
 
-func (s *Store) Get(request *store.GetRequest) (*store.GetResponse, error) {
+func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 	entry := &Entry{}
 	err := s.selectStatement.Get(entry, request.Key)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return &store.GetResponse{
-				Response: store.ResponseCode_NOT_FOUND,
+			return &pbstore.GetResponse{
+				Response: pbstore.ResponseCode_NOT_FOUND,
 			}, nil
 		}
 		return nil, err
 	}
 
-	return &store.GetResponse{
-		Response: store.ResponseCode_FOUND,
+	return &pbstore.GetResponse{
+		Response: pbstore.ResponseCode_FOUND,
 		Value: &anypb.Any{
 			TypeUrl: s.typeUrl,
 			Value:   entry.Value,
@@ -41,7 +41,7 @@ func (s *Store) Get(request *store.GetRequest) (*store.GetResponse, error) {
 	}, nil
 }
 
-func (s *Store) GetAll(request *store.GetAllRequest) (*store.GetAllResponse, error) {
+func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {
 	rows, err := s.selectAnyStatement.Queryx(pq.Array(request.Keys))
 	if err != nil {
 		return nil, fmt.Errorf("failed to select entries: %w", err)
@@ -57,15 +57,15 @@ func (s *Store) GetAll(request *store.GetAllRequest) (*store.GetAllResponse, err
 		entriesMap[hex.EncodeToString(entry.Key)] = entry
 	}
 
-	out := []*store.ResponseEntry{}
+	out := []*pbstore.ResponseEntry{}
 	for _, key := range request.Keys {
 		entry, found := entriesMap[hex.EncodeToString(key)]
 		if !found {
 			out =
-				append(out, &store.ResponseEntry{
+				append(out, &pbstore.ResponseEntry{
 					Key: key,
-					Response: &store.GetResponse{
-						Response: store.ResponseCode_NOT_FOUND,
+					Response: &pbstore.GetResponse{
+						Response: pbstore.ResponseCode_NOT_FOUND,
 						Value: &anypb.Any{
 							TypeUrl: s.typeUrl,
 							Value:   nil,
@@ -74,10 +74,10 @@ func (s *Store) GetAll(request *store.GetAllRequest) (*store.GetAllResponse, err
 				})
 			continue
 		}
-		out = append(out, &store.ResponseEntry{
+		out = append(out, &pbstore.ResponseEntry{
 			Key: key,
-			Response: &store.GetResponse{
-				Response: store.ResponseCode_FOUND,
+			Response: &pbstore.GetResponse{
+				Response: pbstore.ResponseCode_FOUND,
 				Value: &anypb.Any{
 					TypeUrl: s.typeUrl,
 					Value:   entry.Value,
@@ -85,7 +85,7 @@ func (s *Store) GetAll(request *store.GetAllRequest) (*store.GetAllResponse, err
 			},
 		})
 	}
-	return &store.GetAllResponse{
+	return &pbstore.GetAllResponse{
 		Entries: out,
 	}, nil
 }

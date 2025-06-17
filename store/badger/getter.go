@@ -6,12 +6,12 @@ import (
 	"sync"
 
 	"github.com/dgraph-io/badger/v3"
-	"github.com/streamingfast/substreams-foundationnal-store/pb/store"
+	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // Get retrieves a single entry from Badger
-func (s *Store) Get(request *store.GetRequest) (*store.GetResponse, error) {
+func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 	var storedValue []byte
 	var found bool
 
@@ -47,8 +47,8 @@ func (s *Store) Get(request *store.GetRequest) (*store.GetResponse, error) {
 	}
 
 	if !found {
-		return &store.GetResponse{
-			Response: store.ResponseCode_NOT_FOUND,
+		return &pbstore.GetResponse{
+			Response: pbstore.ResponseCode_NOT_FOUND,
 		}, nil
 	}
 
@@ -67,13 +67,13 @@ func (s *Store) Get(request *store.GetRequest) (*store.GetResponse, error) {
 	actualValue := storedValue[8:]
 
 	if request.BlockNumber < blockNumber {
-		return &store.GetResponse{
-			Response: store.ResponseCode_NOT_FOUND,
+		return &pbstore.GetResponse{
+			Response: pbstore.ResponseCode_NOT_FOUND,
 		}, nil
 	}
 
-	return &store.GetResponse{
-		Response: store.ResponseCode_FOUND,
+	return &pbstore.GetResponse{
+		Response: pbstore.ResponseCode_FOUND,
 		Value: &anypb.Any{
 			TypeUrl: s.typeUrl,
 			Value:   actualValue,
@@ -82,9 +82,9 @@ func (s *Store) Get(request *store.GetRequest) (*store.GetResponse, error) {
 }
 
 // GetAll retrieves multiple entries from Badger using goroutines for parallelism
-func (s *Store) GetAll(request *store.GetAllRequest) (*store.GetAllResponse, error) {
-	// Create a slice to store the entries
-	var entries []*store.ResponseEntry
+func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {
+	// Create a slice to foundational-store the entries
+	var entries []*pbstore.ResponseEntry
 
 	// Create a transaction
 	err := s.db.View(func(txn *badger.Txn) error {
@@ -126,10 +126,10 @@ func (s *Store) GetAll(request *store.GetAllRequest) (*store.GetAllResponse, err
 							// Key not found, add a NOT_FOUND response
 							mutex.Lock()
 							entries = append(entries,
-								&store.ResponseEntry{
+								&pbstore.ResponseEntry{
 									Key: key,
-									Response: &store.GetResponse{
-										Response: store.ResponseCode_NOT_FOUND,
+									Response: &pbstore.GetResponse{
+										Response: pbstore.ResponseCode_NOT_FOUND,
 									},
 								})
 							mutex.Unlock()
@@ -163,10 +163,10 @@ func (s *Store) GetAll(request *store.GetAllRequest) (*store.GetAllResponse, err
 					blockNumber := binary.BigEndian.Uint64(value[:8])
 					if request.BlockNumber < blockNumber {
 						mutex.Lock()
-						entries = append(entries, &store.ResponseEntry{
+						entries = append(entries, &pbstore.ResponseEntry{
 							Key: key,
-							Response: &store.GetResponse{
-								Response: store.ResponseCode_NOT_FOUND,
+							Response: &pbstore.GetResponse{
+								Response: pbstore.ResponseCode_NOT_FOUND,
 							},
 						})
 						mutex.Unlock()
@@ -178,10 +178,10 @@ func (s *Store) GetAll(request *store.GetAllRequest) (*store.GetAllResponse, err
 
 					mutex.Lock()
 					entries = append(entries,
-						&store.ResponseEntry{
+						&pbstore.ResponseEntry{
 							Key: key,
-							Response: &store.GetResponse{
-								Response: store.ResponseCode_FOUND,
+							Response: &pbstore.GetResponse{
+								Response: pbstore.ResponseCode_FOUND,
 								Value: &anypb.Any{
 									TypeUrl: s.typeUrl,
 									Value:   actualValue,
@@ -210,19 +210,19 @@ func (s *Store) GetAll(request *store.GetAllRequest) (*store.GetAllResponse, err
 	}
 
 	// Ensure we only have one entry per key
-	uniqueEntries := make(map[string]*store.ResponseEntry)
+	uniqueEntries := make(map[string]*pbstore.ResponseEntry)
 	for _, entry := range entries {
 		key := string(entry.Key)
 		uniqueEntries[key] = entry
 	}
 
 	// Convert the map back to a slice
-	finalEntries := make([]*store.ResponseEntry, 0, len(uniqueEntries))
+	finalEntries := make([]*pbstore.ResponseEntry, 0, len(uniqueEntries))
 	for _, entry := range uniqueEntries {
 		finalEntries = append(finalEntries, entry)
 	}
 
-	return &store.GetAllResponse{
+	return &pbstore.GetAllResponse{
 		Entries: finalEntries,
 	}, nil
 }

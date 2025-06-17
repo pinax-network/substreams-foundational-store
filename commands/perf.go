@@ -14,10 +14,10 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	pbStore "github.com/streamingfast/substreams-foundationnal-store/pb/store"
-	"github.com/streamingfast/substreams-foundationnal-store/store"
-	"github.com/streamingfast/substreams-foundationnal-store/store/badger"
-	"github.com/streamingfast/substreams-foundationnal-store/store/postgres"
+	pbStore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	"github.com/streamingfast/substreams-foundational-store/store"
+	"github.com/streamingfast/substreams-foundational-store/store/badger"
+	"github.com/streamingfast/substreams-foundational-store/store/postgres"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -36,9 +36,9 @@ var (
 // PerfCmd represents the perf command
 var PerfCmd = &cobra.Command{
 	Use:   "perf",
-	Short: "Performance testing for the store",
-	Long: `Performance testing for the store. This command can test the performance of
-various store implementations (PostgreSQL, Badger) with different configurations.`,
+	Short: "Performance testing for the foundational-store",
+	Long: `Performance testing for the foundational-store. This command can test the performance of
+various foundational-store implementations (PostgreSQL, Badger) with different configurations.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("args:", os.Args[1:])
 
@@ -77,25 +77,25 @@ various store implementations (PostgreSQL, Badger) with different configurations
 
 		var storeInstance store.Store
 
-		// Create the appropriate store based on the DSN driver
+		// Create the appropriate foundational-store based on the DSN driver
 		switch dsn.Driver() {
 		case "postgres":
 			pgStore, err := postgres.NewStore(dsn, perfTypeUrl)
 			if err != nil {
-				return fmt.Errorf("failed to create postgres store: %w", err)
+				return fmt.Errorf("failed to create postgres foundational-store: %w", err)
 			}
 			storeInstance = pgStore
 			fmt.Println("Connected to postgres")
 		case "badger":
-			// For badger store, use the DSN directly
+			// For badger foundational-store, use the DSN directly
 			badgerStore, err := badger.NewStore(dsn, perfTypeUrl, badger.WithNumWorkers(perfNumWorkers))
 			if err != nil {
-				return fmt.Errorf("failed to create badger store: %w", err)
+				return fmt.Errorf("failed to create badger foundational-store: %w", err)
 			}
 			storeInstance = badgerStore
-			fmt.Println("Using badger store with DSN:", dsn, "and", perfNumWorkers, "workers")
+			fmt.Println("Using badger foundational-store with DSN:", dsn, "and", perfNumWorkers, "workers")
 		default:
-			return fmt.Errorf("unsupported store driver: %s", dsn.Driver())
+			return fmt.Errorf("unsupported foundational-store driver: %s", dsn.Driver())
 		}
 
 		err = runSingleQuery(accounts, storeInstance)
@@ -193,7 +193,7 @@ func runRandomDataInsertion(ctx context.Context, storeInstance store.Store, type
 					Value:   data,
 				}
 
-				// Create a store.Entry
+				// Create a foundational-store.Entry
 				entries[i] = &pbStore.Entry{
 					BlockNumber: uint64(localRand.Intn(1000)), // Random block number
 					Key:         store.MustBase58Decode(randomAccount),
@@ -220,7 +220,7 @@ func runRandomDataInsertion(ctx context.Context, storeInstance store.Store, type
 					insertsPerformed, insertTime, numEntries, totalInsertTime/time.Duration(insertsPerformed))
 			}
 
-			// Sleep a short time to avoid overwhelming the store
+			// Sleep a short time to avoid overwhelming the foundational-store
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
@@ -388,7 +388,7 @@ func runConcurrentMultiAccountQueries(numClients, accountsPerQuery int, accounts
 
 					queriesPerformed++
 
-					// Sleep a short time to avoid overwhelming the store
+					// Sleep a short time to avoid overwhelming the foundational-store
 					time.Sleep(100 * time.Millisecond)
 				}
 			}
@@ -462,11 +462,11 @@ func runConcurrentMultiAccountQueries(numClients, accountsPerQuery int, accounts
 func init() {
 	PerfCmd.Flags().StringVar(&perfTypeUrl, "type-url", "patate/poils", "Type URL for the stored values")
 	PerfCmd.Flags().IntVar(&perfNumAccounts, "num-accounts", 4000, "Number of accounts to fetch in multi-account query")
-	PerfCmd.Flags().IntVar(&perfNumWorkers, "num-workers", 10, "Number of workers for parallel operations in badger store")
+	PerfCmd.Flags().IntVar(&perfNumWorkers, "num-workers", 10, "Number of workers for parallel operations in badger foundational-store")
 	PerfCmd.Flags().IntVar(&perfNumClients, "num-clients", 20, "Number of concurrent clients for parallel GetAll operations")
 	PerfCmd.Flags().DurationVar(&perfDuration, "duration", 60*time.Second, "Duration to run the concurrent GetAll test")
 	PerfCmd.Flags().BoolVar(&perfRunConcurrent, "run-concurrent", false, "Run concurrent multi-account queries test")
-	PerfCmd.Flags().StringVar(&perfDSN, "dsn", "postgres://localhost:5432/postgres?sslmode=disable&schemaName=magic", "Data Source Name (DSN) for the store")
+	PerfCmd.Flags().StringVar(&perfDSN, "dsn", "postgres://localhost:5432/postgres?sslmode=disable&schemaName=magic", "Data Source Name (DSN) for the foundational-store")
 	PerfCmd.Flags().StringVar(&perfAccountFile, "account-file", "/Users/cbillett/t/clickhouse-exports/account.bin", "Path to the account.bin file")
 
 	viper.BindPFlag("perf.type_url", PerfCmd.Flags().Lookup("type-url"))

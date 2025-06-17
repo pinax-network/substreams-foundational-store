@@ -1,1 +1,1 @@
-# substreams-foundationnal-store
+# substreams-foundational-store

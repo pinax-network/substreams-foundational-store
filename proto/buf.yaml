@@ -1,5 +1,5 @@
 version: v1
-name: buf.build/streamingfast/magic-store
+name: buf.build/streamingfast/substreams-foundational-store
 deps:
   - buf.build/streamingfast/substreams-sink-sql
 lint:

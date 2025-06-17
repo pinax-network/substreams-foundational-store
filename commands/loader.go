@@ -8,10 +8,10 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/streamingfast/substreams-foundationnal-store/pb/store"
-	storelib "github.com/streamingfast/substreams-foundationnal-store/store"
-	badgerstore "github.com/streamingfast/substreams-foundationnal-store/store/badger"
-	pgstore "github.com/streamingfast/substreams-foundationnal-store/store/postgres"
+	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	storelib "github.com/streamingfast/substreams-foundational-store/store"
+	badgerstore "github.com/streamingfast/substreams-foundational-store/store/badger"
+	pgstore "github.com/streamingfast/substreams-foundational-store/store/postgres"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -24,7 +24,7 @@ var (
 // LoaderCmd represents the loader command
 var LoaderCmd = &cobra.Command{
 	Use:   "loader",
-	Short: "Load data into a store",
+	Short: "Load data into a foundational-store",
 	Long: `Load data from a CSV file into either PostgreSQL or Badger backends.
 
 Example DSNs:
@@ -46,13 +46,13 @@ Example DSNs:
 			return fmt.Errorf("failed to read the CSV header: %w", err)
 		}
 
-		// Step 3: Connect to the database using the appropriate store implementation
+		// Step 3: Connect to the database using the appropriate foundational-store implementation
 		dsn, err := storelib.ParseDSN(loaderDSN)
 		if err != nil {
 			return fmt.Errorf("failed to parse DSN: %w", err)
 		}
 
-		// Create a new store with the AccountOwner type URL based on the driver
+		// Create a new foundational-store with the AccountOwner type URL based on the driver
 		var dataStore storelib.Store
 		typeURL := "type.googleapis.com/AccountOwner"
 
@@ -60,19 +60,19 @@ Example DSNs:
 		case "postgres":
 			dataStore, err = pgstore.NewStore(dsn, typeURL)
 			if err != nil {
-				return fmt.Errorf("failed to create postgres store: %w", err)
+				return fmt.Errorf("failed to create postgres foundational-store: %w", err)
 			}
 		case "badger":
 			dataStore, err = badgerstore.NewStore(dsn, typeURL)
 			if err != nil {
-				return fmt.Errorf("failed to create badger store: %w", err)
+				return fmt.Errorf("failed to create badger foundational-store: %w", err)
 			}
 		default:
 			return fmt.Errorf("unsupported driver: %s", dsn.Driver())
 		}
 
 		count := 0
-		var storeEntries []*store.Entry
+		var storeEntries []*pbstore.Entry
 		for {
 			record, err := reader.Read()
 			if err != nil {
@@ -86,7 +86,7 @@ Example DSNs:
 				}
 				return fmt.Errorf("failed to read CSV record: %w", err)
 			}
-			// Parse block number to use in the store.Entry
+			// Parse block number to use in the foundational-store.Entry
 			blockNumber, _ := strconv.ParseUint(record[0], 10, 64)
 			deleted, _ := strconv.ParseBool(record[3])
 			if deleted {
@@ -96,7 +96,7 @@ Example DSNs:
 			MintAddress := record[6]
 			Owner := record[7]
 
-			accountOwner := &store.AccountOwner{
+			accountOwner := &pbstore.AccountOwner{
 				Mint:  storelib.MustBase58Decode(MintAddress),
 				Owner: storelib.MustBase58Decode(Owner),
 			}
@@ -113,8 +113,8 @@ Example DSNs:
 				Value:   data,
 			}
 
-			// Create a store.Entry
-			entry := &store.Entry{
+			// Create a foundational-store.Entry
+			entry := &pbstore.Entry{
 				BlockNumber: blockNumber,
 				Key:         storelib.MustBase58Decode(Account),
 				Value:       anyValue,
@@ -127,7 +127,7 @@ Example DSNs:
 				if err != nil {
 					return fmt.Errorf("failed to insert batch: %w", err)
 				}
-				storeEntries = []*store.Entry{}
+				storeEntries = []*pbstore.Entry{}
 				count += 1000
 				if count > 0 && count%250000 == 0 {
 					fmt.Printf("Inserted %d entries\n", count)
@@ -139,8 +139,8 @@ Example DSNs:
 	},
 }
 
-func batchInsert(store storelib.Store, entries []*store.Entry) error {
-	// Use the store's SetAll method to insert all entries
+func batchInsert(store storelib.Store, entries []*pbstore.Entry) error {
+	// Use the foundational-store's SetAll method to insert all entries
 	err := store.SetAll(entries)
 	if err != nil {
 		return fmt.Errorf("failed to insert batch: %w", err)

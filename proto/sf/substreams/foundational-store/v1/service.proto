@@ -1,9 +1,11 @@
 syntax = "proto3";
 
 import "google/protobuf/any.proto";
-import "store/type.proto";
+import "sf/substreams/foundational-store/v1/type.proto";
 
-option go_package = "github.com/streamingfast/magic-store-server/pb/store";
+package foundational_store;
+
+option go_package = "github.com/streamingfast/magic-foundational-store-server/pb/foundational-store";
 
 service StoreKV {
   rpc Get(GetRequest) returns (GetResponse);

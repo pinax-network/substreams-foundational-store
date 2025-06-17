@@ -5,10 +5,10 @@ import (
 	"os"
 
 	"github.com/dgraph-io/badger/v3"
-	"github.com/streamingfast/substreams-foundationnal-store/store"
+	"github.com/streamingfast/substreams-foundational-store/store"
 )
 
-// Store implements the store.Store interface for Badger DB
+// Store implements the foundational-store.Store interface for Badger DB
 type Store struct {
 	db         *badger.DB
 	typeUrl    string
@@ -25,7 +25,7 @@ func WithNumWorkers(numWorkers int) StoreOption {
 	}
 }
 
-// NewStore creates a new Badger store
+// NewStore creates a new Badger foundational-store
 func NewStore(dsn *store.DSN, typeUrl string, opts ...StoreOption) (*Store, error) {
 	// Extract Badger-specific parameters
 	// For Badger, we'll use the Database field to hold the path to the Badger DB directory
@@ -43,7 +43,7 @@ func NewStore(dsn *store.DSN, typeUrl string, opts ...StoreOption) (*Store, erro
 		return nil, fmt.Errorf("failed to open Badger DB: %w", err)
 	}
 
-	// Create store with default values
+	// Create foundational-store with default values
 	store := &Store{
 		db:         db,
 		typeUrl:    typeUrl,
@@ -55,7 +55,7 @@ func NewStore(dsn *store.DSN, typeUrl string, opts ...StoreOption) (*Store, erro
 		opt(store)
 	}
 
-	fmt.Printf("Badger store initialized at %s with %d workers\n", dbPath, store.numWorkers)
+	fmt.Printf("Badger foundational-store initialized at %s with %d workers\n", dbPath, store.numWorkers)
 	return store, nil
 }
 

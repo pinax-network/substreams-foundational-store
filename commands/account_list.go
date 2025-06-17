@@ -62,7 +62,7 @@ This command is useful for preparing data for other commands like 'perf'.`,
 				fmt.Print(".")
 				_, err := base58.Decode(record[4])
 				if err != nil {
-					fmt.Println("Failed to decode base58 %q")
+					fmt.Println("Failed to decode base58:", record[4])
 					continue
 				}
 				accounts = append(accounts, record[4])

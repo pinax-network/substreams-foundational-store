@@ -6,8 +6,8 @@ import (
 
 	dgrpcServer "github.com/streamingfast/dgrpc/server"
 	"github.com/streamingfast/dgrpc/server/factory"
-	pbstore "github.com/streamingfast/substreams-foundationnal-store/pb/store"
-	"github.com/streamingfast/substreams-foundationnal-store/store"
+	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	"github.com/streamingfast/substreams-foundational-store/store"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -18,7 +18,7 @@ type StoreServer struct {
 	store store.Store
 }
 
-// NewStoreServer creates a new StoreServer with the given store
+// NewStoreServer creates a new StoreServer with the given foundational-store
 func NewStoreServer(store store.Store) *StoreServer {
 	return &StoreServer{
 		store: store,

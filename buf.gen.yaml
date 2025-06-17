@@ -4,7 +4,7 @@ managed:
   go_package_prefix:
     default: github.com/streamingfast/substreams-sink-sql/pb/schema
     override:
-      buf.build/streamingfast/substreams-sink-sql: github.com/streamingfast/magic-store-server/pb
+      buf.build/streamingfast/substreams-sink-sql: github.com/streamingfast/substreams-foundational-store/pb
 plugins:
   - name: go
     out: pb

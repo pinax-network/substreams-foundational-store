@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	pbstore "github.com/streamingfast/substreams-foundationnal-store/pb/store"
-	"github.com/streamingfast/substreams-foundationnal-store/store"
+	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	"github.com/streamingfast/substreams-foundational-store/store"
 	sink "github.com/streamingfast/substreams-sink"
 	"github.com/streamingfast/substreams/pb/sf/substreams/rpc/v2"
 	"go.uber.org/zap"
@@ -56,7 +56,7 @@ type Handler struct {
 }
 
 func NewSinker(typeUrl string, store store.ForkawareStore, logger *zap.Logger, cursorFilePath string) *Handler {
-	logger = logger.Named("store-sinker")
+	logger = logger.Named("foundational-store-sinker")
 
 	return &Handler{
 		store:          store,
@@ -71,21 +71,21 @@ func (h *Handler) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsr
 		return nil
 	}
 
-	// According to the issue description, data.Output.MapOutput is a pb.store.Entry
+	// According to the issue description, data.Output.MapOutput is a pb.foundational-store.Entry
 	entry := &pbstore.Entry{}
 	if err := data.Output.MapOutput.UnmarshalTo(entry); err != nil {
 		return fmt.Errorf("failed to unmarshal map output to Entry: %w", err)
 	}
 
-	// Store the entry using the provided store
+	// Store the entry using the provided foundational-store
 	if err := h.store.Set(entry); err != nil {
-		return fmt.Errorf("failed to store entry: %w", err)
+		return fmt.Errorf("failed to foundational-store entry: %w", err)
 	}
 
-	blockNum := cursor.Block().Num()
+	lib := cursor.LIB.Num()
 
-	if err := h.store.FlushUpToBlock(blockNum); err != nil {
-		return fmt.Errorf("failed to flush data up to block %d: %w", blockNum, err)
+	if err := h.store.FlushUpToBlock(lib); err != nil {
+		return fmt.Errorf("failed to flush data up to block %d: %w", lib, err)
 	}
 
 	// Save the cursor to a file
