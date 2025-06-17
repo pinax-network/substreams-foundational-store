@@ -3,15 +3,17 @@ module github.com/streamingfast/substreams-foundational-store
 go 1.24
 
 require (
-	cloud.google.com/go/bigtable v1.34.0
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/drone/envsubst v1.0.3
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/lib/pq v1.10.9
 	github.com/mr-tron/base58 v1.2.0
+	github.com/spf13/cobra v1.7.0
+	github.com/spf13/viper v1.15.0
 	github.com/streamingfast/dgrpc v0.0.0-20250423172640-223250ed2391
+	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091
 	github.com/streamingfast/substreams v1.15.2
-	github.com/streamingfast/substreams-sink v0.5.2
+	github.com/streamingfast/substreams-sink v0.5.3-0.20250506114939-a25d1c865c1f
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.26.0
 	google.golang.org/grpc v1.72.0
@@ -27,7 +29,6 @@ require (
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect
 	cloud.google.com/go/iam v1.3.1 // indirect
-	cloud.google.com/go/longrunning v0.6.4 // indirect
 	cloud.google.com/go/monitoring v1.23.0 // indirect
 	cloud.google.com/go/storage v1.50.0 // indirect
 	cloud.google.com/go/trace v1.11.3 // indirect
@@ -112,10 +113,8 @@ require (
 	github.com/sethvargo/go-retry v0.2.3 // indirect
 	github.com/spf13/afero v1.10.0 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
-	github.com/spf13/cobra v1.7.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.15.0 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.5.0 // indirect
 	github.com/streamingfast/bstream v0.0.2-0.20250221181559-fb0809660f91 // indirect
 	github.com/streamingfast/cli v0.0.4-0.20241119021815-815afa473375 // indirect
@@ -123,7 +122,6 @@ require (
 	github.com/streamingfast/derr v0.0.0-20250321151415-6b4fbbcb1bb5 // indirect
 	github.com/streamingfast/dmetrics v0.0.0-20240214191810-524a5c58fbaa // indirect
 	github.com/streamingfast/dstore v0.1.1-0.20250217165048-d508dcc6b33e // indirect
-	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091 // indirect
 	github.com/streamingfast/opaque v0.0.0-20210811180740-0c01d37ea308 // indirect
 	github.com/streamingfast/pbgo v0.0.6-0.20240823134334-812f6a16c5cb // indirect
 	github.com/streamingfast/sf-tracing v0.0.0-20240430173521-888827872b90 // indirect

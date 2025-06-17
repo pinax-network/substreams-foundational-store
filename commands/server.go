@@ -28,7 +28,7 @@ var ServerCmd = &cobra.Command{
 The server supports various foundational-store implementations (PostgreSQL, Badger) with different configurations.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Initialize logger
-		zlog, _ := logging.ApplicationLogger("server", "info")
+		zlog, tracer := logging.ApplicationLogger("server", "info")
 
 		// Get flag values
 		serverDSN, _ := cmd.Flags().GetString("dsn")
@@ -112,7 +112,7 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 			outputModuleName,
 			blockRange,
 			zlog,
-			nil, // tracer is nil
+			tracer, // tracer is nil
 		)
 		if err != nil {
 			return fmt.Errorf("failed to create substreams sink: %w", err)
@@ -141,12 +141,11 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		sinkerDone := make(chan struct{})
 		fmt.Println("new from RUN")
 		go func() {
-			substreamsClient.Run(cmd.Context(), cursor, handler)
 			substreamsClient.OnTerminating(func(err error) {
 				zlog.Error("sinker terminating", zap.Error(err))
 				close(sinkerDone)
 			})
-
+			substreamsClient.Run(cmd.Context(), cursor, handler)
 		}()
 
 		// Wait for an interrupt signal or an error from the server
@@ -167,6 +166,8 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 }
 
 func init() {
+	subsink.AddFlagsToSet(ServerCmd.Flags())
+
 	ServerCmd.Flags().String("addr", ":50051", "Address to listen on")
 	ServerCmd.Flags().String("dsn", "", "DSN for the foundational-store (e.g. badger:///path/to/db or postgres://user:pass@host:port/dbname)")
 	ServerCmd.Flags().String("type-url", "", "Type URL for the stored values")
@@ -176,12 +177,14 @@ func init() {
 	ServerCmd.Flags().String("output-module-name", "", "Name of the output module")
 	ServerCmd.Flags().String("start-block", "", "Start block")
 	ServerCmd.Flags().String("stop-block", "0", "Stop block")
-	ServerCmd.Flags().String("network", "", "Network")
+	// ServerCmd.Flags().String("network", "", "Network")
 	ServerCmd.Flags().String("output-type", "", "Output type")
 	ServerCmd.Flags().String("cursor-file-path", "", "Path to the cursor file")
 
-	ServerCmd.Flags().String(subsink.FlagAPITokenEnvvar, "SUBSTREAMS_API_TOKEN", "name of env var that contains the token")
-	ServerCmd.Flags().String(subsink.FlagAPIKeyEnvvar, "SUBSTREAMS_API_KEY", "name of env var that contains the key")
+	// ServerCmd.Flags().String(subsink.FlagAPITokenEnvvar, "", "name of env var that contains the token")
+	// ServerCmd.Flags().String(subsink.FlagAPIKeyEnvvar, "", "name of env var that contains the key")
+	// ServerCmd.Flags().Bool(subsink.FlagInsecure, false, "runs insecurely")
+	// ServerCmd.Flags().Bool(subsink.FlagPlaintext, false, "uses plain text")
 
 	ServerCmd.MarkFlagRequired("dsn")
 	ServerCmd.MarkFlagRequired("type-url")
