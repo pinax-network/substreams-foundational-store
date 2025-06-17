@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+package foundational_store;
+
 option go_package = "github.com/streamingfast/magic-foundational-store-server/pb/test";
 
 message AccountOwner {
