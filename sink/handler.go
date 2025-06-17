@@ -93,9 +93,9 @@ func (h *Handler) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsr
 		return fmt.Errorf("saving cursor to file %w", err)
 	}
 
-	h.logger.Debug("Stored and flushed entry",
-		zap.Uint64("block_number", data.GetClock().Number),
-		zap.String("type_url", h.typeUrl))
+	// h.logger.Debug("Stored and flushed entry",
+	// 	zap.Uint64("block_number", data.GetClock().Number),
+	// 	zap.String("type_url", h.typeUrl))
 
 	return nil
 }
@@ -114,7 +114,7 @@ func (h *Handler) saveCursorToFile(cursor *sink.Cursor) error {
 		return fmt.Errorf("writing cursor to file: %w", err)
 	}
 
-	h.logger.Debug("Saved cursor to file", zap.String("path", h.cursorFilePath))
+	// h.logger.Debug("Saved cursor to file", zap.String("path", h.cursorFilePath))
 	return nil
 }
 
