@@ -10,3 +10,7 @@ message Entry {
   bytes key = 2;
   google.protobuf.Any value = 4;
 }
+
+message Entries {
+  repeated Entry entries = 1;
+}
