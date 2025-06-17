@@ -22,17 +22,6 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-var (
-	perfTypeUrl       string
-	perfNumAccounts   int
-	perfNumWorkers    int
-	perfNumClients    int
-	perfDuration      time.Duration
-	perfRunConcurrent bool
-	perfDSN           string
-	perfAccountFile   string
-)
-
 // PerfCmd represents the perf command
 var PerfCmd = &cobra.Command{
 	Use:   "perf",
@@ -41,6 +30,16 @@ var PerfCmd = &cobra.Command{
 various foundational-store implementations (PostgreSQL, Badger) with different configurations.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("args:", os.Args[1:])
+
+		// Get flag values
+		perfTypeUrl, _ := cmd.Flags().GetString("type-url")
+		perfNumAccounts, _ := cmd.Flags().GetInt("num-accounts")
+		perfNumWorkers, _ := cmd.Flags().GetInt("num-workers")
+		perfNumClients, _ := cmd.Flags().GetInt("num-clients")
+		perfDuration, _ := cmd.Flags().GetDuration("duration")
+		perfRunConcurrent, _ := cmd.Flags().GetBool("run-concurrent")
+		perfDSN, _ := cmd.Flags().GetString("dsn")
+		perfAccountFile, _ := cmd.Flags().GetString("account-file")
 
 		// Log all command-line flags and their values
 		fmt.Printf("Running with configuration:\n")
@@ -459,14 +458,14 @@ func runConcurrentMultiAccountQueries(numClients, accountsPerQuery int, accounts
 }
 
 func init() {
-	PerfCmd.Flags().StringVar(&perfTypeUrl, "type-url", "patate/poils", "Type URL for the stored values")
-	PerfCmd.Flags().IntVar(&perfNumAccounts, "num-accounts", 4000, "Number of accounts to fetch in multi-account query")
-	PerfCmd.Flags().IntVar(&perfNumWorkers, "num-workers", 10, "Number of workers for parallel operations in badger foundational-store")
-	PerfCmd.Flags().IntVar(&perfNumClients, "num-clients", 20, "Number of concurrent clients for parallel GetAll operations")
-	PerfCmd.Flags().DurationVar(&perfDuration, "duration", 60*time.Second, "Duration to run the concurrent GetAll test")
-	PerfCmd.Flags().BoolVar(&perfRunConcurrent, "run-concurrent", false, "Run concurrent multi-account queries test")
-	PerfCmd.Flags().StringVar(&perfDSN, "dsn", "postgres://localhost:5432/postgres?sslmode=disable&schemaName=magic", "Data Source Name (DSN) for the foundational-store")
-	PerfCmd.Flags().StringVar(&perfAccountFile, "account-file", "/Users/cbillett/t/clickhouse-exports/account.bin", "Path to the account.bin file")
+	PerfCmd.Flags().String("type-url", "patate/poils", "Type URL for the stored values")
+	PerfCmd.Flags().Int("num-accounts", 4000, "Number of accounts to fetch in multi-account query")
+	PerfCmd.Flags().Int("num-workers", 10, "Number of workers for parallel operations in badger foundational-store")
+	PerfCmd.Flags().Int("num-clients", 20, "Number of concurrent clients for parallel GetAll operations")
+	PerfCmd.Flags().Duration("duration", 60*time.Second, "Duration to run the concurrent GetAll test")
+	PerfCmd.Flags().Bool("run-concurrent", false, "Run concurrent multi-account queries test")
+	PerfCmd.Flags().String("dsn", "postgres://localhost:5432/postgres?sslmode=disable&schemaName=magic", "Data Source Name (DSN) for the foundational-store")
+	PerfCmd.Flags().String("account-file", "/Users/cbillett/t/clickhouse-exports/account.bin", "Path to the account.bin file")
 
 	viper.BindPFlag("perf.type_url", PerfCmd.Flags().Lookup("type-url"))
 	viper.BindPFlag("perf.num_accounts", PerfCmd.Flags().Lookup("num-accounts"))

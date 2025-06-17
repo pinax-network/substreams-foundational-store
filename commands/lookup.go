@@ -13,12 +13,6 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-var (
-	lookupTypeUrl   string
-	lookupDSN       string
-	lookupPrefixStr string
-)
-
 // LookupResult represents a key-value pair with block number
 type LookupResult struct {
 	Key         []byte
@@ -33,6 +27,11 @@ var LookupCmd = &cobra.Command{
 	Long: `Lookup keys with a prefix in a Badger foundational-store and display the results.
 This command only works with Badger stores.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Get flag values
+		lookupPrefixStr, _ := cmd.Flags().GetString("prefix")
+		lookupDSN, _ := cmd.Flags().GetString("dsn")
+		lookupTypeUrl, _ := cmd.Flags().GetString("type-url")
+
 		if lookupPrefixStr == "" {
 			return fmt.Errorf("prefix is required")
 		}
@@ -152,9 +151,9 @@ func performPrefixLookup(s *badger.Store, prefix []byte) ([]LookupResult, error)
 }
 
 func init() {
-	LookupCmd.Flags().StringVar(&lookupTypeUrl, "type-url", "AccountOwner", "Type URL for the stored values")
-	LookupCmd.Flags().StringVar(&lookupDSN, "dsn", "badger:///tmp/badger-db", "Data Source Name (DSN) for the Badger foundational-store")
-	LookupCmd.Flags().StringVar(&lookupPrefixStr, "prefix", "", "Prefix to lookup in the Badger foundational-store")
+	LookupCmd.Flags().String("type-url", "AccountOwner", "Type URL for the stored values")
+	LookupCmd.Flags().String("dsn", "badger:///tmp/badger-db", "Data Source Name (DSN) for the Badger foundational-store")
+	LookupCmd.Flags().String("prefix", "", "Prefix to lookup in the Badger foundational-store")
 	LookupCmd.MarkFlagRequired("prefix")
 
 	viper.BindPFlag("lookup.type_url", LookupCmd.Flags().Lookup("type-url"))

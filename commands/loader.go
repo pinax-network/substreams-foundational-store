@@ -16,11 +16,6 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-var (
-	loaderFilePath string
-	loaderDSN      string
-)
-
 // LoaderCmd represents the loader command
 var LoaderCmd = &cobra.Command{
 	Use:   "loader",
@@ -31,6 +26,10 @@ Example DSNs:
   - PostgreSQL: postgres://localhost:5432/postgres?sslmode=disable&schemaName=magic2
   - Badger: badger:///path/to/database`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Get flag values
+		loaderFilePath, _ := cmd.Flags().GetString("file")
+		loaderDSN, _ := cmd.Flags().GetString("dsn")
+
 		// Step 1: Open the file
 		file, err := os.Open(loaderFilePath)
 		if err != nil {
@@ -149,8 +148,8 @@ func batchInsert(store storelib.Store, entries []*pbstore.Entry, blockNumber uin
 }
 
 func init() {
-	LoaderCmd.Flags().StringVar(&loaderFilePath, "file", "/Users/cbillett/t/clickhouse-exports/initialized_accounts.csv", "Path to the CSV file")
-	LoaderCmd.Flags().StringVar(&loaderDSN, "dsn", "postgres://localhost:5432/postgres?sslmode=disable&schemaName=magic", "DSN connection string")
+	LoaderCmd.Flags().String("file", "/Users/cbillett/t/clickhouse-exports/initialized_accounts.csv", "Path to the CSV file")
+	LoaderCmd.Flags().String("dsn", "postgres://localhost:5432/postgres?sslmode=disable&schemaName=magic", "DSN connection string")
 
 	viper.BindPFlag("loader.file", LoaderCmd.Flags().Lookup("file"))
 	viper.BindPFlag("loader.dsn", LoaderCmd.Flags().Lookup("dsn"))

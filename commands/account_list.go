@@ -19,11 +19,6 @@ type Entry struct {
 	CreateTime  time.Time `db:"create_time"`
 }
 
-var (
-	accountListFilePath   string
-	accountListOutputPath string
-)
-
 // accountListCmd represents the account_list command
 var AccountListCmd = &cobra.Command{
 	Use:   "account-list",
@@ -31,6 +26,10 @@ var AccountListCmd = &cobra.Command{
 	Long: `Extract accounts from a CSV file containing account information and save them to a binary file using gob encoding.
 This command is useful for preparing data for other commands like 'perf'.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Get flag values
+		accountListFilePath, _ := cmd.Flags().GetString("file")
+		accountListOutputPath, _ := cmd.Flags().GetString("output")
+
 		// Step 1: Open the file
 		file, err := os.Open(accountListFilePath)
 		if err != nil {
@@ -96,8 +95,8 @@ This command is useful for preparing data for other commands like 'perf'.`,
 }
 
 func init() {
-	AccountListCmd.Flags().StringVar(&accountListFilePath, "file", "/Users/cbillett/t/clickhouse-exports/small_initialized_accounts.csv", "Path to the CSV file")
-	AccountListCmd.Flags().StringVar(&accountListOutputPath, "output", "/Users/cbillett/t/clickhouse-exports/small_account.bin", "Path to the output binary file")
+	AccountListCmd.Flags().String("file", "/Users/cbillett/t/clickhouse-exports/small_initialized_accounts.csv", "Path to the CSV file")
+	AccountListCmd.Flags().String("output", "/Users/cbillett/t/clickhouse-exports/small_account.bin", "Path to the output binary file")
 
 	viper.BindPFlag("account_list.file", AccountListCmd.Flags().Lookup("file"))
 	viper.BindPFlag("account_list.output", AccountListCmd.Flags().Lookup("output"))

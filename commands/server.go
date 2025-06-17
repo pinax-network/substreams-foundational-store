@@ -20,24 +20,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	serverAddr         string
-	serverDSN          string
-	serverTypeUrl      string
-	serverWorkers      int
-	zlog               *zap.Logger
-	substreamsEndpoint string
-	manifestPath       string
-	outputModuleName   string
-	startBlock         string
-	stopBlock          string
-	network            string
-	outputType         string
-	cursorFilePath     string
-	apiTokenVarEnvName string
-	apiKeyVarEnvName   string
-)
-
 // ServerCmd represents the server command
 var ServerCmd = &cobra.Command{
 	Use:   "server",
@@ -45,6 +27,22 @@ var ServerCmd = &cobra.Command{
 	Long: `Start the gRPC server that provides access to the foundational-store.
 The server supports various foundational-store implementations (PostgreSQL, Badger) with different configurations.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Initialize logger
+		zlog, _ := logging.ApplicationLogger("server", "info")
+
+		// Get flag values
+		serverDSN, _ := cmd.Flags().GetString("dsn")
+		serverTypeUrl, _ := cmd.Flags().GetString("type-url")
+		serverAddr, _ := cmd.Flags().GetString("addr")
+		serverWorkers, _ := cmd.Flags().GetInt("workers")
+		substreamsEndpoint, _ := cmd.Flags().GetString("substreams-endpoint")
+		manifestPath, _ := cmd.Flags().GetString("manifest-path")
+		outputModuleName, _ := cmd.Flags().GetString("output-module-name")
+		startBlock, _ := cmd.Flags().GetString("start-block")
+		stopBlock, _ := cmd.Flags().GetString("stop-block")
+		outputType, _ := cmd.Flags().GetString("output-type")
+		cursorFilePath, _ := cmd.Flags().GetString("cursor-file-path")
+
 		if serverDSN == "" {
 			return fmt.Errorf("DSN is required")
 		}
@@ -169,21 +167,21 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 }
 
 func init() {
-	ServerCmd.Flags().StringVar(&serverAddr, "addr", ":50051", "Address to listen on")
-	ServerCmd.Flags().StringVar(&serverDSN, "dsn", "", "DSN for the foundational-store (e.g. badger:///path/to/db or postgres://user:pass@host:port/dbname)")
-	ServerCmd.Flags().StringVar(&serverTypeUrl, "type-url", "", "Type URL for the stored values")
-	ServerCmd.Flags().IntVar(&serverWorkers, "workers", 10, "Number of workers for parallel operations")
-	ServerCmd.Flags().StringVar(&substreamsEndpoint, "substreams-endpoint", "", "Substreams endpoint")
-	ServerCmd.Flags().StringVar(&manifestPath, "manifest-path", "", "Path to the manifest file")
-	ServerCmd.Flags().StringVar(&outputModuleName, "output-module-name", "", "Name of the output module")
-	ServerCmd.Flags().StringVar(&startBlock, "start-block", "", "Start block")
-	ServerCmd.Flags().StringVar(&stopBlock, "stop-block", "0", "Stop block")
-	ServerCmd.Flags().StringVar(&network, "network", "", "Network")
-	ServerCmd.Flags().StringVar(&outputType, "output-type", "", "Output type")
-	ServerCmd.Flags().StringVar(&cursorFilePath, "cursor-file-path", "", "Path to the cursor file")
+	ServerCmd.Flags().String("addr", ":50051", "Address to listen on")
+	ServerCmd.Flags().String("dsn", "", "DSN for the foundational-store (e.g. badger:///path/to/db or postgres://user:pass@host:port/dbname)")
+	ServerCmd.Flags().String("type-url", "", "Type URL for the stored values")
+	ServerCmd.Flags().Int("workers", 10, "Number of workers for parallel operations")
+	ServerCmd.Flags().String("substreams-endpoint", "", "Substreams endpoint")
+	ServerCmd.Flags().String("manifest-path", "", "Path to the manifest file")
+	ServerCmd.Flags().String("output-module-name", "", "Name of the output module")
+	ServerCmd.Flags().String("start-block", "", "Start block")
+	ServerCmd.Flags().String("stop-block", "0", "Stop block")
+	ServerCmd.Flags().String("network", "", "Network")
+	ServerCmd.Flags().String("output-type", "", "Output type")
+	ServerCmd.Flags().String("cursor-file-path", "", "Path to the cursor file")
 
-	ServerCmd.Flags().StringVar(&apiTokenVarEnvName, subsink.FlagAPITokenEnvvar, "name of env var that contains the token", "")
-	ServerCmd.Flags().StringVar(&apiKeyVarEnvName, subsink.FlagAPIKeyEnvvar, "name of env var that contains the key", "")
+	ServerCmd.Flags().String(subsink.FlagAPITokenEnvvar, "", "name of env var that contains the token")
+	ServerCmd.Flags().String(subsink.FlagAPIKeyEnvvar, "", "name of env var that contains the key")
 
 	ServerCmd.MarkFlagRequired("dsn")
 	ServerCmd.MarkFlagRequired("type-url")
@@ -200,7 +198,4 @@ func init() {
 	viper.BindPFlag("substreams.network", ServerCmd.Flags().Lookup("network"))
 	viper.BindPFlag("substreams.output_type", ServerCmd.Flags().Lookup("output-type"))
 	viper.BindPFlag("server.cursor_file_path", ServerCmd.Flags().Lookup("cursor-file-path"))
-
-	// Initialize logger
-	zlog, _ = logging.ApplicationLogger("server", "info")
 }

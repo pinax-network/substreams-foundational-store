@@ -14,13 +14,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var (
-	getAllServer      string
-	getAllKeys        string
-	getAllBlockNumber uint64
-	getAllOmitDeleted bool
-)
-
 // GetAllCmd represents the getall command
 var GetAllCmd = &cobra.Command{
 	Use:   "getall",
@@ -28,6 +21,12 @@ var GetAllCmd = &cobra.Command{
 	Long: `Get multiple values from the foundational-store using gRPC.
 This command connects to a gRPC server and retrieves values for the specified keys.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Get flag values
+		getAllKeys, _ := cmd.Flags().GetString("keys")
+		getAllServer, _ := cmd.Flags().GetString("server")
+		getAllBlockNumber, _ := cmd.Flags().GetUint64("block-number")
+		getAllOmitDeleted, _ := cmd.Flags().GetBool("omit-deleted")
+
 		if getAllKeys == "" {
 			return fmt.Errorf("keys are required")
 		}
@@ -107,10 +106,10 @@ This command connects to a gRPC server and retrieves values for the specified ke
 }
 
 func init() {
-	GetAllCmd.Flags().StringVar(&getAllServer, "server", "localhost:50051", "gRPC server address")
-	GetAllCmd.Flags().StringVar(&getAllKeys, "keys", "", "Comma-separated list of keys to lookup (base58 encoded)")
-	GetAllCmd.Flags().Uint64Var(&getAllBlockNumber, "block-number", 0, "Block number for the query")
-	GetAllCmd.Flags().BoolVar(&getAllOmitDeleted, "omit-deleted", false, "Whether to omit deleted values")
+	GetAllCmd.Flags().String("server", "localhost:50051", "gRPC server address")
+	GetAllCmd.Flags().String("keys", "", "Comma-separated list of keys to lookup (base58 encoded)")
+	GetAllCmd.Flags().Uint64("block-number", 0, "Block number for the query")
+	GetAllCmd.Flags().Bool("omit-deleted", false, "Whether to omit deleted values")
 
 	GetAllCmd.MarkFlagRequired("keys")
 	GetAllCmd.MarkFlagRequired("server")
