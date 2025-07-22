@@ -8,6 +8,9 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  # Enable debug logging
+  ACTIONS_STEP_DEBUG: true
+  ACTIONS_RUNNER_DEBUG: true
 jobs:
   build-and-push-image:
     runs-on: ubuntu-20.04
@@ -19,10 +22,38 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      
+      - name: Debug - Show environment and workspace
+        run: |
+          echo "=== Environment Debug Info ==="
+          echo "GitHub Workspace: $GITHUB_WORKSPACE"
+          echo "GitHub Repository: $GITHUB_REPOSITORY"
+          echo "GitHub Ref: $GITHUB_REF"
+          echo "GitHub Actor: $GITHUB_ACTOR"
+          echo "Registry: $REGISTRY"
+          echo "Image Name: $IMAGE_NAME"
+          echo "=== Workspace Contents ==="
+          ls -la
+          echo "=== Go Module Info ==="
+          if [ -f go.mod ]; then
+            cat go.mod | head -10
+          else
+            echo "No go.mod found"
+          fi
+      
       - name: Install Go
         uses: actions/setup-go@v4
         with:
           go-version: 1.24.x
+      
+      - name: Debug - Go installation
+        run: |
+          echo "=== Go Installation Debug ==="
+          go version
+          go env
+          echo "GOPATH: $GOPATH"
+          echo "GOROOT: $GOROOT"
+      
       - uses: actions/cache@v4
         with:
           path: |
@@ -31,14 +62,54 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+      
+      - name: Debug - Cache status
+        run: |
+          echo "=== Cache Debug Info ==="
+          echo "Go mod cache:"
+          ls -la ~/go/pkg/mod/ 2>/dev/null || echo "No mod cache found"
+          echo "Go build cache:"
+          ls -la ~/.cache/go-build/ 2>/dev/null || echo "No build cache found"
+      
+      - name: Download Go dependencies
+        run: |
+          echo "=== Downloading Go Dependencies ==="
+          go mod download -x
+          echo "=== Dependencies downloaded successfully ==="
+      
       - name: Build Binary
-        run: go build -v -o foundational-store ./cmd/foundationnal-store
+        run: |
+          echo "=== Building Go Binary ==="
+          echo "Building from: ./cmd/foundationnal-store"
+          echo "Output binary: foundational-store"
+          ls -la ./cmd/foundationnal-store/ || echo "Source directory not found"
+          go build -v -x -o foundational-store ./cmd/foundationnal-store
+          echo "=== Build completed ==="
+          ls -la foundational-store || echo "Binary not found after build"
+          file foundational-store || echo "Cannot check binary file type"
+      - name: Debug - Pre-Docker login status
+        run: |
+          echo "=== Pre-Docker Login Debug ==="
+          echo "Registry: ${{ env.REGISTRY }}"
+          echo "Username: ${{ github.actor }}"
+          echo "Repository: ${{ github.repository }}"
+          docker --version || echo "Docker not available"
+          echo "Checking if binary exists for Docker build:"
+          ls -la foundational-store || echo "Binary not found!"
+      
       - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Debug - Post-Docker login status
+        run: |
+          echo "=== Post-Docker Login Debug ==="
+          echo "Docker login successful"
+          docker system info || echo "Cannot get docker system info"
+      
       - name: Generate docker tags/labels from github build context
         id: meta
         uses: docker/metadata-action@v5
@@ -50,18 +121,61 @@ jobs:
             type=raw,enable=${{ github.ref == 'refs/heads/develop' }},value=develop
           flavor: |
             latest=${{ startsWith(github.ref, 'refs/tags/') }}
+      
+      - name: Debug - Docker metadata output
+        run: |
+          echo "=== Docker Metadata Debug ==="
+          echo "Generated tags: ${{ steps.meta.outputs.tags }}"
+          echo "Generated labels: ${{ steps.meta.outputs.labels }}"
+          echo "=== Dockerfile check ==="
+          if [ -f Dockerfile ]; then
+            echo "Dockerfile found:"
+            cat Dockerfile
+          else
+            echo "Dockerfile not found!"
+          fi
+      
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          # org.opencontainers.image.version will match the tag name
           labels: ${{ steps.meta.outputs.labels }}
+          # Enable build progress output
+          progress: plain
+          # Enable build logs
+          outputs: type=registry
+      
+      - name: Debug - Post-Docker build status
+        run: |
+          echo "=== Post-Docker Build Debug ==="
+          echo "Docker build and push completed"
+          echo "Final tags: ${{ steps.meta.outputs.tags }}"
+          echo "Checking pushed images:"
+          for tag in ${{ steps.meta.outputs.tags }}; do
+            echo "Checking tag: $tag"
+            docker manifest inspect "$tag" || echo "Cannot inspect $tag"
+          done
   slack-notifications:
     needs: [build-and-push-image]
     runs-on: ubuntu-20.04
     steps:
+      - name: Debug - Slack notification setup
+        run: |
+          echo "=== Slack Notification Debug ==="
+          echo "Build job status: ${{ needs.build-and-push-image.result }}"
+          echo "Tags from build job: ${{ needs.build-and-push-image.outputs.tags }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Ref type: ${{ github.ref_type }}"
+          echo "Ref name: ${{ github.ref_name }}"
+          echo "Actor: ${{ github.actor }}"
+          if [ -z "${{ secrets.SLACK_WEBHOOK }}" ]; then
+            echo "WARNING: SLACK_WEBHOOK secret is not set"
+          else
+            echo "SLACK_WEBHOOK secret is configured"
+          fi
+      
       - name: Slack notification
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
@@ -69,3 +183,9 @@ jobs:
         with:
           args: |
             :done: *${{ github.repository }}* Success building docker images from ${{ github.ref_type }} _${{ github.ref_name }}_ (${{ github.actor }}) :sparkling_heart: ```${{ join(needs.build-and-push-image.outputs.tags, ' ') }}```
+        continue-on-error: true
+      
+      - name: Debug - Slack notification result
+        run: |
+          echo "=== Slack Notification Completed ==="
+          echo "Notification step finished"
