@@ -18,7 +18,7 @@ jobs:
       tags: ${{ steps.meta.outputs.tags }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4k
+        uses: actions/checkout@v4
       - name: Install Go
         uses: actions/setup-go@v4
         with:
