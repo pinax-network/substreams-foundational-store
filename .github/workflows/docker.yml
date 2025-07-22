@@ -20,6 +20,9 @@ jobs:
     outputs:
       tags: ${{ steps.meta.outputs.tags }}
     steps:
+      - name: Debug Step
+        run: echo "This is a test output"
+
       - name: Checkout repository
         uses: actions/checkout@v4
       
