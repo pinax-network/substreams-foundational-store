@@ -9,8 +9,8 @@ import (
 
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 	"github.com/streamingfast/substreams-foundational-store/store"
-	sink "github.com/streamingfast/substreams-sink"
 	pbsubstreamsrpc "github.com/streamingfast/substreams/pb/sf/substreams/rpc/v2"
+	sink "github.com/streamingfast/substreams/sink"
 	"go.uber.org/zap"
 )
 
@@ -67,7 +67,7 @@ func NewSinker(typeUrl string, store store.ForkawareStore, logger *zap.Logger, c
 }
 
 func (h *Handler) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrpc.BlockScopedData, isLive *bool, cursor *sink.Cursor) error {
-	if data.Output == nil || data.Output.MapOutput == nil {
+	if data.Output == nil || data.Output.MapOutput == nil || data.Output.MapOutput.Value == nil {
 		return nil
 	}
 

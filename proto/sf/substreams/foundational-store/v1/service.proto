@@ -1,7 +1,6 @@
 syntax = "proto3";
 
 import "google/protobuf/any.proto";
-import "sf/substreams/foundational-store/v1/type.proto";
 
 package foundational_store;
 
@@ -46,4 +45,5 @@ enum ResponseCode {
   FOUND = 1;
   NOT_FOUND = 2;
   NOT_FOUND_FINALIZE = 4;
+  NOT_FOUND_BLOCK_NOT_REACH = 5;
 }

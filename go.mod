@@ -1,6 +1,8 @@
 module github.com/streamingfast/substreams-foundational-store
 
-go 1.24
+go 1.24.2
+
+toolchain go1.24.5
 
 require (
 	github.com/dgraph-io/badger/v3 v3.2103.5
@@ -12,10 +14,10 @@ require (
 	github.com/spf13/viper v1.15.0
 	github.com/streamingfast/dgrpc v0.0.0-20250423172640-223250ed2391
 	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091
-	github.com/streamingfast/substreams v1.15.2
-	github.com/streamingfast/substreams-sink v0.5.3-0.20250506114939-a25d1c865c1f
+	github.com/streamingfast/substreams v1.16.2-0.20250723162442-12d33e0c3492
+	github.com/streamingfast/substreams-sink v0.5.3-0.20250709174620-9e8293332a06
 	github.com/stretchr/testify v1.10.0
-	go.uber.org/zap v1.26.0
+	go.uber.org/zap v1.27.0
 	google.golang.org/grpc v1.72.0
 	google.golang.org/protobuf v1.36.6
 )
@@ -47,9 +49,11 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.12.0 // indirect
 	github.com/blendle/zapdriver v1.3.2-0.20200203083823-9200777f8a3d // indirect
+	github.com/bobg/go-generics/v2 v2.1.1 // indirect
 	github.com/bobg/go-generics/v3 v3.5.0 // indirect
 	github.com/bobg/go-generics/v4 v4.1.2 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
+	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/lipgloss v1.0.0 // indirect
@@ -99,6 +103,7 @@ require (
 	github.com/openzipkin/zipkin-go v0.4.2 // indirect
 	github.com/paulbellamy/ratecounter v0.2.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
+	github.com/pinax-network/graph-networks-libs/packages/golang v0.7.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -120,8 +125,9 @@ require (
 	github.com/streamingfast/cli v0.0.4-0.20241119021815-815afa473375 // indirect
 	github.com/streamingfast/dbin v0.9.1-0.20231117225723-59790c798e2c // indirect
 	github.com/streamingfast/derr v0.0.0-20250321151415-6b4fbbcb1bb5 // indirect
-	github.com/streamingfast/dmetrics v0.0.0-20240214191810-524a5c58fbaa // indirect
-	github.com/streamingfast/dstore v0.1.1-0.20250217165048-d508dcc6b33e // indirect
+	github.com/streamingfast/dmetrics v0.0.0-20250711072030-f023e918a175 // indirect
+	github.com/streamingfast/dstore v0.1.1-0.20250609173504-95368d3441ee // indirect
+	github.com/streamingfast/firehose-networks v0.2.0 // indirect
 	github.com/streamingfast/opaque v0.0.0-20210811180740-0c01d37ea308 // indirect
 	github.com/streamingfast/pbgo v0.0.6-0.20240823134334-812f6a16c5cb // indirect
 	github.com/streamingfast/sf-tracing v0.0.0-20240430173521-888827872b90 // indirect
@@ -145,6 +151,7 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/crypto v0.37.0 // indirect
+	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1 // indirect
 	golang.org/x/mod v0.18.0 // indirect
 	golang.org/x/net v0.39.0 // indirect
 	golang.org/x/oauth2 v0.29.0 // indirect
@@ -161,3 +168,5 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/streamingfast/substreams => ../substreams

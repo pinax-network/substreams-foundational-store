@@ -72,21 +72,23 @@ Example DSNs:
 
 		count := 0
 		var storeEntries []*pbstore.Entry
+		var blockNumber uint64
 		for {
 			record, err := reader.Read()
-			// Parse block number to use in the foundational-store.Entry
-			blockNumber, _ := strconv.ParseUint(record[0], 10, 64)
 			if err != nil {
 				if err.Error() == "EOF" { // Detect end of file
-					err = batchInsert(dataStore, storeEntries, blockNumber)
-					if err != nil {
-						return fmt.Errorf("failed to insert batch: %w", err)
+					if len(storeEntries) > 0 {
+						err = batchInsert(dataStore, storeEntries, blockNumber)
+						if err != nil {
+							return fmt.Errorf("failed to insert batch: %w", err)
+						}
 					}
 					fmt.Println("Goodbye!")
 					break
 				}
 				return fmt.Errorf("failed to read CSV record: %w", err)
 			}
+			blockNumber, _ = strconv.ParseUint(record[0], 10, 64)
 			deleted, _ := strconv.ParseBool(record[3])
 			if deleted {
 				continue

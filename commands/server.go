@@ -16,7 +16,7 @@ import (
 	"github.com/streamingfast/substreams-foundational-store/store/badger"
 	"github.com/streamingfast/substreams-foundational-store/store/postgres"
 
-	subsink "github.com/streamingfast/substreams-sink"
+	subsink "github.com/streamingfast/substreams/sink"
 	"go.uber.org/zap"
 )
 
@@ -35,12 +35,8 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		serverTypeUrl, _ := cmd.Flags().GetString("type-url")
 		serverAddr, _ := cmd.Flags().GetString("addr")
 		serverWorkers, _ := cmd.Flags().GetInt("workers")
-		substreamsEndpoint, _ := cmd.Flags().GetString("substreams-endpoint")
 		manifestPath, _ := cmd.Flags().GetString("manifest-path")
 		outputModuleName, _ := cmd.Flags().GetString("output-module-name")
-		startBlock, _ := cmd.Flags().GetString("start-block")
-		stopBlock, _ := cmd.Flags().GetString("stop-block")
-		outputType, _ := cmd.Flags().GetString("output-type")
 		cursorFilePath, _ := cmd.Flags().GetString("cursor-file-path")
 
 		if serverDSN == "" {
@@ -92,24 +88,13 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-		// Calculate the block range from start-block and stop-block
-		blockRange := ""
-		if startBlock != "" {
-			blockRange = startBlock
-		}
-		blockRange += ":"
-		if stopBlock != "0" {
-			blockRange += stopBlock
-		}
-
 		// Create a substreams sink using Viper configuration
 		substreamsClient, err := subsink.NewFromViper(
 			cmd,
-			outputType,
-			substreamsEndpoint,
+			"",
 			manifestPath,
 			outputModuleName,
-			blockRange,
+			"substreams-foundational-store",
 			zlog,
 			tracer, // tracer is nil
 		)
@@ -169,12 +154,8 @@ func init() {
 	ServerCmd.Flags().String("dsn", "", "DSN for the foundational-store (e.g. badger:///path/to/db or postgres://user:pass@host:port/dbname)")
 	ServerCmd.Flags().String("type-url", "", "Type URL for the stored values")
 	ServerCmd.Flags().Int("workers", 10, "Number of workers for parallel operations")
-	ServerCmd.Flags().String("substreams-endpoint", "", "Substreams endpoint")
 	ServerCmd.Flags().String("manifest-path", "", "Path to the manifest file")
 	ServerCmd.Flags().String("output-module-name", "", "Name of the output module")
-	ServerCmd.Flags().String("start-block", "", "Start block")
-	ServerCmd.Flags().String("stop-block", "0", "Stop block")
-	ServerCmd.Flags().String("output-type", "", "Output type")
 	ServerCmd.Flags().String("cursor-file-path", "/tmp/cursor.txt", "Path to the cursor file")
 
 	ServerCmd.MarkFlagRequired("dsn")
@@ -184,12 +165,7 @@ func init() {
 	viper.BindPFlag("server.dsn", ServerCmd.Flags().Lookup("dsn"))
 	viper.BindPFlag("server.type_url", ServerCmd.Flags().Lookup("type-url"))
 	viper.BindPFlag("server.workers", ServerCmd.Flags().Lookup("workers"))
-	viper.BindPFlag("substreams.endpoint", ServerCmd.Flags().Lookup("substreams-endpoint"))
 	viper.BindPFlag("substreams.manifest_path", ServerCmd.Flags().Lookup("manifest-path"))
 	viper.BindPFlag("substreams.output_module_name", ServerCmd.Flags().Lookup("output-module-name"))
-	viper.BindPFlag("substreams.start_block", ServerCmd.Flags().Lookup("start-block"))
-	viper.BindPFlag("substreams.stop_block", ServerCmd.Flags().Lookup("stop-block"))
-	viper.BindPFlag("substreams.network", ServerCmd.Flags().Lookup("network"))
-	viper.BindPFlag("substreams.output_type", ServerCmd.Flags().Lookup("output-type"))
 	viper.BindPFlag("server.cursor_file_path", ServerCmd.Flags().Lookup("cursor-file-path"))
 }

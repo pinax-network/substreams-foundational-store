@@ -27,7 +27,12 @@ func NewStoreServer(store store.Store) *StoreServer {
 
 // Get implements the Get method of the StoreKV service
 func (s *StoreServer) Get(ctx context.Context, req *pbstore.GetRequest) (*pbstore.GetResponse, error) {
-	return s.store.Get(req)
+	r, err := s.store.Get(req)
+	if err != nil {
+		return nil, fmt.Errorf("getting from store: %w", err)
+	}
+	fmt.Println(r)
+	return r, nil
 }
 
 // GetAll implements the GetAll method of the StoreKV service
