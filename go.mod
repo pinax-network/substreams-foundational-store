@@ -15,7 +15,6 @@ require (
 	github.com/streamingfast/dgrpc v0.0.0-20250423172640-223250ed2391
 	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091
 	github.com/streamingfast/substreams v1.16.2-0.20250723162442-12d33e0c3492
-	github.com/streamingfast/substreams-sink v0.5.3-0.20250709174620-9e8293332a06
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	google.golang.org/grpc v1.72.0
@@ -51,7 +50,6 @@ require (
 	github.com/blendle/zapdriver v1.3.2-0.20200203083823-9200777f8a3d // indirect
 	github.com/bobg/go-generics/v2 v2.1.1 // indirect
 	github.com/bobg/go-generics/v3 v3.5.0 // indirect
-	github.com/bobg/go-generics/v4 v4.1.2 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -168,4 +166,3 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
