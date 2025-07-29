@@ -168,4 +168,10 @@ func init() {
 	viper.BindPFlag("substreams.manifest_path", ServerCmd.Flags().Lookup("manifest-path"))
 	viper.BindPFlag("substreams.output_module_name", ServerCmd.Flags().Lookup("output-module-name"))
 	viper.BindPFlag("server.cursor_file_path", ServerCmd.Flags().Lookup("cursor-file-path"))
+	
+	viper.BindPFlag("endpoint", ServerCmd.Flags().Lookup("endpoint"))
+	viper.BindPFlag("start-block", ServerCmd.Flags().Lookup("start-block"))
+	viper.BindPFlag("stop-block", ServerCmd.Flags().Lookup("stop-block"))
+	viper.BindPFlag("development-mode", ServerCmd.Flags().Lookup("development-mode"))
+	viper.BindPFlag("plaintext", ServerCmd.Flags().Lookup("plaintext"))
 }
