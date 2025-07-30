@@ -80,6 +80,10 @@ func (m *mockStore) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllRespo
 	return response, nil
 }
 
+func (m *mockStore) IsEmpty() (bool, error) {
+	return len(m.entries) == 0, nil
+}
+
 func TestCacheStore(t *testing.T) {
 	// Create a mock foundational-store
 	mockStore := newMockStore()

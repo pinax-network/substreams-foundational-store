@@ -39,12 +39,17 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		outputModuleName, _ := cmd.Flags().GetString("output-module-name")
 		cursorFilePath, _ := cmd.Flags().GetString("cursor-file-path")
 
+		// Get initialization flags
+		autoInit, _ := cmd.Flags().GetBool("auto-init")
+		initDataFile, _ := cmd.Flags().GetString("init-data-file")
+		forceInit, _ := cmd.Flags().GetBool("force-init")
+
 		if serverDSN == "" {
-			return fmt.Errorf("DSN is required")
+			return fmt.Errorf("dsn is required")
 		}
 
 		if serverTypeUrl == "" {
-			return fmt.Errorf("Type URL is required")
+			return fmt.Errorf("type URL is required")
 		}
 
 		// Parse the DSN
@@ -78,6 +83,29 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 
 		// Wrap the foundational-store with a ForkAware foundational-store
 		storeImpl := ForkAware.NewStore(baseStore)
+
+		// Check if database initialization is needed
+		if autoInit || forceInit {
+			isEmpty, err := storeImpl.IsEmpty()
+			if err != nil {
+				return fmt.Errorf("failed to check if database is empty: %w", err)
+			}
+
+			if isEmpty || forceInit {
+				if initDataFile != "" {
+					zlog.Info("Initializing database with data from CSV file", zap.String("file", initDataFile))
+					err = LoadCSVIntoStore(storeImpl, initDataFile)
+					if err != nil {
+						return fmt.Errorf("failed to initialize database from CSV: %w", err)
+					}
+					zlog.Info("Database initialization completed successfully")
+				} else if autoInit {
+					zlog.Warn("Auto-init enabled but no init-data-file provided, skipping initialization")
+				}
+			} else if autoInit {
+				zlog.Info("Database is not empty, skipping auto-initialization")
+			}
+		}
 
 		// Ensure we close the Badger foundational-store when we're done
 		if badgerStore != nil {
@@ -158,6 +186,10 @@ func init() {
 	ServerCmd.Flags().String("output-module-name", "", "Name of the output module")
 	ServerCmd.Flags().String("cursor-file-path", "/tmp/cursor.txt", "Path to the cursor file")
 
+	ServerCmd.Flags().Bool("auto-init", false, "Automatically initialize database if empty")
+	ServerCmd.Flags().String("init-data-file", "", "CSV file to load initial data from (used with --auto-init)")
+	ServerCmd.Flags().Bool("force-init", false, "Force re-initialization even if database has data")
+
 	ServerCmd.MarkFlagRequired("dsn")
 	ServerCmd.MarkFlagRequired("type-url")
 
@@ -168,7 +200,11 @@ func init() {
 	viper.BindPFlag("substreams.manifest_path", ServerCmd.Flags().Lookup("manifest-path"))
 	viper.BindPFlag("substreams.output_module_name", ServerCmd.Flags().Lookup("output-module-name"))
 	viper.BindPFlag("server.cursor_file_path", ServerCmd.Flags().Lookup("cursor-file-path"))
-	
+
+	viper.BindPFlag("server.auto_init", ServerCmd.Flags().Lookup("auto-init"))
+	viper.BindPFlag("server.init_data_file", ServerCmd.Flags().Lookup("init-data-file"))
+	viper.BindPFlag("server.force_init", ServerCmd.Flags().Lookup("force-init"))
+
 	viper.BindPFlag("endpoint", ServerCmd.Flags().Lookup("endpoint"))
 	viper.BindPFlag("start-block", ServerCmd.Flags().Lookup("start-block"))
 	viper.BindPFlag("stop-block", ServerCmd.Flags().Lookup("stop-block"))

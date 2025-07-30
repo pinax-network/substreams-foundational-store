@@ -226,3 +226,25 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 		Entries: finalEntries,
 	}, nil
 }
+
+func (s *Store) IsEmpty() (bool, error) {
+	isEmpty := true
+	err := s.db.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.PrefetchValues = false
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		it.Rewind()
+		if it.Valid() {
+			isEmpty = false
+		}
+		return nil
+	})
+
+	if err != nil {
+		return false, fmt.Errorf("failed to check if Badger database is empty: %w", err)
+	}
+
+	return isEmpty, nil
+}

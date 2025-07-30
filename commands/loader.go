@@ -30,28 +30,12 @@ Example DSNs:
 		loaderFilePath, _ := cmd.Flags().GetString("file")
 		loaderDSN, _ := cmd.Flags().GetString("dsn")
 
-		// Step 1: Open the file
-		file, err := os.Open(loaderFilePath)
-		if err != nil {
-			return fmt.Errorf("failed to open file: %w", err)
-		}
-		defer file.Close()
-
-		reader := csv.NewReader(file)
-
-		// Step 2: Skip the header row
-		_, err = reader.Read() // Read the first row, which contains column headers
-		if err != nil {
-			return fmt.Errorf("failed to read the CSV header: %w", err)
-		}
-
-		// Step 3: Connect to the database using the appropriate foundational-store implementation
+		// Parse DSN and create store
 		dsn, err := storelib.ParseDSN(loaderDSN)
 		if err != nil {
 			return fmt.Errorf("failed to parse DSN: %w", err)
 		}
 
-		// Create a new foundational-store with the AccountOwner type URL based on the driver
 		var dataStore storelib.Store
 		typeURL := "type.googleapis.com/AccountOwner"
 
@@ -70,72 +54,7 @@ Example DSNs:
 			return fmt.Errorf("unsupported driver: %s", dsn.Driver())
 		}
 
-		count := 0
-		var storeEntries []*pbstore.Entry
-		var blockNumber uint64
-		for {
-			record, err := reader.Read()
-			if err != nil {
-				if err.Error() == "EOF" { // Detect end of file
-					if len(storeEntries) > 0 {
-						err = batchInsert(dataStore, storeEntries, blockNumber)
-						if err != nil {
-							return fmt.Errorf("failed to insert batch: %w", err)
-						}
-					}
-					fmt.Println("Goodbye!")
-					break
-				}
-				return fmt.Errorf("failed to read CSV record: %w", err)
-			}
-			blockNumber, _ = strconv.ParseUint(record[0], 10, 64)
-			deleted, _ := strconv.ParseBool(record[3])
-			if deleted {
-				continue
-			}
-			Account := record[4]
-			MintAddress := record[6]
-			Owner := record[7]
-
-			accountOwner := &pbstore.AccountOwner{
-				Mint:  storelib.MustBase58Decode(MintAddress),
-				Owner: storelib.MustBase58Decode(Owner),
-			}
-
-			// Marshal the AccountOwner proto message
-			data, err := proto.Marshal(accountOwner)
-			if err != nil {
-				return fmt.Errorf("failed to marshal proto: %w", err)
-			}
-
-			// Create an Any proto message to wrap the AccountOwner
-			anyValue := &anypb.Any{
-				TypeUrl: "type.googleapis.com/AccountOwner",
-				Value:   data,
-			}
-
-			// Create a foundational-store.Entry
-			entry := &pbstore.Entry{
-				Key:   storelib.MustBase58Decode(Account),
-				Value: anyValue,
-			}
-
-			storeEntries = append(storeEntries, entry)
-
-			if len(storeEntries) >= 1000 {
-				err := batchInsert(dataStore, storeEntries, blockNumber)
-				if err != nil {
-					return fmt.Errorf("failed to insert batch: %w", err)
-				}
-				storeEntries = []*pbstore.Entry{}
-				count += 1000
-				if count > 0 && count%250000 == 0 {
-					fmt.Printf("Inserted %d entries\n", count)
-				}
-			}
-		}
-
-		return nil
+		return LoadCSVIntoStore(dataStore, loaderFilePath)
 	},
 }
 
@@ -146,6 +65,99 @@ func batchInsert(store storelib.Store, entries []*pbstore.Entry, blockNumber uin
 		return fmt.Errorf("failed to insert batch: %w", err)
 	}
 
+	return nil
+}
+
+func LoadCSVIntoStore(dataStore storelib.Store, csvFilePath string) error {
+	if csvFilePath == "" {
+		return fmt.Errorf("CSV file path is empty")
+	}
+
+	if _, err := os.Stat(csvFilePath); os.IsNotExist(err) {
+		return fmt.Errorf("CSV file does not exist: %s", csvFilePath)
+	}
+
+	file, err := os.Open(csvFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+
+	_, err = reader.Read()
+	if err != nil {
+		return fmt.Errorf("failed to read the CSV header: %w", err)
+	}
+
+	count := 0
+	var storeEntries []*pbstore.Entry
+	var blockNumber uint64
+
+	for {
+		record, err := reader.Read()
+		if err != nil {
+			if err.Error() == "EOF" {
+				// Insert remaining batch
+				if len(storeEntries) > 0 {
+					err = batchInsert(dataStore, storeEntries, blockNumber)
+					if err != nil {
+						return fmt.Errorf("failed to insert final batch: %w", err)
+					}
+				}
+				fmt.Println("Goodbye!")
+				break
+			}
+			return fmt.Errorf("failed to read CSV record: %w", err)
+		}
+
+		blockNumber, _ = strconv.ParseUint(record[0], 10, 64)
+		deleted, _ := strconv.ParseBool(record[3])
+		if deleted {
+			continue
+		}
+
+		Account := record[4]
+		MintAddress := record[6]
+		Owner := record[7]
+
+		accountOwner := &pbstore.AccountOwner{
+			Mint:  storelib.MustBase58Decode(MintAddress),
+			Owner: storelib.MustBase58Decode(Owner),
+		}
+
+		data, err := proto.Marshal(accountOwner)
+		if err != nil {
+			return fmt.Errorf("failed to marshal proto: %w", err)
+		}
+
+		anyValue := &anypb.Any{
+			TypeUrl: "type.googleapis.com/AccountOwner",
+			Value:   data,
+		}
+
+		entry := &pbstore.Entry{
+			Key:   storelib.MustBase58Decode(Account),
+			Value: anyValue,
+		}
+
+		storeEntries = append(storeEntries, entry)
+
+		// Batch insert every 1000 entries
+		if len(storeEntries) >= 1000 {
+			err := batchInsert(dataStore, storeEntries, blockNumber)
+			if err != nil {
+				return fmt.Errorf("failed to insert batch: %w", err)
+			}
+			storeEntries = []*pbstore.Entry{}
+			count += 1000
+			if count > 0 && count%250000 == 0 {
+				fmt.Printf("Inserted %d entries\n", count)
+			}
+		}
+	}
+
+	fmt.Printf("Successfully loaded data from %s\n", csvFilePath)
 	return nil
 }
 
