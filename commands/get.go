@@ -59,27 +59,52 @@ This command connects to a gRPC server and retrieves a value for the specified k
 		}
 
 		// Make the Get request
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 
 		fmt.Printf("Sending Get request for key: %s\n", getKey)
 		start := time.Now()
-		response, err := client.Get(ctx, request)
-		if err != nil {
-			return fmt.Errorf("failed to get value: %w", err)
+
+		var response *pbStore.GetResponse
+		maxRetries := 10
+		retryDelay := 1 * time.Second
+
+		for attempt := 0; attempt <= maxRetries; attempt++ {
+			resp, err := client.Get(ctx, request)
+			if err != nil {
+				return fmt.Errorf("failed to get value: %w", err)
+			}
+
+			response = resp
+
+			// Check if we need to retry
+			if response.Response == pbStore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACH {
+				if attempt < maxRetries {
+					fmt.Printf("Block not reached yet, retrying in %v (attempt %d/%d)\n", retryDelay, attempt+1, maxRetries+1)
+					time.Sleep(retryDelay)
+					continue
+				} else {
+					fmt.Printf("Max retries reached, block still not available\n")
+				}
+			}
+
+			// Exit retry loop for other response codes
+			break
 		}
+
 		fmt.Printf("Query time: %s\n", time.Since(start))
 
 		// Display the response
 		switch response.Response {
 		case pbStore.ResponseCode_FOUND:
-			fmt.Println("Value found!")
 			fmt.Printf("Type URL: %s\n", response.Value.TypeUrl)
 			fmt.Printf("Value size: %d bytes\n", len(response.Value.Value))
 		case pbStore.ResponseCode_NOT_FOUND:
 			fmt.Println("Value not found")
 		case pbStore.ResponseCode_NOT_FOUND_FINALIZE:
 			fmt.Println("Value not found (finalized)")
+		case pbStore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACH:
+			fmt.Println("Block not reached (after retries)")
 		default:
 			fmt.Printf("Unknown response code: %s\n", response.Response)
 		}

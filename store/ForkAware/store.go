@@ -3,8 +3,10 @@ package ForkAware
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	"github.com/streamingfast/substreams-foundational-store/sink"
 	"github.com/streamingfast/substreams-foundational-store/store"
 )
 
@@ -163,6 +165,11 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 
 // FlushUpToBlock flushes all entries with block numbers <= blockNum to the wrapped foundational-store.
 func (s *Store) FlushUpToBlock(blockNum uint64) error {
+	start := time.Now()
+	defer func() {
+		sink.StoreFlushDuration.ObserveDuration(time.Since(start))
+	}()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -194,6 +201,11 @@ func (s *Store) FlushUpToBlock(blockNum uint64) error {
 
 // EvictUpToBlock removes all keys from the ForkAware where the block number is >= to upToBlockNumber.
 func (s *Store) EvictUpToBlock(upToBlockNumber uint64) error {
+	start := time.Now()
+	defer func() {
+		sink.StoreEvictDuration.ObserveDuration(time.Since(start))
+	}()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

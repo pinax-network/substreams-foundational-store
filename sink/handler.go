@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 	"github.com/streamingfast/substreams-foundational-store/store"
@@ -67,6 +68,7 @@ func NewSinker(typeUrl string, store store.ForkawareStore, logger *zap.Logger, c
 }
 
 func (h *Handler) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrpc.BlockScopedData, isLive *bool, cursor *sink.Cursor) error {
+	var entriesCount int
 
 	// Process data if present
 	if data.Output != nil && data.Output.MapOutput != nil && data.Output.MapOutput.Value != nil {
@@ -76,26 +78,31 @@ func (h *Handler) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsr
 			return fmt.Errorf("unmarshalling map output to Entry: %w", err)
 		}
 
-		// Store the entry using the provided foundational-store
+		entriesCount = len(entries.Entries)
+		setAllStart := time.Now()
+
 		if err := h.store.SetAll(entries.Entries, data.GetClock().Number); err != nil {
 			return fmt.Errorf("setting foundational-store entry: %w", err)
 		}
+		RecordSetAll(time.Since(setAllStart))
 	}
 
 	lib := cursor.LIB.Num()
 
+	flushStart := time.Now()
 	if err := h.store.FlushUpToBlock(lib); err != nil {
 		return fmt.Errorf("flushing data up to block %d: %w", lib, err)
 	}
+	RecordFlush(time.Since(flushStart))
 
 	// Always save the cursor to a file, regardless of whether there was output data
 	if err := h.saveCursorToFile(cursor); err != nil {
+		CursorSaveErrors.Inc()
 		return fmt.Errorf("saving cursor to file %w", err)
 	}
 
-	// h.logger.Debug("Stored and flushed entry",
-	// 	zap.Uint64("block_number", data.GetClock().Number),
-	// 	zap.String("type_url", h.typeUrl))
+	blockNum := data.GetClock().Number
+	RecordBlockProcessing(entriesCount, blockNum)
 
 	return nil
 }
@@ -112,12 +119,16 @@ func (h *Handler) saveCursorToFile(cursor *sink.Cursor) error {
 func (h *Handler) HandleBlockUndoSignal(ctx context.Context, undoSignal *pbsubstreamsrpc.BlockUndoSignal, cursor *sink.Cursor) error {
 
 	blockNum := undoSignal.LastValidBlock.Number
+
+	evictStart := time.Now()
 	if err := h.store.EvictUpToBlock(blockNum); err != nil {
 		return fmt.Errorf("failed to evict data up to block %d: %w", blockNum, err)
 	}
+	RecordEvict(time.Since(evictStart))
 
 	// Save the cursor to a file after handling the undo signal
 	if err := h.saveCursorToFile(cursor); err != nil {
+		CursorSaveErrors.Inc()
 		h.logger.Warn("Failed to save cursor to file after undo signal", zap.Error(err))
 		// Don't return an error here, as we don't want to fail the processing
 	}

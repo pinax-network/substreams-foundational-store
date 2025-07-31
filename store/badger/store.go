@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/dgraph-io/badger/v3"
+	"github.com/streamingfast/substreams-foundational-store/sink"
 	"github.com/streamingfast/substreams-foundational-store/store"
 )
 
@@ -56,6 +57,9 @@ func NewStore(dsn *store.DSN, typeUrl string, opts ...StoreOption) (*Store, erro
 	}
 
 	fmt.Printf("Badger foundational-store initialized at %s with %d workers\n", dbPath, store.numWorkers)
+
+	sink.UpdateDiskMetrics(dbPath)
+
 	return store, nil
 }
 

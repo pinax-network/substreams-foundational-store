@@ -30,6 +30,9 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		// Initialize logger
 		zlog, tracer := logging.ApplicationLogger("server", "info")
 
+		// Initialize metrics
+		sink.RegisterMetrics()
+
 		// Get flag values
 		serverDSN, _ := cmd.Flags().GetString("dsn")
 		serverTypeUrl, _ := cmd.Flags().GetString("type-url")
@@ -116,8 +119,7 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		// Start the gRPC server in a goroutine
 		errCh := make(chan error, 1)
 		go func() {
-			fmt.Printf("Starting gRPC server on %s\n", serverAddr)
-			errCh <- server.Serve(serverAddr, storeImpl)
+			errCh <- server.Serve(serverAddr, storeImpl, zlog)
 		}()
 
 		// Start the substreams sink in a goroutine
@@ -133,14 +135,14 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		// Wait for an interrupt signal or an error from the server
 		select {
 		case <-sigCh:
-			fmt.Println("Received interrupt signal, shutting down...")
+			zlog.Info("received interrupt signal, shutting down...")
 			substreamsClient.Shutdown(nil)
 			return nil
 		case err := <-errCh:
 			substreamsClient.Shutdown(err)
 			return fmt.Errorf("server error: %w", err)
 		case <-sinkerDone:
-			fmt.Println("Sinker done")
+			zlog.Info("sinker is shutting down")
 			return nil
 		}
 
@@ -161,6 +163,7 @@ func init() {
 	ServerCmd.MarkFlagRequired("dsn")
 	ServerCmd.MarkFlagRequired("type-url")
 
+	// todo change bindings
 	viper.BindPFlag("server.addr", ServerCmd.Flags().Lookup("addr"))
 	viper.BindPFlag("server.dsn", ServerCmd.Flags().Lookup("dsn"))
 	viper.BindPFlag("server.type_url", ServerCmd.Flags().Lookup("type-url"))

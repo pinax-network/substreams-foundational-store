@@ -3,13 +3,20 @@ package badger
 import (
 	"encoding/binary"
 	"fmt"
+	"time"
 
 	"github.com/dgraph-io/badger/v3"
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	"github.com/streamingfast/substreams-foundational-store/sink"
 )
 
 // Set stores a single entry in Badger
 func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
+	start := time.Now()
+	defer func() {
+		sink.StoreSetAllDuration.ObserveDuration(time.Since(start))
+	}()
+
 	// Prepend block_number as bytes to the value
 	blockNumBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(blockNumBytes, blockNumber)
@@ -35,6 +42,18 @@ func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 
 // SetAll stores multiple entries in Badger
 func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
+	start := time.Now()
+	defer func() {
+		sink.StoreSetAllDuration.ObserveDuration(time.Since(start))
+		sink.EntriesProcessed.AddInt(len(entries))
+		// Update Badger size metrics periodically
+		lsm, vlog := s.db.Size()
+		totalSize := uint64(lsm + vlog)
+		if totalSize > 0 {
+			sink.BadgerStoreSize.SetUint64(totalSize)
+		}
+	}()
+
 	if len(entries) == 0 {
 		return nil
 	}

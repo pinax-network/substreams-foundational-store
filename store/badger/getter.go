@@ -7,11 +7,20 @@ import (
 
 	"github.com/dgraph-io/badger/v3"
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	"github.com/streamingfast/substreams-foundational-store/sink"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // Get retrieves a single entry from Badger
 func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
+	defer func() {
+		lsm, vlog := s.db.Size()
+		totalSize := uint64(lsm + vlog)
+		if totalSize > 0 {
+			sink.BadgerStoreSize.SetUint64(totalSize)
+		}
+	}()
+
 	var storedValue []byte
 	var found bool
 
@@ -68,7 +77,7 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 
 	if request.BlockNumber < blockNumber {
 		return &pbstore.GetResponse{
-			Response: pbstore.ResponseCode_NOT_FOUND,
+			Response: pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACH,
 		}, nil
 	}
 
@@ -166,7 +175,7 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 						entries = append(entries, &pbstore.ResponseEntry{
 							Key: key,
 							Response: &pbstore.GetResponse{
-								Response: pbstore.ResponseCode_NOT_FOUND,
+								Response: pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACH,
 							},
 						})
 						mutex.Unlock()

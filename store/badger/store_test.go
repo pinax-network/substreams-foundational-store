@@ -151,7 +151,7 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 				assert.Equal(t, accountOwner.Mint, retrievedAccountOwner.Mint)
 				assert.Equal(t, accountOwner.Owner, retrievedAccountOwner.Owner)
 			} else {
-				assert.Equal(t, pbstore.ResponseCode_NOT_FOUND, getResponse.Response)
+				assert.Equal(t, pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACH, getResponse.Response)
 			}
 		})
 	}
@@ -301,7 +301,7 @@ func TestGetWithBlockNumber(t *testing.T) {
 				assert.Equal(t, expectedOwner, retrievedAccountOwner.Owner,
 					"Should retrieve %s", tc.expectedOwner)
 			} else {
-				assert.Equal(t, pbstore.ResponseCode_NOT_FOUND, getResponse.Response,
+				assert.Equal(t, pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACH, getResponse.Response,
 					"Should not find entry with block number %d", tc.requestBlock)
 			}
 		})
@@ -437,7 +437,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 					assert.Equal(t, originalAccountOwner.Mint, retrievedAccountOwner.Mint)
 					assert.Equal(t, originalAccountOwner.Owner, retrievedAccountOwner.Owner)
 				} else {
-					assert.Equal(t, pbstore.ResponseCode_NOT_FOUND, responseEntry.Response.Response,
+					assert.Equal(t, pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACH, responseEntry.Response.Response,
 						"Should not find entry with block number %d for key %s", tc.requestBlock, key)
 				}
 			}
@@ -695,7 +695,7 @@ func TestGetAllWithBlockNumber(t *testing.T) {
 					// For this test, we don't need to verify the specific owner value
 					// as we're just testing if the keys are found or not
 				} else {
-					assert.Equal(t, pbstore.ResponseCode_NOT_FOUND, responseEntry.Response.Response,
+					assert.Equal(t, pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACH, responseEntry.Response.Response,
 						"Should not find entry with block number %d for key %s", tc.requestBlock, key)
 				}
 			}

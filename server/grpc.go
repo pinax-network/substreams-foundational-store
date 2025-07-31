@@ -31,7 +31,6 @@ func (s *StoreServer) Get(ctx context.Context, req *pbstore.GetRequest) (*pbstor
 	if err != nil {
 		return nil, fmt.Errorf("getting from store: %w", err)
 	}
-	fmt.Println(r)
 	return r, nil
 }
 
@@ -41,9 +40,7 @@ func (s *StoreServer) GetAll(ctx context.Context, req *pbstore.GetAllRequest) (*
 }
 
 // Serve starts the gRPC server on the given address
-func Serve(addr string, store store.Store, opts ...grpc.ServerOption) error {
-	// Create a default logger
-	logger := zap.NewNop()
+func Serve(addr string, store store.Store, logger *zap.Logger, opts ...grpc.ServerOption) error {
 
 	// Create a channel to receive server errors
 	errCh := make(chan error, 1)
@@ -70,8 +67,6 @@ func Serve(addr string, store store.Store, opts ...grpc.ServerOption) error {
 
 	// Launch the server
 	go grpcServer.Launch(addr)
-
-	fmt.Printf("Starting gRPC server on %s\n", addr)
 
 	// Wait for an error from the server
 	// This will block until the server terminates with an error
