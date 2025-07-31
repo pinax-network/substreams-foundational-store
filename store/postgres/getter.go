@@ -89,14 +89,3 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 		Entries: out,
 	}, nil
 }
-
-func (s *Store) IsEmpty() (bool, error) {
-	var count int
-	query := fmt.Sprintf("SELECT COUNT(*) FROM %s.entries", s.schemaName)
-	err := s.db.QueryRow(query).Scan(&count)
-	if err != nil {
-		return false, fmt.Errorf("failed to check if PostgreSQL table is empty: %w", err)
-	}
-
-	return count == 0, nil
-}

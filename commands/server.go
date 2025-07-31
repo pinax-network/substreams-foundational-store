@@ -39,11 +39,6 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		outputModuleName, _ := cmd.Flags().GetString("output-module-name")
 		cursorFilePath, _ := cmd.Flags().GetString("cursor-file-path")
 
-		// Get initialization flags
-		autoInit, _ := cmd.Flags().GetBool("auto-init")
-		initDataFile, _ := cmd.Flags().GetString("init-data-file")
-		forceInit, _ := cmd.Flags().GetBool("force-init")
-
 		if serverDSN == "" {
 			return fmt.Errorf("dsn is required")
 		}
@@ -84,29 +79,6 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		// Wrap the foundational-store with a ForkAware foundational-store
 		storeImpl := ForkAware.NewStore(baseStore)
 
-		// Check if database initialization is needed
-		if autoInit || forceInit {
-			isEmpty, err := storeImpl.IsEmpty()
-			if err != nil {
-				return fmt.Errorf("failed to check if database is empty: %w", err)
-			}
-
-			if isEmpty || forceInit {
-				if initDataFile != "" {
-					zlog.Info("Initializing database with data from CSV file", zap.String("file", initDataFile))
-					err = LoadCSVIntoStore(storeImpl, initDataFile)
-					if err != nil {
-						return fmt.Errorf("failed to initialize database from CSV: %w", err)
-					}
-					zlog.Info("Database initialization completed successfully")
-				} else if autoInit {
-					zlog.Warn("Auto-init enabled but no init-data-file provided, skipping initialization")
-				}
-			} else if autoInit {
-				zlog.Info("Database is not empty, skipping auto-initialization")
-			}
-		}
-
 		// Ensure we close the Badger foundational-store when we're done
 		if badgerStore != nil {
 			defer badgerStore.Close()
@@ -115,6 +87,16 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		// Create a channel to listen for interrupt signals
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+		// Load cursor from file if it exists and set it in the command flags so subsink.NewFromViper can use it
+		cursor := sink.LoadCursorFromFile(zlog, cursorFilePath)
+		if cursor != nil {
+			zlog.Info("Loaded cursor from file, will resume from saved position")
+			// Set the cursor flag so NewFromViper can pick it up
+			cmd.Flags().Set("cursor", cursor.String())
+		} else {
+			zlog.Info("No cursor file found, will start from the beginning")
+		}
 
 		// Create a substreams sink using Viper configuration
 		substreamsClient, err := subsink.NewFromViper(
@@ -132,14 +114,6 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 
 		// Create a handler for the substreams sink
 		handler := sink.NewSinker(serverTypeUrl, storeImpl, zlog, cursorFilePath)
-
-		// Load cursor from file if it exists
-		cursor := sink.LoadCursorFromFile(zlog, cursorFilePath)
-		if cursor != nil {
-			zlog.Info("Loaded cursor from file, will resume from saved position")
-		} else {
-			zlog.Info("No cursor file found, will start from the beginning")
-		}
 
 		// Start the gRPC server in a goroutine
 		errCh := make(chan error, 1)
@@ -186,10 +160,6 @@ func init() {
 	ServerCmd.Flags().String("output-module-name", "", "Name of the output module")
 	ServerCmd.Flags().String("cursor-file-path", "/tmp/cursor.txt", "Path to the cursor file")
 
-	ServerCmd.Flags().Bool("auto-init", false, "Automatically initialize database if empty")
-	ServerCmd.Flags().String("init-data-file", "", "CSV file to load initial data from (used with --auto-init)")
-	ServerCmd.Flags().Bool("force-init", false, "Force re-initialization even if database has data")
-
 	ServerCmd.MarkFlagRequired("dsn")
 	ServerCmd.MarkFlagRequired("type-url")
 
@@ -200,10 +170,6 @@ func init() {
 	viper.BindPFlag("substreams.manifest_path", ServerCmd.Flags().Lookup("manifest-path"))
 	viper.BindPFlag("substreams.output_module_name", ServerCmd.Flags().Lookup("output-module-name"))
 	viper.BindPFlag("server.cursor_file_path", ServerCmd.Flags().Lookup("cursor-file-path"))
-
-	viper.BindPFlag("server.auto_init", ServerCmd.Flags().Lookup("auto-init"))
-	viper.BindPFlag("server.init_data_file", ServerCmd.Flags().Lookup("init-data-file"))
-	viper.BindPFlag("server.force_init", ServerCmd.Flags().Lookup("force-init"))
 
 	viper.BindPFlag("endpoint", ServerCmd.Flags().Lookup("endpoint"))
 	viper.BindPFlag("start-block", ServerCmd.Flags().Lookup("start-block"))

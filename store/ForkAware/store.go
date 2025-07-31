@@ -212,14 +212,3 @@ func (s *Store) EvictUpToBlock(upToBlockNumber uint64) error {
 
 	return nil
 }
-
-func (s *Store) IsEmpty() (bool, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if len(s.cache) > 0 {
-		return false, nil
-	}
-
-	return s.wrapped.IsEmpty()
-}
