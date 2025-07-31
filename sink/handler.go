@@ -67,19 +67,19 @@ func NewSinker(typeUrl string, store store.ForkawareStore, logger *zap.Logger, c
 }
 
 func (h *Handler) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrpc.BlockScopedData, isLive *bool, cursor *sink.Cursor) error {
-	if data.Output == nil || data.Output.MapOutput == nil || data.Output.MapOutput.Value == nil {
-		return nil
-	}
 
-	// According to the issue description, data.Output.MapOutput is a pb.foundational-store.Entry
-	entries := &pbstore.Entries{}
-	if err := data.Output.MapOutput.UnmarshalTo(entries); err != nil {
-		return fmt.Errorf("unmarshalling map output to Entry: %w", err)
-	}
+	// Process data if present
+	if data.Output != nil && data.Output.MapOutput != nil && data.Output.MapOutput.Value != nil {
 
-	// Store the entry using the provided foundational-store
-	if err := h.store.SetAll(entries.Entries, data.GetClock().Number); err != nil {
-		return fmt.Errorf("setting foundational-store entry: %w", err)
+		entries := &pbstore.Entries{}
+		if err := data.Output.MapOutput.UnmarshalTo(entries); err != nil {
+			return fmt.Errorf("unmarshalling map output to Entry: %w", err)
+		}
+
+		// Store the entry using the provided foundational-store
+		if err := h.store.SetAll(entries.Entries, data.GetClock().Number); err != nil {
+			return fmt.Errorf("setting foundational-store entry: %w", err)
+		}
 	}
 
 	lib := cursor.LIB.Num()
@@ -88,7 +88,7 @@ func (h *Handler) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsr
 		return fmt.Errorf("flushing data up to block %d: %w", lib, err)
 	}
 
-	// Save the cursor to a file
+	// Always save the cursor to a file, regardless of whether there was output data
 	if err := h.saveCursorToFile(cursor); err != nil {
 		return fmt.Errorf("saving cursor to file %w", err)
 	}
@@ -102,19 +102,10 @@ func (h *Handler) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsr
 
 // saveCursorToFile saves the cursor to a file
 func (h *Handler) saveCursorToFile(cursor *sink.Cursor) error {
-
-	// Marshal the cursor to JSON
-	data, err := json.Marshal(cursor)
-	if err != nil {
-		return fmt.Errorf("marshalling cursor: %w", err)
-	}
-
-	// Write the cursor to the file
-	if err := os.WriteFile(h.cursorFilePath, data, 0644); err != nil {
+	cursorStr := cursor.String()
+	if err := os.WriteFile(h.cursorFilePath, []byte(cursorStr), 0644); err != nil {
 		return fmt.Errorf("writing cursor to file: %w", err)
 	}
-
-	// h.logger.Debug("Saved cursor to file", zap.String("path", h.cursorFilePath))
 	return nil
 }
 

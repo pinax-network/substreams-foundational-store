@@ -92,8 +92,6 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		cursor := sink.LoadCursorFromFile(zlog, cursorFilePath)
 		if cursor != nil {
 			zlog.Info("Loaded cursor from file, will resume from saved position")
-			// Set the cursor flag so NewFromViper can pick it up
-			cmd.Flags().Set("cursor", cursor.String())
 		} else {
 			zlog.Info("No cursor file found, will start from the beginning")
 		}
