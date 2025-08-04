@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -41,6 +42,8 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		manifestPath, _ := cmd.Flags().GetString("manifest-path")
 		outputModuleName, _ := cmd.Flags().GetString("output-module-name")
 		cursorFilePath, _ := cmd.Flags().GetString("cursor-file-path")
+		batchSize, _ := cmd.Flags().GetInt("batch-size")
+		maxBatchTime, _ := cmd.Flags().GetDuration("max-batch-time")
 
 		if serverDSN == "" {
 			return fmt.Errorf("dsn is required")
@@ -114,7 +117,7 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		}
 
 		// Create a handler for the substreams sink
-		handler := sink.NewSinker(serverTypeUrl, storeImpl, zlog, cursorFilePath)
+		handler := sink.NewSinker(serverTypeUrl, storeImpl, zlog, cursorFilePath, batchSize, maxBatchTime)
 
 		// Start the gRPC server in a goroutine
 		errCh := make(chan error, 1)
@@ -136,13 +139,25 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		select {
 		case <-sigCh:
 			zlog.Info("received interrupt signal, shutting down...")
+			// Clean shutdown with timer cleanup and batch flush
+			if err := handler.Close(); err != nil {
+				zlog.Warn("failed to close handler cleanly during shutdown", zap.Error(err))
+			}
 			substreamsClient.Shutdown(nil)
 			return nil
 		case err := <-errCh:
+			// Clean shutdown with timer cleanup and batch flush
+			if closeErr := handler.Close(); closeErr != nil {
+				zlog.Warn("failed to close handler cleanly during shutdown", zap.Error(closeErr))
+			}
 			substreamsClient.Shutdown(err)
 			return fmt.Errorf("server error: %w", err)
 		case <-sinkerDone:
 			zlog.Info("sinker is shutting down")
+			// Clean shutdown with timer cleanup and batch flush
+			if err := handler.Close(); err != nil {
+				zlog.Warn("failed to close handler cleanly during shutdown", zap.Error(err))
+			}
 			return nil
 		}
 
@@ -159,6 +174,8 @@ func init() {
 	ServerCmd.Flags().String("manifest-path", "", "Path to the manifest file")
 	ServerCmd.Flags().String("output-module-name", "", "Name of the output module")
 	ServerCmd.Flags().String("cursor-file-path", "state.cursor", "Path to the cursor file")
+	ServerCmd.Flags().Int("batch-size", 1000, "Number of entries to batch for insertion")
+	ServerCmd.Flags().Duration("max-batch-time", 30*time.Second, "Maximum time to wait before flushing a partial batch")
 
 	ServerCmd.MarkFlagRequired("dsn")
 	ServerCmd.MarkFlagRequired("type-url")
@@ -171,6 +188,8 @@ func init() {
 	viper.BindPFlag("substreams.manifest_path", ServerCmd.Flags().Lookup("manifest-path"))
 	viper.BindPFlag("substreams.output_module_name", ServerCmd.Flags().Lookup("output-module-name"))
 	viper.BindPFlag("server.cursor_file_path", ServerCmd.Flags().Lookup("cursor-file-path"))
+	viper.BindPFlag("server.batch_size", ServerCmd.Flags().Lookup("batch-size"))
+	viper.BindPFlag("server.max_batch_time", ServerCmd.Flags().Lookup("max-batch-time"))
 
 	viper.BindPFlag("endpoint", ServerCmd.Flags().Lookup("endpoint"))
 	viper.BindPFlag("start-block", ServerCmd.Flags().Lookup("start-block"))

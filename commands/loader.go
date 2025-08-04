@@ -29,6 +29,7 @@ Example DSNs:
 		// Get flag values
 		loaderFilePath, _ := cmd.Flags().GetString("file")
 		loaderDSN, _ := cmd.Flags().GetString("dsn")
+		batchSize, _ := cmd.Flags().GetInt("batch-size")
 
 		// Parse DSN and create store
 		dsn, err := storelib.ParseDSN(loaderDSN)
@@ -54,7 +55,7 @@ Example DSNs:
 			return fmt.Errorf("unsupported driver: %s", dsn.Driver())
 		}
 
-		return LoadCSVIntoStore(dataStore, loaderFilePath)
+		return LoadCSVIntoStore(dataStore, loaderFilePath, batchSize)
 	},
 }
 
@@ -68,7 +69,7 @@ func batchInsert(store storelib.Store, entries []*pbstore.Entry, blockNumber uin
 	return nil
 }
 
-func LoadCSVIntoStore(dataStore storelib.Store, csvFilePath string) error {
+func LoadCSVIntoStore(dataStore storelib.Store, csvFilePath string, batchSize int) error {
 	if csvFilePath == "" {
 		return fmt.Errorf("CSV file path is empty")
 	}
@@ -143,14 +144,14 @@ func LoadCSVIntoStore(dataStore storelib.Store, csvFilePath string) error {
 
 		storeEntries = append(storeEntries, entry)
 
-		// Batch insert every 1000 entries
-		if len(storeEntries) >= 1000 {
+		// Batch insert every batchSize (N) entries
+		if len(storeEntries) >= batchSize {
 			err := batchInsert(dataStore, storeEntries, blockNumber)
 			if err != nil {
 				return fmt.Errorf("failed to insert batch: %w", err)
 			}
 			storeEntries = []*pbstore.Entry{}
-			count += 1000
+			count += batchSize
 			if count > 0 && count%250000 == 0 {
 				fmt.Printf("Inserted %d entries\n", count)
 			}
@@ -164,7 +165,9 @@ func LoadCSVIntoStore(dataStore storelib.Store, csvFilePath string) error {
 func init() {
 	LoaderCmd.Flags().String("file", "/Users/cbillett/t/clickhouse-exports/initialized_accounts.csv", "Path to the CSV file")
 	LoaderCmd.Flags().String("dsn", "postgres://localhost:5432/postgres?sslmode=disable&schemaName=magic", "DSN connection string")
+	LoaderCmd.Flags().Int("batch-size", 1000, "Number of entries to batch together for insertion")
 
 	viper.BindPFlag("loader.file", LoaderCmd.Flags().Lookup("file"))
 	viper.BindPFlag("loader.dsn", LoaderCmd.Flags().Lookup("dsn"))
+	viper.BindPFlag("loader.batch_size", LoaderCmd.Flags().Lookup("batch-size"))
 }
