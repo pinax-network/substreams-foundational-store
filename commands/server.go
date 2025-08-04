@@ -158,7 +158,7 @@ func init() {
 	ServerCmd.Flags().Int("workers", 10, "Number of workers for parallel operations")
 	ServerCmd.Flags().String("manifest-path", "", "Path to the manifest file")
 	ServerCmd.Flags().String("output-module-name", "", "Name of the output module")
-	ServerCmd.Flags().String("cursor-file-path", "/tmp/cursor.txt", "Path to the cursor file")
+	ServerCmd.Flags().String("cursor-file-path", "state.cursor", "Path to the cursor file")
 
 	ServerCmd.MarkFlagRequired("dsn")
 	ServerCmd.MarkFlagRequired("type-url")

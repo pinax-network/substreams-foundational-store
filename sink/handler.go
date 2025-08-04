@@ -2,7 +2,6 @@ package sink
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,7 +17,7 @@ import (
 // LoadCursorFromFile attempts to load a cursor from the specified file.
 // Returns nil if the file doesn't exist or if there's an error reading it.
 func LoadCursorFromFile(logger *zap.Logger, cursorFilePath string) *sink.Cursor {
-	// Use the provided cursor file path or default to "cursor.json" in the current directory
+	// Use the provided cursor file path or default to "state.cursor" in the current directory
 	var cursorPath string
 	if cursorFilePath != "" {
 		cursorPath = cursorFilePath
@@ -28,7 +27,7 @@ func LoadCursorFromFile(logger *zap.Logger, cursorFilePath string) *sink.Cursor 
 		if err != nil {
 			dir = "."
 		}
-		cursorPath = filepath.Join(dir, "cursor.json")
+		cursorPath = filepath.Join(dir, "state.cursor")
 	}
 
 	data, err := os.ReadFile(cursorPath)
@@ -39,14 +38,15 @@ func LoadCursorFromFile(logger *zap.Logger, cursorFilePath string) *sink.Cursor 
 		return nil
 	}
 
-	var cursor sink.Cursor
-	if err := json.Unmarshal(data, &cursor); err != nil {
-		logger.Warn("Failed to unmarshal cursor", zap.Error(err))
+	cursorStr := string(data)
+	cursor, err := sink.NewCursor(cursorStr)
+	if err != nil {
+		logger.Warn("Failed to create cursor from string", zap.Error(err))
 		return nil
 	}
 
 	logger.Info("Loaded cursor from file", zap.String("path", cursorPath))
-	return &cursor
+	return cursor
 }
 
 type Handler struct {
