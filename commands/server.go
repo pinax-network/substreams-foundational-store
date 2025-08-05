@@ -126,6 +126,15 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 			errCh <- server.Serve(serverAddr, storeImpl, zlog)
 		}()
 
+		// Start periodic database stats logging
+		dbStatsTicker := time.NewTicker(15 * time.Second)
+		go func() {
+			for range dbStatsTicker.C {
+				sink.LogDatabaseStats(zlog)
+			}
+		}()
+		defer dbStatsTicker.Stop()
+
 		// Start the substreams sink in a goroutine
 		sinkerDone := make(chan struct{})
 		go func() {

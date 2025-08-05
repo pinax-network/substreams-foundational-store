@@ -18,7 +18,10 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 		totalSize := uint64(lsm + vlog)
 		if totalSize > 0 {
 			sink.BadgerStoreSize.SetUint64(totalSize)
+			sink.BadgerLSMSize.SetUint64(uint64(lsm))
+			sink.BadgerVLogSize.SetUint64(uint64(vlog))
 		}
+		sink.DatabaseKeysProcessed.Inc()
 	}()
 
 	var storedValue []byte
@@ -52,14 +55,18 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 	})
 
 	if err != nil {
+		sink.DatabaseGetErrors.Inc()
 		return nil, fmt.Errorf("failed to get value from Badger: %w", err)
 	}
 
 	if !found {
+		sink.DatabaseGetMisses.Inc()
 		return &pbstore.GetResponse{
 			Response: pbstore.ResponseCode_NOT_FOUND,
 		}, nil
 	}
+
+	sink.DatabaseGetHits.Inc()
 
 	// Extract the block number and the actual value
 	// Ensure we have at least 8 bytes for the block number
@@ -92,6 +99,10 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 
 // GetAll retrieves multiple entries from Badger using goroutines for parallelism
 func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {
+	defer func() {
+		sink.DatabaseKeysProcessed.AddInt(len(request.Keys))
+	}()
+
 	// Create a slice to foundational-store the entries
 	var entries []*pbstore.ResponseEntry
 

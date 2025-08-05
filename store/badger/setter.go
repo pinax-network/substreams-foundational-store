@@ -15,6 +15,8 @@ func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 	start := time.Now()
 	defer func() {
 		sink.StoreSetAllDuration.ObserveDuration(time.Since(start))
+		sink.DatabaseSetOperations.Inc()
+		sink.DatabaseKeysProcessed.Inc()
 	}()
 
 	// Prepend block_number as bytes to the value
