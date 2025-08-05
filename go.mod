@@ -15,7 +15,7 @@ require (
 	github.com/streamingfast/dgrpc v0.0.0-20250423172640-223250ed2391
 	github.com/streamingfast/dmetrics v0.0.0-20250711072030-f023e918a175
 	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091
-	github.com/streamingfast/substreams v1.16.2-0.20250730202443-0fac31be1d02
+	github.com/streamingfast/substreams v1.16.3-0.20250805182048-b2ea2bc543d6
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	google.golang.org/grpc v1.72.0
