@@ -190,7 +190,6 @@ func init() {
 	ServerCmd.MarkFlagRequired("dsn")
 	ServerCmd.MarkFlagRequired("type-url")
 
-	// todo change bindings
 	viper.BindPFlag("server.addr", ServerCmd.Flags().Lookup("addr"))
 	viper.BindPFlag("server.dsn", ServerCmd.Flags().Lookup("dsn"))
 	viper.BindPFlag("server.type_url", ServerCmd.Flags().Lookup("type-url"))
