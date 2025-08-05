@@ -3,7 +3,6 @@ package sink
 import (
 	"runtime"
 	"syscall"
-	"time"
 
 	"github.com/streamingfast/dmetrics"
 )
@@ -27,6 +26,9 @@ var DiskSpaceTotal = Metrics.NewGauge("foundational_store_disk_space_total_bytes
 var MemoryUsage = Metrics.NewGauge("foundational_store_memory_usage_bytes", "Memory usage in bytes")
 
 var BadgerStoreSize = Metrics.NewGauge("foundational_store_badger_size_bytes", "Size of Badger database in bytes")
+var BadgerFlushDuration = Metrics.NewHistogram("foundational_store_badger_flush_duration_seconds", "Time taken for BadgerDB flush operations")
+var BadgerFlushCount = Metrics.NewCounter("foundational_store_badger_flush_total", "Total number of BadgerDB flush operations")
+var BadgerFlushErrors = Metrics.NewCounter("foundational_store_badger_flush_errors_total", "Number of BadgerDB flush errors")
 var PostgresConnections = Metrics.NewGauge("foundational_store_postgres_connections", "Number of active PostgreSQL connections")
 
 var CursorSaveErrors = Metrics.NewCounter("foundational_store_cursor_save_errors_total", "Number of errors saving cursor to file")
@@ -63,24 +65,8 @@ func RecordBlockProcessing(entriesCount int, blockNum uint64) {
 
 	// Update memory metrics every 50 blocks to avoid overhead
 	if blockNum%50 == 0 {
-		UpdateMemoryMetrics()
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+		MemoryUsage.SetUint64(m.Alloc)
 	}
-}
-
-func RecordFlush(duration time.Duration) {
-	StoreFlushDuration.ObserveDuration(duration)
-}
-
-func RecordSetAll(duration time.Duration) {
-	StoreSetAllDuration.ObserveDuration(duration)
-}
-
-func RecordEvict(duration time.Duration) {
-	StoreEvictDuration.ObserveDuration(duration)
-}
-
-func UpdateMemoryMetrics() {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	MemoryUsage.SetUint64(m.Alloc)
 }

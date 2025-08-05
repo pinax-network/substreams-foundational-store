@@ -76,10 +76,14 @@ func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 		}
 	}
 
+	flushStart := time.Now()
 	err := wb.Flush()
 	if err != nil {
+		sink.BadgerFlushErrors.Inc()
 		return fmt.Errorf("failed to flush batch to Badger: %w", err)
 	}
+	sink.BadgerFlushDuration.ObserveDuration(time.Since(flushStart))
+	sink.BadgerFlushCount.Inc()
 
 	return nil
 }

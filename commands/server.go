@@ -67,6 +67,7 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		case "badger":
 			badgerStore, err = badger.NewStore(dsn, serverTypeUrl,
 				badger.WithNumWorkers(serverWorkers),
+				badger.WithLogger(zlog),
 			)
 			if err != nil {
 				return fmt.Errorf("failed to create Badger foundational-store: %w", err)

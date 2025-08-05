@@ -7,6 +7,7 @@ import (
 	"github.com/dgraph-io/badger/v3"
 	"github.com/streamingfast/substreams-foundational-store/sink"
 	"github.com/streamingfast/substreams-foundational-store/store"
+	"go.uber.org/zap"
 )
 
 // Store implements the foundational-store.Store interface for Badger DB
@@ -14,6 +15,7 @@ type Store struct {
 	db         *badger.DB
 	typeUrl    string
 	numWorkers int
+	logger     *zap.Logger
 }
 
 // StoreOption is a function that configures a Store
@@ -23,6 +25,13 @@ type StoreOption func(*Store)
 func WithNumWorkers(numWorkers int) StoreOption {
 	return func(s *Store) {
 		s.numWorkers = numWorkers
+	}
+}
+
+// WithLogger sets the logger for the store
+func WithLogger(logger *zap.Logger) StoreOption {
+	return func(s *Store) {
+		s.logger = logger
 	}
 }
 
@@ -39,6 +48,7 @@ func NewStore(dsn *store.DSN, typeUrl string, opts ...StoreOption) (*Store, erro
 
 	// Open the Badger database
 	badgerOpts := badger.DefaultOptions(dbPath)
+	badgerOpts.Logger = nil
 	db, err := badger.Open(badgerOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open Badger DB: %w", err)
@@ -49,6 +59,7 @@ func NewStore(dsn *store.DSN, typeUrl string, opts ...StoreOption) (*Store, erro
 		db:         db,
 		typeUrl:    typeUrl,
 		numWorkers: 10, // Default to 10 workers
+		logger:     zap.NewNop(),
 	}
 
 	// Apply options
@@ -56,7 +67,9 @@ func NewStore(dsn *store.DSN, typeUrl string, opts ...StoreOption) (*Store, erro
 		opt(store)
 	}
 
-	fmt.Printf("Badger foundational-store initialized at %s with %d workers\n", dbPath, store.numWorkers)
+	store.logger.Info("Badger foundational-store initialized",
+		zap.String("path", dbPath),
+		zap.Int("workers", store.numWorkers))
 
 	sink.UpdateDiskMetrics(dbPath)
 

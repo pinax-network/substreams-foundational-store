@@ -115,7 +115,7 @@ func (h *Handler) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsr
 	if err := h.store.FlushUpToBlock(lib); err != nil {
 		return fmt.Errorf("flushing data up to block %d: %w", lib, err)
 	}
-	RecordFlush(time.Since(flushStart))
+	StoreFlushDuration.ObserveDuration(time.Since(flushStart))
 
 	// Always save the cursor to a file, regardless of whether there was output data
 	if err := h.saveCursorToFile(cursor); err != nil {
@@ -204,7 +204,7 @@ func (h *Handler) flushBatchLocked(blockNumber uint64) error {
 		return fmt.Errorf("setting foundational-store batch: %w", err)
 	}
 
-	RecordSetAll(time.Since(setAllStart))
+	StoreSetAllDuration.ObserveDuration(time.Since(setAllStart))
 	h.logger.Debug("Flushed batch to store",
 		zap.Int("batch_size", len(batchToFlush)),
 		zap.Int("batch_bytes", flushedBytes),
@@ -245,7 +245,7 @@ func (h *Handler) HandleBlockUndoSignal(ctx context.Context, undoSignal *pbsubst
 	if err := h.store.EvictUpToBlock(blockNum); err != nil {
 		return fmt.Errorf("failed to evict data up to block %d: %w", blockNum, err)
 	}
-	RecordEvict(time.Since(evictStart))
+	StoreEvictDuration.ObserveDuration(time.Since(evictStart))
 
 	// Save the cursor to a file after handling the undo signal
 	if err := h.saveCursorToFile(cursor); err != nil {
