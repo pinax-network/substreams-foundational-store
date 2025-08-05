@@ -131,8 +131,7 @@ func (h *Handler) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsr
 
 // saveCursorToFile saves the cursor to a file
 func (h *Handler) saveCursorToFile(cursor *sink.Cursor) error {
-	cursorStr := cursor.String()
-	if err := os.WriteFile(h.cursorFilePath, []byte(cursorStr), 0644); err != nil {
+	if err := sink.WriteCursor(h.cursorFilePath, cursor); err != nil {
 		return fmt.Errorf("writing cursor to file: %w", err)
 	}
 	return nil

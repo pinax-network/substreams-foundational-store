@@ -3,6 +3,7 @@ package sink
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -65,20 +66,35 @@ func TestCursorLoadNonExistentFile(t *testing.T) {
 }
 
 func TestCursorLoadEmptyFile(t *testing.T) {
-	logger := zaptest.NewLogger(t)
-
 	tempDir := t.TempDir()
 	emptyFilePath := filepath.Join(tempDir, "empty.cursor")
 
+	// Use os.WriteFile to simulate corrupted files (before atomic saving)
 	err := os.WriteFile(emptyFilePath, []byte(""), 0644)
 	if err != nil {
 		t.Fatalf("Failed to create empty file: %v", err)
 	}
 
-	cursor := LoadCursorFromFile(logger, emptyFilePath)
-
+	cursor, err := sink.ReadCursor(emptyFilePath)
+	if err != nil {
+		t.Fatalf("ReadCursor failed for empty file: %v", err)
+	}
 	if cursor != nil {
 		t.Errorf("Expected nil cursor for empty file, got: %v", cursor)
+	}
+
+	whitespaceFilePath := filepath.Join(tempDir, "whitespace.cursor")
+	err = os.WriteFile(whitespaceFilePath, []byte("   \n\t  "), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create whitespace file: %v", err)
+	}
+
+	cursor, err = sink.ReadCursor(whitespaceFilePath)
+	if err != nil {
+		t.Fatalf("ReadCursor failed for whitespace file: %v", err)
+	}
+	if cursor != nil {
+		t.Errorf("Expected nil cursor for whitespace-only file, got: %v", cursor)
 	}
 }
 
@@ -128,13 +144,102 @@ func TestCursorRoundTrip(t *testing.T) {
 	}
 }
 
+func TestAtomicCursorSaving(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+
+	tempDir := t.TempDir()
+	cursorFilePath := filepath.Join(tempDir, "atomic_test.cursor")
+
+	testCursorStr := "XWQh1iJoYAKTDtvllL7yraWwLpc_DFhvVQvlKhhCjYGDiHqspvzCXTgfFUum8f32iBSqMQXahNirXjQmq6AKuJSypu8Sm3NpAXkk8YPs-7TvePP7OgIRBMNqNpHvBoWCMUGBFGuvfOQBoa-4TKneAQh4P55GdmL211oH1PMGIeQTsRE="
+	cursor, err := sink.NewCursor(testCursorStr)
+	if err != nil {
+		t.Fatalf("Failed to create cursor: %v", err)
+	}
+
+	err = sink.WriteCursor(cursorFilePath, cursor)
+	if err != nil {
+		t.Fatalf("Failed to write cursor atomically: %v", err)
+	}
+
+	if _, err := os.Stat(cursorFilePath); os.IsNotExist(err) {
+		t.Fatalf("Cursor file was not created")
+	}
+
+	data, err := os.ReadFile(cursorFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read cursor file: %v", err)
+	}
+
+	if string(data) != testCursorStr {
+		t.Errorf("Cursor content mismatch: expected %s, got %s", testCursorStr, string(data))
+	}
+
+	loadedCursor := LoadCursorFromFile(logger, cursorFilePath)
+	if loadedCursor == nil {
+		t.Fatalf("Failed to load cursor from atomically written file")
+	}
+
+	if loadedCursor.String() != testCursorStr {
+		t.Errorf("Loaded cursor mismatch: expected %s, got %s", testCursorStr, loadedCursor.String())
+	}
+}
+
+func TestTempFileNameReturnsPath(t *testing.T) {
+	tempDir := t.TempDir()
+
+	tempFile, err := os.CreateTemp(tempDir, ".cursor_test_*")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+
+	tempPath := tempFile.Name()
+
+	if tempPath == "" {
+		t.Fatalf("tempFile.Name() returned empty string")
+	}
+
+	if !strings.HasPrefix(tempPath, tempDir) {
+		t.Fatalf("tempFile.Name() returned path %s, expected to be in directory %s", tempPath, tempDir)
+	}
+
+	baseName := filepath.Base(tempPath)
+	if !strings.HasPrefix(baseName, ".cursor_test_") {
+		t.Fatalf("tempFile.Name() returned path %s, expected basename to start with '.cursor_test_'", tempPath)
+	}
+
+	testData := []byte("test cursor data")
+	_, err = tempFile.Write(testData)
+	if err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+
+	if err = tempFile.Close(); err != nil {
+		t.Fatalf("Failed to close temp file: %v", err)
+	}
+
+	readData, err := os.ReadFile(tempPath)
+	if err != nil {
+		t.Fatalf("Failed to read temp file using path from Name(): %v", err)
+	}
+
+	if string(readData) != string(testData) {
+		t.Fatalf("Data mismatch: wrote %s, read %s", string(testData), string(readData))
+	}
+
+	if _, err := os.Stat(tempPath); os.IsNotExist(err) {
+		t.Fatalf("File does not exist at path returned by Name(): %s", tempPath)
+	}
+}
+
 var _ store.ForkawareStore = (*MockStore)(nil)
 
 type MockStore struct {
-	mu           sync.Mutex
-	setAllCalls  []SetAllCall
-	flushCalls   []uint64
-	evictCalls   []uint64
+	mu          sync.Mutex
+	setAllCalls []SetAllCall
+	flushCalls  []uint64
+	evictCalls  []uint64
 }
 
 type SetAllCall struct {
@@ -157,10 +262,10 @@ func (m *MockStore) Set(entry *pbstore.Entry, blockNumber uint64) error {
 func (m *MockStore) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	entriesCopy := make([]*pbstore.Entry, len(entries))
 	copy(entriesCopy, entries)
-	
+
 	m.setAllCalls = append(m.setAllCalls, SetAllCall{
 		Entries:     entriesCopy,
 		BlockNumber: blockNumber,
@@ -210,7 +315,7 @@ func (m *MockStore) Reset() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.setAllCalls = m.setAllCalls[:0]
-	m.flushCalls = m.flushCalls[:0]  
+	m.flushCalls = m.flushCalls[:0]
 	m.evictCalls = m.evictCalls[:0]
 }
 
@@ -218,7 +323,7 @@ func createTestEntries(count int, keyPrefix string, valueSize int) []*pbstore.En
 	entries := make([]*pbstore.Entry, count)
 	for i := 0; i < count; i++ {
 		key := []byte(keyPrefix + string(rune('A'+i%26)))
-		
+
 		mint := make([]byte, valueSize/2)
 		owner := make([]byte, valueSize/2)
 		for j := range mint {
@@ -227,7 +332,7 @@ func createTestEntries(count int, keyPrefix string, valueSize int) []*pbstore.En
 		for j := range owner {
 			owner[j] = byte('o' + j%26)
 		}
-		
+
 		anyValue, _ := anypb.New(&pbstore.AccountOwner{
 			Mint:  mint,
 			Owner: owner,
@@ -243,63 +348,63 @@ func createTestEntries(count int, keyPrefix string, valueSize int) []*pbstore.En
 func TestBatchingByEntryCount(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	mockStore := NewMockStore()
-	
+
 	batchSize := 5
 	maxBatchTime := 10 * time.Second
 	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime)
 	defer handler.Close()
-	
+
 	entries := createTestEntries(12, "test_", 100)
-	
+
 	err := handler.addToBatch(entries[0:3], 1000)
 	if err != nil {
 		t.Fatalf("Failed to add first batch: %v", err)
 	}
-	
+
 	calls := mockStore.GetSetAllCalls()
 	if len(calls) != 0 {
 		t.Errorf("Expected 0 SetAll calls after 3 entries, got %d", len(calls))
 	}
-	
+
 	err = handler.addToBatch(entries[3:5], 1001)
 	if err != nil {
 		t.Fatalf("Failed to add second batch: %v", err)
 	}
-	
+
 	calls = mockStore.GetSetAllCalls()
 	if len(calls) != 1 {
 		t.Errorf("Expected 1 SetAll call after 5 entries, got %d", len(calls))
 	} else if len(calls[0].Entries) != 5 {
 		t.Errorf("Expected first batch to have 5 entries, got %d", len(calls[0].Entries))
 	}
-	
+
 	err = handler.addToBatch(entries[5:10], 1002)
 	if err != nil {
 		t.Fatalf("Failed to add third batch: %v", err)
 	}
-	
+
 	calls = mockStore.GetSetAllCalls()
 	if len(calls) != 2 {
 		t.Errorf("Expected 2 SetAll calls after 10 entries, got %d", len(calls))
 	} else if len(calls[1].Entries) != 5 {
 		t.Errorf("Expected second batch to have 5 entries, got %d", len(calls[1].Entries))
 	}
-	
+
 	err = handler.addToBatch(entries[10:12], 1003)
 	if err != nil {
 		t.Fatalf("Failed to add fourth batch: %v", err)
 	}
-	
+
 	calls = mockStore.GetSetAllCalls()
 	if len(calls) != 2 {
 		t.Errorf("Expected still 2 SetAll calls after 12 entries, got %d", len(calls))
 	}
-	
+
 	err = handler.FlushPendingBatch(1004)
 	if err != nil {
 		t.Fatalf("Failed to flush pending batch: %v", err)
 	}
-	
+
 	calls = mockStore.GetSetAllCalls()
 	if len(calls) != 3 {
 		t.Errorf("Expected 3 SetAll calls after flush, got %d", len(calls))
@@ -311,25 +416,25 @@ func TestBatchingByEntryCount(t *testing.T) {
 func TestBatchingByTimeout(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	mockStore := NewMockStore()
-	
+
 	batchSize := 1000
 	maxBatchTime := 50 * time.Millisecond
 	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime)
 	defer handler.Close()
-	
+
 	entries := createTestEntries(3, "timeout_test_", 100)
 	err := handler.addToBatch(entries, 2000)
 	if err != nil {
 		t.Fatalf("Failed to add entries: %v", err)
 	}
-	
+
 	calls := mockStore.GetSetAllCalls()
 	if len(calls) != 0 {
 		t.Errorf("Expected 0 SetAll calls immediately, got %d", len(calls))
 	}
-	
+
 	time.Sleep(100 * time.Millisecond)
-	
+
 	calls = mockStore.GetSetAllCalls()
 	if len(calls) != 1 {
 		t.Errorf("Expected 1 SetAll call after timeout, got %d", len(calls))
@@ -341,31 +446,31 @@ func TestBatchingByTimeout(t *testing.T) {
 func TestBatchingByByteSize(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	mockStore := NewMockStore()
-	
+
 	batchSize := 1000
 	maxBatchTime := 10 * time.Second
 	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime)
 	defer handler.Close()
-	
+
 	handler.maxBatchBytes = 1000
-	
+
 	entries := createTestEntries(2, "large_", 600)
-	
+
 	err := handler.addToBatch(entries[0:1], 3000)
 	if err != nil {
 		t.Fatalf("Failed to add first entry: %v", err)
 	}
-	
+
 	calls := mockStore.GetSetAllCalls()
 	if len(calls) != 0 {
 		t.Errorf("Expected 0 SetAll calls after first large entry, got %d", len(calls))
 	}
-	
+
 	err = handler.addToBatch(entries[1:2], 3001)
 	if err != nil {
 		t.Fatalf("Failed to add second entry: %v", err)
 	}
-	
+
 	calls = mockStore.GetSetAllCalls()
 	if len(calls) != 1 {
 		t.Errorf("Expected 1 SetAll call after exceeding byte limit, got %d", len(calls))
@@ -377,36 +482,36 @@ func TestBatchingByByteSize(t *testing.T) {
 func TestHandlerClose(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	mockStore := NewMockStore()
-	
+
 	batchSize := 10
 	maxBatchTime := 100 * time.Millisecond
 	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime)
-	
+
 	entries := createTestEntries(3, "close_test_", 100)
 	err := handler.addToBatch(entries, 4000)
 	if err != nil {
 		t.Fatalf("Failed to add entries: %v", err)
 	}
-	
+
 	calls := mockStore.GetSetAllCalls()
 	if len(calls) != 0 {
 		t.Errorf("Expected 0 SetAll calls before close, got %d", len(calls))
 	}
-	
+
 	err = handler.Close()
 	if err != nil {
 		t.Fatalf("Failed to close handler: %v", err)
 	}
-	
+
 	calls = mockStore.GetSetAllCalls()
 	if len(calls) != 1 {
 		t.Errorf("Expected 1 SetAll call after close, got %d", len(calls))
 	} else if len(calls[0].Entries) != 3 {
 		t.Errorf("Expected batch to have 3 entries, got %d", len(calls[0].Entries))
 	}
-	
+
 	time.Sleep(200 * time.Millisecond)
-	
+
 	calls = mockStore.GetSetAllCalls()
 	if len(calls) != 1 {
 		t.Errorf("Expected still 1 SetAll call after waiting (timer should be stopped), got %d", len(calls))
@@ -416,16 +521,16 @@ func TestHandlerClose(t *testing.T) {
 func TestConcurrentBatching(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	mockStore := NewMockStore()
-	
+
 	batchSize := 10
 	maxBatchTime := 1 * time.Second
 	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime)
 	defer handler.Close()
-	
+
 	var wg sync.WaitGroup
 	numGoroutines := 5
 	entriesPerGoroutine := 4
-	
+
 	for i := 0; i < numGoroutines; i++ {
 		wg.Add(1)
 		go func(goroutineID int) {
@@ -437,22 +542,22 @@ func TestConcurrentBatching(t *testing.T) {
 			}
 		}(i)
 	}
-	
+
 	wg.Wait()
-	
+
 	calls := mockStore.GetSetAllCalls()
 	if len(calls) == 0 {
 		t.Errorf("Expected at least 1 SetAll call from concurrent access, got %d", len(calls))
 	}
-	
+
 	handler.FlushPendingBatch(5999)
-	
+
 	calls = mockStore.GetSetAllCalls()
 	totalEntries := 0
 	for _, call := range calls {
 		totalEntries += len(call.Entries)
 	}
-	
+
 	expectedTotal := numGoroutines * entriesPerGoroutine
 	if totalEntries != expectedTotal {
 		t.Errorf("Expected %d total entries, got %d", expectedTotal, totalEntries)
