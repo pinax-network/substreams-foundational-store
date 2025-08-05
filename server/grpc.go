@@ -3,10 +3,12 @@ package server
 import (
 	"context"
 	"fmt"
+	"time"
 
 	dgrpcServer "github.com/streamingfast/dgrpc/server"
 	"github.com/streamingfast/dgrpc/server/factory"
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	"github.com/streamingfast/substreams-foundational-store/sink"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -27,6 +29,12 @@ func NewStoreServer(store store.Store) *StoreServer {
 
 // Get implements the Get method of the StoreKV service
 func (s *StoreServer) Get(ctx context.Context, req *pbstore.GetRequest) (*pbstore.GetResponse, error) {
+	start := time.Now()
+	defer func() {
+		sink.GRPCGetDuration.ObserveDuration(time.Since(start))
+		sink.GRPCGetCount.Inc()
+	}()
+
 	r, err := s.store.Get(req)
 	if err != nil {
 		return nil, fmt.Errorf("getting from store: %w", err)
@@ -36,6 +44,12 @@ func (s *StoreServer) Get(ctx context.Context, req *pbstore.GetRequest) (*pbstor
 
 // GetAll implements the GetAll method of the StoreKV service
 func (s *StoreServer) GetAll(ctx context.Context, req *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {
+	start := time.Now()
+	defer func() {
+		sink.GRPCGetAllDuration.ObserveDuration(time.Since(start))
+		sink.GRPCGetAllCount.Inc()
+	}()
+
 	return s.store.GetAll(req)
 }
 
@@ -47,9 +61,10 @@ func Serve(addr string, store store.Store, logger *zap.Logger, opts ...grpc.Serv
 
 	storeServer := NewStoreServer(store)
 
-	// Create the dgrpc server
+	// Create the dgrpc server with reduced per-call logging
+	grpcLogger := logger.Named("grpc").WithOptions(zap.IncreaseLevel(zap.WarnLevel))
 	grpcServer := factory.ServerFromOptions(
-		dgrpcServer.WithLogger(logger),
+		dgrpcServer.WithLogger(grpcLogger),
 		dgrpcServer.WithPlainTextServer(),
 		dgrpcServer.WithGRPCServerOptions(opts...),
 		dgrpcServer.WithRegisterService(func(gs *grpc.Server) {

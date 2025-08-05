@@ -29,6 +29,12 @@ var BadgerStoreSize = Metrics.NewGauge("foundational_store_badger_size_bytes", "
 var BadgerFlushDuration = Metrics.NewHistogram("foundational_store_badger_flush_duration_seconds", "Time taken for BadgerDB flush operations")
 var BadgerFlushCount = Metrics.NewCounter("foundational_store_badger_flush_total", "Total number of BadgerDB flush operations")
 var BadgerFlushErrors = Metrics.NewCounter("foundational_store_badger_flush_errors_total", "Number of BadgerDB flush errors")
+
+var GRPCGetDuration = Metrics.NewHistogram("foundational_store_grpc_get_duration_seconds", "Time taken for gRPC Get requests")
+var GRPCGetCount = Metrics.NewCounter("foundational_store_grpc_get_total", "Total number of gRPC Get requests")
+var GRPCGetAllDuration = Metrics.NewHistogram("foundational_store_grpc_getall_duration_seconds", "Time taken for gRPC GetAll requests")
+var GRPCGetAllCount = Metrics.NewCounter("foundational_store_grpc_getall_total", "Total number of gRPC GetAll requests")
+
 var PostgresConnections = Metrics.NewGauge("foundational_store_postgres_connections", "Number of active PostgreSQL connections")
 
 var CursorSaveErrors = Metrics.NewCounter("foundational_store_cursor_save_errors_total", "Number of errors saving cursor to file")
