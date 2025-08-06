@@ -15,6 +15,10 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	DefaultFlushQueueSize = 100
+)
+
 // LoadCursorFromFile attempts to load a cursor from the specified file.
 // Returns nil if the file doesn't exist or if there's an error reading it.
 func LoadCursorFromFile(logger *zap.Logger, cursorFilePath string) *sink.Cursor {
@@ -50,6 +54,13 @@ func LoadCursorFromFile(logger *zap.Logger, cursorFilePath string) *sink.Cursor 
 	return cursor
 }
 
+// flushRequest represents a pending flush op
+type flushRequest struct {
+	blockNumber uint64
+	cursor      *sink.Cursor
+	resultChan  chan error
+}
+
 type Handler struct {
 	store          store.ForkawareStore
 	typeUrl        string
@@ -65,9 +76,14 @@ type Handler struct {
 	batchStartTime time.Time
 	batchTimer     *time.Timer
 	mu             sync.Mutex
+
+	// Async flush fields
+	flushQueue      chan *flushRequest
+	flushWorkerDone chan struct{}
+	shutdown        chan struct{}
 }
 
-func NewSinker(typeUrl string, store store.ForkawareStore, logger *zap.Logger, cursorFilePath string, batchSize int, maxBatchTime time.Duration) *Handler {
+func NewSinker(typeUrl string, store store.ForkawareStore, logger *zap.Logger, cursorFilePath string, batchSize int, maxBatchTime time.Duration, flushQueueSize int) *Handler {
 	logger = logger.Named("foundational-store-sinker")
 
 	if batchSize <= 0 {
@@ -76,8 +92,11 @@ func NewSinker(typeUrl string, store store.ForkawareStore, logger *zap.Logger, c
 	if maxBatchTime <= 0 {
 		maxBatchTime = 30 * time.Second
 	}
+	if flushQueueSize <= 0 {
+		flushQueueSize = DefaultFlushQueueSize
+	}
 
-	return &Handler{
+	handler := &Handler{
 		store:          store,
 		typeUrl:        typeUrl,
 		logger:         logger,
@@ -85,9 +104,18 @@ func NewSinker(typeUrl string, store store.ForkawareStore, logger *zap.Logger, c
 		batchBuffer:    make([]*pbstore.Entry, 0, batchSize),
 		batchSize:      batchSize,
 		maxBatchTime:   maxBatchTime,
-		maxBatchBytes:  8 * 1024 * 1024,
-		batchSizeBytes: 0,
+		// this represents ~80% badger size
+		maxBatchBytes:   8 * 1024 * 1024,
+		batchSizeBytes:  0,
+		flushQueue:      make(chan *flushRequest, flushQueueSize),
+		flushWorkerDone: make(chan struct{}),
+		shutdown:        make(chan struct{}),
 	}
+
+	// Start the flush worker
+	go handler.flushWorker()
+
+	return handler
 }
 
 func (h *Handler) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrpc.BlockScopedData, isLive *bool, cursor *sink.Cursor) error {
@@ -111,16 +139,43 @@ func (h *Handler) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsr
 
 	lib := cursor.LIB.Num()
 
-	flushStart := time.Now()
-	if err := h.store.FlushUpToBlock(lib); err != nil {
-		return fmt.Errorf("flushing data up to block %d: %w", lib, err)
+	// Submit flush request to background worker
+	req := &flushRequest{
+		blockNumber: lib,
+		cursor:      cursor,
+		resultChan:  make(chan error, 1),
 	}
-	StoreFlushDuration.ObserveDuration(time.Since(flushStart))
 
-	// Always save the cursor to a file, regardless of whether there was output data
-	if err := h.saveCursorToFile(cursor); err != nil {
-		CursorSaveErrors.Inc()
-		return fmt.Errorf("saving cursor to file %w", err)
+	select {
+	case h.flushQueue <- req:
+		// Request queued successfully
+		FlushQueueDepth.SetUint64(uint64(len(h.flushQueue)))
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		// Queue is full - increment metric and apply backpressure
+		FlushQueueFull.Inc()
+		h.logger.Warn("Flush queue is full, applying backpressure",
+			zap.Uint64("block", lib),
+			zap.Int("queue_capacity", cap(h.flushQueue)))
+
+		// Block until we can queue the request or context is cancelled
+		select {
+		case h.flushQueue <- req:
+			FlushQueueDepth.SetUint64(uint64(len(h.flushQueue)))
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	// Wait for flush to complete
+	select {
+	case err := <-req.resultChan:
+		if err != nil {
+			return fmt.Errorf("flushing data up to block %d: %w", lib, err)
+		}
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 
 	blockNum := data.GetClock().Number
@@ -230,7 +285,15 @@ func (h *Handler) Close() error {
 	}
 
 	// Flush any pending entries
-	return h.flushBatchLocked(0)
+	if err := h.flushBatchLocked(0); err != nil {
+		return err
+	}
+
+	// Signal shutdown to flush worker and wait for it to finish
+	close(h.shutdown)
+	<-h.flushWorkerDone
+
+	return nil
 }
 
 func (h *Handler) HandleBlockUndoSignal(ctx context.Context, undoSignal *pbsubstreamsrpc.BlockUndoSignal, cursor *sink.Cursor) error {
@@ -258,4 +321,52 @@ func (h *Handler) HandleBlockUndoSignal(ctx context.Context, undoSignal *pbsubst
 		zap.Uint64("block_number", blockNum))
 
 	return nil
+}
+
+// flushWorker runs in the background and processes flush requests sequentially
+func (h *Handler) flushWorker() {
+	defer close(h.flushWorkerDone)
+
+	for {
+		select {
+		case req := <-h.flushQueue:
+
+			// Update queue depth after dequeuing
+			FlushQueueDepth.SetUint64(uint64(len(h.flushQueue)))
+
+			asyncFlushStart := time.Now()
+			flushStart := time.Now()
+			err := h.store.FlushUpToBlock(req.blockNumber)
+			StoreFlushDuration.ObserveDuration(time.Since(flushStart))
+
+			if err != nil {
+				AsyncFlushDuration.ObserveDuration(time.Since(asyncFlushStart))
+				h.logger.Error("Failed to flush to database",
+					zap.Uint64("block", req.blockNumber),
+					zap.Error(err))
+				req.resultChan <- err
+				continue
+			}
+
+			// After successful flush, save the cursor
+			if err := h.saveCursorToFile(req.cursor); err != nil {
+				CursorSaveErrors.Inc()
+				AsyncFlushDuration.ObserveDuration(time.Since(asyncFlushStart))
+				h.logger.Error("Failed to save cursor after flush",
+					zap.Uint64("block", req.blockNumber),
+					zap.Error(err))
+				req.resultChan <- err
+				continue
+			}
+
+			AsyncFlushDuration.ObserveDuration(time.Since(asyncFlushStart))
+
+			// success
+			req.resultChan <- nil
+
+		case <-h.shutdown:
+			h.logger.Info("Flush worker shutting down")
+			return
+		}
+	}
 }

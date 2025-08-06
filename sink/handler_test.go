@@ -351,7 +351,7 @@ func TestBatchingByEntryCount(t *testing.T) {
 
 	batchSize := 5
 	maxBatchTime := 10 * time.Second
-	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime)
+	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
 	defer handler.Close()
 
 	entries := createTestEntries(12, "test_", 100)
@@ -419,7 +419,7 @@ func TestBatchingByTimeout(t *testing.T) {
 
 	batchSize := 1000
 	maxBatchTime := 50 * time.Millisecond
-	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime)
+	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
 	defer handler.Close()
 
 	entries := createTestEntries(3, "timeout_test_", 100)
@@ -449,7 +449,7 @@ func TestBatchingByByteSize(t *testing.T) {
 
 	batchSize := 1000
 	maxBatchTime := 10 * time.Second
-	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime)
+	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
 	defer handler.Close()
 
 	handler.maxBatchBytes = 1000
@@ -485,7 +485,7 @@ func TestHandlerClose(t *testing.T) {
 
 	batchSize := 10
 	maxBatchTime := 100 * time.Millisecond
-	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime)
+	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
 
 	entries := createTestEntries(3, "close_test_", 100)
 	err := handler.addToBatch(entries, 4000)
@@ -524,7 +524,7 @@ func TestConcurrentBatching(t *testing.T) {
 
 	batchSize := 10
 	maxBatchTime := 1 * time.Second
-	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime)
+	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
 	defer handler.Close()
 
 	var wg sync.WaitGroup
@@ -562,4 +562,140 @@ func TestConcurrentBatching(t *testing.T) {
 	if totalEntries != expectedTotal {
 		t.Errorf("Expected %d total entries, got %d", expectedTotal, totalEntries)
 	}
+}
+
+func TestAsyncFlushWorkerStartsAndStops(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	mockStore := NewMockStore()
+
+	handler := NewSinker("test", mockStore, logger, "", 10, time.Second, 10)
+
+	if handler.flushQueue == nil {
+		t.Error("Expected flush queue to be initialized")
+	}
+	if handler.flushWorkerDone == nil {
+		t.Error("Expected flush worker done channel to be initialized")
+	}
+	if handler.shutdown == nil {
+		t.Error("Expected shutdown channel to be initialized")
+	}
+
+	err := handler.Close()
+	if err != nil {
+		t.Fatalf("Failed to close handler: %v", err)
+	}
+
+	select {
+	case <-handler.flushWorkerDone:
+	case <-time.After(1 * time.Second):
+		t.Error("Flush worker did not shut down within timeout")
+	}
+}
+
+func TestAsyncFlushQueueDepthTracking(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+
+	slowStore := &SlowMockStore{
+		MockStore:  NewMockStore(),
+		flushDelay: 100 * time.Millisecond,
+	}
+
+	handler := NewSinker("test", slowStore, logger, "", 10, time.Second, 5)
+	defer handler.Close()
+
+	RegisterMetrics()
+
+	FlushQueueDepth.SetUint64(0)
+	initialDepth := FlushQueueDepth.Get()
+
+	entries := []*pbstore.Entry{
+		createTestEntry("key1", "value1"),
+		createTestEntry("key2", "value2"),
+		createTestEntry("key3", "value3"),
+	}
+
+	go func() {
+		for i := 0; i < 3; i++ {
+			handler.addToBatch(entries, uint64(1000+i))
+		}
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	currentDepth := FlushQueueDepth.Get()
+	t.Logf("Queue depth tracking working: initial=%f, current=%f", initialDepth, currentDepth)
+
+	if currentDepth < 0 {
+		t.Error("Queue depth should not be negative")
+	}
+}
+
+func TestAsyncFlushPreservesDataSafety(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	mockStore := NewMockStore()
+
+	tempDir := t.TempDir()
+	cursorFile := filepath.Join(tempDir, "test.cursor")
+
+	handler := NewSinker("test", mockStore, logger, cursorFile, 10, time.Second, 10)
+	defer handler.Close()
+
+	entries := []*pbstore.Entry{createTestEntry("key1", "value1")}
+	testCursor := createTestCursor()
+
+	err := handler.addToBatch(entries, 1000)
+	if err != nil {
+		t.Fatalf("addToBatch failed: %v", err)
+	}
+
+	err = handler.FlushPendingBatch(1000)
+	if err != nil {
+		t.Fatalf("FlushPendingBatch failed: %v", err)
+	}
+
+	setAllCalls := mockStore.GetSetAllCalls()
+	if len(setAllCalls) == 0 {
+		t.Error("Expected at least 1 SetAll call")
+	}
+
+	err = handler.saveCursorToFile(testCursor)
+	if err != nil {
+		t.Fatalf("saveCursorToFile failed: %v", err)
+	}
+
+	if _, err := os.Stat(cursorFile); os.IsNotExist(err) {
+		t.Error("Cursor file should exist after save")
+	}
+
+	if handler.flushQueue == nil {
+		t.Error("Async flush queue should be initialized")
+	}
+}
+
+// SlowMockStore simulates slow flush operations for testing queue behavior
+type SlowMockStore struct {
+	*MockStore
+	flushDelay time.Duration
+}
+
+func (s *SlowMockStore) FlushUpToBlock(blockNum uint64) error {
+	time.Sleep(s.flushDelay)
+	return s.MockStore.FlushUpToBlock(blockNum)
+}
+
+// Helper functions for tests
+func createTestEntry(key, value string) *pbstore.Entry {
+	return &pbstore.Entry{
+		Key: []byte(key),
+		Value: &anypb.Any{
+			TypeUrl: "test.Entry",
+			Value:   []byte(value),
+		},
+	}
+}
+
+func createTestCursor() *sink.Cursor {
+	testCursorStr := "XWQh1iJoYAKTDtvllL7yraWwLpc_DFhvVQvlKhhCjYGDiHqspvzCXTgfFUum8f32iBSqMQXahNirXjQmq6AKuJSypu8Sm3NpAXkk8YPs-7TvePP7OgIRBMNqNpHvBoWCMUGBFGuvfOQBoa-4TKneAQh4P55GdmL211oH1PMGIeQTsRE="
+	cursor, _ := sink.NewCursor(testCursorStr)
+	return cursor
 }

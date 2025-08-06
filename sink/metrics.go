@@ -54,6 +54,11 @@ var PostgresConnections = Metrics.NewGauge("foundational_store_postgres_connecti
 
 var CursorSaveErrors = Metrics.NewCounter("foundational_store_cursor_save_errors_total", "Number of errors saving cursor to file")
 
+// Async flush metrics
+var FlushQueueDepth = Metrics.NewGauge("foundational_store_flush_queue_depth", "Number of pending flush requests in queue")
+var FlushQueueFull = Metrics.NewCounter("foundational_store_flush_queue_full_total", "Number of times flush queue was full")
+var AsyncFlushDuration = Metrics.NewHistogram("foundational_store_async_flush_duration_seconds", "Time taken for async flush operations")
+
 func GetDiskUsage(path string) (total, free, used uint64, err error) {
 	var stat syscall.Statfs_t
 	err = syscall.Statfs(path, &stat)
@@ -107,6 +112,9 @@ func LogDatabaseStats(logger *zap.Logger) {
 	lsmSize := uint64(BadgerLSMSize.Get())
 	vlogSize := uint64(BadgerVLogSize.Get())
 
+	flushQueueDepth := uint64(FlushQueueDepth.Get())
+	flushQueueFullEvents := uint64(FlushQueueFull.Get())
+
 	totalGets := getHits + getMisses
 	hitRate := float64(0)
 	if totalGets > 0 {
@@ -126,5 +134,7 @@ func LogDatabaseStats(logger *zap.Logger) {
 		zap.Uint64("badger_total_size_bytes", badgerSize),
 		zap.Uint64("badger_lsm_size_bytes", lsmSize),
 		zap.Uint64("badger_vlog_size_bytes", vlogSize),
+		zap.Uint64("flush_queue_depth", flushQueueDepth),
+		zap.Uint64("flush_queue_full_events", flushQueueFullEvents),
 	)
 }

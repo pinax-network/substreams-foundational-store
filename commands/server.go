@@ -44,6 +44,7 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		cursorFilePath, _ := cmd.Flags().GetString("cursor-file-path")
 		batchSize, _ := cmd.Flags().GetInt("batch-size")
 		maxBatchTime, _ := cmd.Flags().GetDuration("max-batch-time")
+		flushQueueSize, _ := cmd.Flags().GetInt("flush-queue-size")
 
 		if serverDSN == "" {
 			return fmt.Errorf("dsn is required")
@@ -118,7 +119,7 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		}
 
 		// Create a handler for the substreams sink
-		handler := sink.NewSinker(serverTypeUrl, storeImpl, zlog, cursorFilePath, batchSize, maxBatchTime)
+		handler := sink.NewSinker(serverTypeUrl, storeImpl, zlog, cursorFilePath, batchSize, maxBatchTime, flushQueueSize)
 
 		// Start the gRPC server in a goroutine
 		errCh := make(chan error, 1)
@@ -186,6 +187,7 @@ func init() {
 	ServerCmd.Flags().String("cursor-file-path", "state.cursor", "Path to the cursor file")
 	ServerCmd.Flags().Int("batch-size", 1000, "Number of entries to batch for insertion")
 	ServerCmd.Flags().Duration("max-batch-time", 30*time.Second, "Maximum time to wait before flushing a partial batch")
+	ServerCmd.Flags().Int("flush-queue-size", 100, "Size of the async flush queue buffer")
 
 	ServerCmd.MarkFlagRequired("dsn")
 	ServerCmd.MarkFlagRequired("type-url")
@@ -199,6 +201,7 @@ func init() {
 	viper.BindPFlag("server.cursor_file_path", ServerCmd.Flags().Lookup("cursor-file-path"))
 	viper.BindPFlag("server.batch_size", ServerCmd.Flags().Lookup("batch-size"))
 	viper.BindPFlag("server.max_batch_time", ServerCmd.Flags().Lookup("max-batch-time"))
+	viper.BindPFlag("server.flush_queue_size", ServerCmd.Flags().Lookup("flush-queue-size"))
 
 	viper.BindPFlag("endpoint", ServerCmd.Flags().Lookup("endpoint"))
 	viper.BindPFlag("start-block", ServerCmd.Flags().Lookup("start-block"))
