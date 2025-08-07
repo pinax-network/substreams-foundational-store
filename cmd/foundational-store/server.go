@@ -151,7 +151,7 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		case <-sigCh:
 			zlog.Info("received interrupt signal, shutting down...")
 			// Clean shutdown with timer cleanup and batch flush
-			if err := handler.Close(); err != nil {
+			if err := handler.Shutdown(fmt.Errorf("interrupt signal received")); err != nil {
 				zlog.Warn("failed to close handler cleanly during shutdown", zap.Error(err))
 			}
 			substreamsClient.Shutdown(nil)

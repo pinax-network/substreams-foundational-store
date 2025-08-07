@@ -138,7 +138,7 @@ func (h *Handler) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsr
 func (h *Handler) Close() error {
 
 	// Get any remaining batch entries and send to flush worker
-	// FIXME stepd
+	// FIXME ulysse
 	//	batch, batchBytes := h.GetPendingBatchAndReset(0)
 	//	if len(batch) > 0 {
 	//		req := &flushRequest{
