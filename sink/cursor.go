@@ -44,9 +44,10 @@ func LoadCursorFromFile(logger *zap.Logger, cursorFilePath string) *sink.Cursor 
 	return cursor
 }
 
-// saveCursorToFile saves the cursor to a file
-func (h *Handler) saveCursorToFile(cursor *sink.Cursor) error {
-	if err := sink.WriteCursor(h.cursorFilePath, cursor); err != nil {
+// SaveCursorToFile saves the cursor to a file
+func SaveCursorToFile(cursor *sink.Cursor, cursorFilePath string, logger *zap.Logger) error {
+	if err := sink.WriteCursor(cursorFilePath, cursor); err != nil {
+		logger.Error("Failed to write cursor to file", zap.String("path", cursorFilePath), zap.Error(err))
 		return fmt.Errorf("writing cursor to file: %w", err)
 	}
 	return nil

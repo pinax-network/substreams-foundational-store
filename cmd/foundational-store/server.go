@@ -118,8 +118,8 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 			return fmt.Errorf("failed to create substreams sink: %w", err)
 		}
 
-		// Create a handler for the substreams sink
-		handler := sink.NewSinker(serverTypeUrl, storeImpl, zlog, cursorFilePath, batchSize, maxBatchTime, flushQueueSize)
+		// Create a sinker for the substreams sink
+		sinker := sink.NewSinker(serverTypeUrl, storeImpl, zlog, cursorFilePath, batchSize, maxBatchTime, flushQueueSize)
 
 		// Start the gRPC server in a goroutine
 		errCh := make(chan error, 1)
@@ -143,7 +143,7 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 				zlog.Error("sinker terminating", zap.Error(err))
 				close(sinkerDone)
 			})
-			substreamsClient.Run(cmd.Context(), cursor, handler)
+			substreamsClient.Run(cmd.Context(), cursor, sinker)
 		}()
 
 		// Wait for an interrupt signal or an error from the server
@@ -151,23 +151,21 @@ The server supports various foundational-store implementations (PostgreSQL, Badg
 		case <-sigCh:
 			zlog.Info("received interrupt signal, shutting down...")
 			// Clean shutdown with timer cleanup and batch flush
-			if err := handler.Shutdown(fmt.Errorf("interrupt signal received")); err != nil {
-				zlog.Warn("failed to close handler cleanly during shutdown", zap.Error(err))
-			}
+ 			sinker.Close()
 			substreamsClient.Shutdown(nil)
 			return nil
 		case err := <-errCh:
 			// Clean shutdown with timer cleanup and batch flush
-			if closeErr := handler.Close(); closeErr != nil {
-				zlog.Warn("failed to close handler cleanly during shutdown", zap.Error(closeErr))
+			if closeErr := sinker.Close(); closeErr != nil {
+				zlog.Warn("failed to close sinker cleanly during shutdown", zap.Error(closeErr))
 			}
 			substreamsClient.Shutdown(err)
 			return fmt.Errorf("server error: %w", err)
 		case <-sinkerDone:
 			zlog.Info("sinker is shutting down")
 			// Clean shutdown with timer cleanup and batch flush
-			if err := handler.Close(); err != nil {
-				zlog.Warn("failed to close handler cleanly during shutdown", zap.Error(err))
+			if err := sinker.Close(); err != nil {
+				zlog.Warn("failed to close sinker cleanly during shutdown", zap.Error(err))
 			}
 			return nil
 		}

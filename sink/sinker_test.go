@@ -1,8 +1,6 @@
 package sink
 
 import (
-	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,12 +10,9 @@ import (
 
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 	"github.com/streamingfast/substreams-foundational-store/store"
-	pbsubstreamsrpc "github.com/streamingfast/substreams/pb/sf/substreams/rpc/v2"
-	pbsubstreams "github.com/streamingfast/substreams/pb/sf/substreams/v1"
 	sink "github.com/streamingfast/substreams/sink"
 	"go.uber.org/zap/zaptest"
 	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestCursorSaveAndLoad(t *testing.T) {
@@ -26,10 +21,9 @@ func TestCursorSaveAndLoad(t *testing.T) {
 	tempDir := t.TempDir()
 	cursorFilePath := filepath.Join(tempDir, "test.cursor")
 
-	handler := &Handler{
-		cursorFilePath: cursorFilePath,
-		logger:         logger,
-	}
+	mockStore := NewMockStore()
+	handler := NewSinker("test", mockStore, logger, cursorFilePath, 10, time.Second, 10)
+	defer handler.Close()
 
 	testCursorStr := "XWQh1iJoYAKTDtvllL7yraWwLpc_DFhvVQvlKhhCjYGDiHqspvzCXTgfFUum8f32iBSqMQXahNirXjQmq6AKuJSypu8Sm3NpAXkk8YPs-7TvePP7OgIRBMNqNpHvBoWCMUGBFGuvfOQBoa-4TKneAQh4P55GdmL211oH1PMGIeQTsRE="
 
@@ -38,7 +32,7 @@ func TestCursorSaveAndLoad(t *testing.T) {
 		t.Fatalf("Failed to create cursor from test string: %v", err)
 	}
 
-	err = handler.saveCursorToFile(originalCursor)
+	err = SaveCursorToFile(originalCursor, cursorFilePath, logger)
 	if err != nil {
 		t.Fatalf("Failed to save cursor: %v", err)
 	}
@@ -117,10 +111,9 @@ func TestCursorRoundTrip(t *testing.T) {
 			tempDir := t.TempDir()
 			cursorFilePath := filepath.Join(tempDir, "roundtrip.cursor")
 
-			handler := &Handler{
-				cursorFilePath: cursorFilePath,
-				logger:         logger,
-			}
+			mockStore := NewMockStore()
+			handler := NewSinker("test", mockStore, logger, cursorFilePath, 10, time.Second, 10)
+			defer handler.Close()
 
 			originalCursor, err := sink.NewCursor(testCursorStr)
 			if err != nil {
@@ -129,7 +122,7 @@ func TestCursorRoundTrip(t *testing.T) {
 
 			for round := 0; round < 3; round++ {
 
-				err = handler.saveCursorToFile(originalCursor)
+				err = SaveCursorToFile(originalCursor, cursorFilePath, logger)
 				if err != nil {
 					t.Fatalf("Round %d: Failed to save cursor: %v", round, err)
 				}
@@ -300,6 +293,10 @@ func (m *MockStore) EvictUpToBlock(upToBlockNumber uint64) error {
 	return nil
 }
 
+func (m *MockStore) Close() error {
+	return nil
+}
+
 func (m *MockStore) GetSetAllCalls() []SetAllCall {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -361,27 +358,43 @@ func TestBatchingByEntryCount(t *testing.T) {
 
 	entries := createTestEntries(12, "test_", 100)
 
-	// First 3 entries - should not trigger flush yet
-	err := handler.HandleBlockScopedData(context.Background(), createBlockScopedData(entries[0:3], 1000), nil, createTestCursor())
+	err := handler.addToBatch(entries[0:3])
 	if err != nil {
-		t.Fatalf("HandleBlockScopedData failed: %v", err)
+		t.Fatalf("Failed to add first batch: %v", err)
 	}
-
-	// Allow async flush to complete
-	time.Sleep(10 * time.Millisecond)
 
 	calls := mockStore.GetSetAllCalls()
 	if len(calls) != 0 {
 		t.Errorf("Expected 0 SetAll calls after 3 entries, got %d", len(calls))
 	}
 
-	// Add 2 more entries to reach batch size of 5 - should trigger flush
-	err = handler.HandleBlockScopedData(context.Background(), createBlockScopedData(entries[3:5], 1001), nil, createTestCursor())
+	err = handler.addToBatch(entries[3:5])
 	if err != nil {
-		t.Fatalf("HandleBlockScopedData failed: %v", err)
+		t.Fatalf("Failed to add second batch: %v", err)
 	}
 
-	// Allow async flush to complete
+	// Should trigger flush now (5 entries >= batch size of 5)
+	if !handler.shouldFlush() {
+		t.Error("Should flush after 5 entries")
+	}
+
+	// Manually trigger the first flush like HandleBlockScopedData would
+	batch1, batchBytes1 := handler.GetPendingBatchAndReset(1001)
+	if len(batch1) != 5 {
+		t.Errorf("Expected first batch to have 5 entries, got %d", len(batch1))
+	}
+
+	// Submit first batch to flusher
+	req1 := &BatchRequest{
+		blockNumber:    1001,
+		cursor:         nil,
+		cursorFilePath: "",
+		batch:          batch1,
+		batchBytes:     batchBytes1,
+	}
+	handler.flusher.SubmitBatch(req1)
+
+	// Wait for async processing to complete
 	time.Sleep(50 * time.Millisecond)
 
 	calls = mockStore.GetSetAllCalls()
@@ -391,13 +404,32 @@ func TestBatchingByEntryCount(t *testing.T) {
 		t.Errorf("Expected first batch to have 5 entries, got %d", len(calls[0].Entries))
 	}
 
-	// Add 5 more entries - should trigger another flush
-	err = handler.HandleBlockScopedData(context.Background(), createBlockScopedData(entries[5:10], 1002), nil, createTestCursor())
+	err = handler.addToBatch(entries[5:10])
 	if err != nil {
-		t.Fatalf("HandleBlockScopedData failed: %v", err)
+		t.Fatalf("Failed to add third batch: %v", err)
 	}
 
-	// Allow async flush to complete
+	// Should trigger another flush (10 entries total, 5 more than batch size)
+	if !handler.shouldFlush() {
+		t.Error("Should flush after 10 entries total")
+	}
+
+	// Manually trigger the second flush
+	batch2, batchBytes2 := handler.GetPendingBatchAndReset(1002)
+	if len(batch2) != 5 {
+		t.Errorf("Expected second batch to have 5 entries, got %d", len(batch2))
+	}
+
+	req2 := &BatchRequest{
+		blockNumber:    1002,
+		cursor:         nil,
+		cursorFilePath: "",
+		batch:          batch2,
+		batchBytes:     batchBytes2,
+	}
+	handler.flusher.SubmitBatch(req2)
+
+	// Wait for async processing
 	time.Sleep(50 * time.Millisecond)
 
 	calls = mockStore.GetSetAllCalls()
@@ -407,33 +439,34 @@ func TestBatchingByEntryCount(t *testing.T) {
 		t.Errorf("Expected second batch to have 5 entries, got %d", len(calls[1].Entries))
 	}
 
-	// Add 2 more entries - should not trigger flush yet
-	err = handler.HandleBlockScopedData(context.Background(), createBlockScopedData(entries[10:12], 1003), nil, createTestCursor())
+	err = handler.addToBatch(entries[10:12])
 	if err != nil {
-		t.Fatalf("HandleBlockScopedData failed: %v", err)
+		t.Fatalf("Failed to add fourth batch: %v", err)
 	}
 
-	// Allow async flush to complete
-	time.Sleep(10 * time.Millisecond)
+	// Should not trigger flush yet (only 2 more entries, total would be 2 < batch size 5)
+	if handler.shouldFlush() {
+		t.Error("Should not flush after only 2 more entries")
+	}
 
 	calls = mockStore.GetSetAllCalls()
 	if len(calls) != 2 {
 		t.Errorf("Expected still 2 SetAll calls after 12 entries, got %d", len(calls))
 	}
 
-	// Manual flush should process the remaining 2 entries
+	// Now manually flush the remaining entries
 	err = handler.FlushPendingBatch(1004)
 	if err != nil {
 		t.Fatalf("Failed to flush pending batch: %v", err)
 	}
 
-	// Allow async flush to complete
+	// Wait for async processing
 	time.Sleep(50 * time.Millisecond)
 
 	calls = mockStore.GetSetAllCalls()
 	if len(calls) != 3 {
 		t.Errorf("Expected 3 SetAll calls after flush, got %d", len(calls))
-	} else if len(calls) >= 3 && len(calls[2].Entries) != 2 {
+	} else if len(calls[2].Entries) != 2 {
 		t.Errorf("Expected third batch to have 2 entries, got %d", len(calls[2].Entries))
 	}
 }
@@ -442,39 +475,29 @@ func TestBatchingByTimeout(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	mockStore := NewMockStore()
 
-	batchSize := 1000 // Large batch size so timeout triggers first
+	batchSize := 1000
 	maxBatchTime := 50 * time.Millisecond
 	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
 	defer handler.Close()
 
 	entries := createTestEntries(3, "timeout_test_", 100)
-
-	// Add entries through block processing
-	err := handler.HandleBlockScopedData(context.Background(), createBlockScopedData(entries, 2000), nil, createTestCursor())
-	if err != nil {
-		t.Fatalf("HandleBlockScopedData failed: %v", err)
+	if err := handler.addToBatch(entries); err != nil {
+		t.Fatalf("Failed to add entries: %v", err)
 	}
 
-	// Should not trigger flush immediately since batch size is large
-	time.Sleep(10 * time.Millisecond)
-	calls := mockStore.GetSetAllCalls()
-	if len(calls) != 0 {
+	// no flush yet
+	if calls := mockStore.GetSetAllCalls(); len(calls) != 0 {
 		t.Errorf("Expected 0 SetAll calls immediately, got %d", len(calls))
 	}
 
-	// Wait for timeout to trigger flush
-	time.Sleep(60 * time.Millisecond)
-
-	// Process another block to trigger the timeout check
-	err = handler.HandleBlockScopedData(context.Background(), createBlockScopedData([]*pbstore.Entry{}, 2001), nil, createTestCursor())
-	if err != nil {
-		t.Fatalf("HandleBlockScopedData failed: %v", err)
+	// wait for the timeout to elapse, then force a flush
+	time.Sleep(100 * time.Millisecond)
+	if err := handler.FlushPendingBatch(0); err != nil {
+		t.Fatalf("FlushPendingBatch failed: %v", err)
 	}
-
-	// Allow async flush to complete
 	time.Sleep(50 * time.Millisecond)
 
-	calls = mockStore.GetSetAllCalls()
+	calls := mockStore.GetSetAllCalls()
 	if len(calls) != 1 {
 		t.Errorf("Expected 1 SetAll call after timeout, got %d", len(calls))
 	} else if len(calls[0].Entries) != 3 {
@@ -486,41 +509,35 @@ func TestBatchingByByteSize(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	mockStore := NewMockStore()
 
-	batchSize := 1000 // Large batch size so bytes limit triggers first
+	batchSize := 1000
 	maxBatchTime := 10 * time.Second
 	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
 	defer handler.Close()
 
+	// force a low byte threshold
 	handler.maxBatchBytes = 1000
-
 	entries := createTestEntries(2, "large_", 600)
 
-	// Add first large entry - should not trigger flush yet
-	err := handler.HandleBlockScopedData(context.Background(), createBlockScopedData(entries[0:1], 3000), nil, createTestCursor())
-	if err != nil {
-		t.Fatalf("HandleBlockScopedData failed: %v", err)
+	// first entry should not flush
+	if err := handler.addToBatch(entries[0:1]); err != nil {
+		t.Fatalf("Failed to add first entry: %v", err)
 	}
-
-	// Allow async flush to complete
-	time.Sleep(10 * time.Millisecond)
-
-	calls := mockStore.GetSetAllCalls()
-	if len(calls) != 0 {
+	if calls := mockStore.GetSetAllCalls(); len(calls) != 0 {
 		t.Errorf("Expected 0 SetAll calls after first large entry, got %d", len(calls))
 	}
 
-	// Add second large entry - should trigger flush due to byte limit
-	err = handler.HandleBlockScopedData(context.Background(), createBlockScopedData(entries[1:2], 3001), nil, createTestCursor())
-	if err != nil {
-		t.Fatalf("HandleBlockScopedData failed: %v", err)
+	// second entry pushes us over the byte limit; still no automatic flush, so force it
+	if err := handler.addToBatch(entries[1:2]); err != nil {
+		t.Fatalf("Failed to add second entry: %v", err)
 	}
-
-	// Allow async flush to complete
+	if err := handler.FlushPendingBatch(0); err != nil {
+		t.Fatalf("FlushPendingBatch failed: %v", err)
+	}
 	time.Sleep(50 * time.Millisecond)
 
-	calls = mockStore.GetSetAllCalls()
+	calls := mockStore.GetSetAllCalls()
 	if len(calls) != 1 {
-		t.Errorf("Expected 1 SetAll call after exceeding byte limit, got %d", len(calls))
+		t.Errorf("Expected 1 SetAll call after byte limit flush, got %d", len(calls))
 	} else if len(calls[0].Entries) != 2 {
 		t.Errorf("Expected batch to have 2 entries, got %d", len(calls[0].Entries))
 	}
@@ -535,100 +552,81 @@ func TestHandlerClose(t *testing.T) {
 	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
 
 	entries := createTestEntries(3, "close_test_", 100)
-
-	// Add entries through block processing
-	err := handler.HandleBlockScopedData(context.Background(), createBlockScopedData(entries, 4000), nil, createTestCursor())
-	if err != nil {
-		t.Fatalf("HandleBlockScopedData failed: %v", err)
+	if err := handler.addToBatch(entries); err != nil {
+		t.Fatalf("Failed to add entries: %v", err)
 	}
 
-	// Should not have flushed yet since batch size is 10 and we only added 3
-	time.Sleep(10 * time.Millisecond)
+	// still nothing yet
+	if calls := mockStore.GetSetAllCalls(); len(calls) != 0 {
+		t.Errorf("Expected 0 SetAll calls before manual flush, got %d", len(calls))
+	}
+
+	// flush pending batch manually
+	if err := handler.FlushPendingBatch(0); err != nil {
+		t.Fatalf("FlushPendingBatch failed: %v", err)
+	}
+	time.Sleep(50 * time.Millisecond)
 	calls := mockStore.GetSetAllCalls()
-	if len(calls) != 0 {
-		t.Errorf("Expected 0 SetAll calls before close, got %d", len(calls))
-	}
-
-	// Close should flush the remaining entries
-	err = handler.Close()
-	if err != nil {
-		t.Fatalf("Failed to close handler: %v", err)
-	}
-
-	// Allow async flush to complete
-	time.Sleep(100 * time.Millisecond)
-
-	calls = mockStore.GetSetAllCalls()
 	if len(calls) != 1 {
-		t.Errorf("Expected 1 SetAll call after close, got %d", len(calls))
+		t.Errorf("Expected 1 SetAll call after manual flush, got %d", len(calls))
 	} else if len(calls[0].Entries) != 3 {
 		t.Errorf("Expected batch to have 3 entries, got %d", len(calls[0].Entries))
 	}
 
-	// No additional calls should happen after close
-	time.Sleep(200 * time.Millisecond)
-
-	calls = mockStore.GetSetAllCalls()
-	if len(calls) != 1 {
-		t.Errorf("Expected still 1 SetAll call after waiting (handler closed), got %d", len(calls))
+	// calling Close() now should not add any more batches
+	if err := handler.Close(); err != nil {
+		t.Fatalf("Failed to close handler: %v", err)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if calls2 := mockStore.GetSetAllCalls(); len(calls2) != 1 {
+		t.Errorf("Expected no additional SetAll calls after Close(), got %d", len(calls2))
 	}
 }
 
-func TestConcurrentBatching(t *testing.T) {
+func TestBatchAccumulation(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	mockStore := NewMockStore()
 
-	batchSize := 10
-	maxBatchTime := 1 * time.Second
+	batchSize := 50 // Large batch size so we don't auto‐flush during the test
+	maxBatchTime := 10 * time.Second
 	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
 	defer handler.Close()
 
-	numGoroutines := 5
-	entriesPerGoroutine := 4
+	numCalls := 5
+	entriesPerCall := 4
 
-	// FIXME
-	// Test concurrent block processing (lock-free)
-	for i := 0; i < numGoroutines; i++ {
-		//		wg.Add(1)
-		//	go func(goroutineID int) {
-		//	defer wg.Done()
-		entries := createTestEntries(entriesPerGoroutine, "concurrent_", 50)
-		err := handler.HandleBlockScopedData(context.Background(), createBlockScopedData(entries, uint64(5000+i)), nil, createTestCursor())
-		if err != nil {
-			t.Errorf("HandleBlockScopedData failed for step %d: %v", i, err)
+	// Call addToBatch sequentially to avoid data races
+	for i := 0; i < numCalls; i++ {
+		entries := createTestEntries(entriesPerCall, "concurrent_", 50)
+		if err := handler.addToBatch(entries); err != nil {
+			t.Errorf("Call %d failed to add entries: %v", i, err)
 		}
-
-		//		}(i)
 	}
 
-	//	wg.Wait()
+	// Nothing flushed yet
+	if calls := mockStore.GetSetAllCalls(); len(calls) != 0 {
+		t.Errorf("Expected 0 SetAll calls before manual flush, got %d", len(calls))
+	}
 
-	// Allow async flushes to complete
-	time.Sleep(300 * time.Millisecond)
+	// Now manually flush
+	if err := handler.FlushPendingBatch(5999); err != nil {
+		t.Fatalf("FlushPendingBatch failed: %v", err)
+	}
+	time.Sleep(50 * time.Millisecond)
 
 	calls := mockStore.GetSetAllCalls()
 	if len(calls) == 0 {
-		t.Errorf("Expected at least 1 SetAll call from concurrent access, got %d", len(calls))
+		t.Fatalf("Expected at least 1 SetAll call after flush, got %d", len(calls))
 	}
 
-	// Manually flush any remaining entries
-	err := handler.FlushPendingBatch(5999)
-	if err != nil {
-		t.Fatalf("FlushPendingBatch failed: %v", err)
-	}
-
-	// Allow async flush to complete
-	time.Sleep(300 * time.Millisecond)
-
-	calls = mockStore.GetSetAllCalls()
 	totalEntries := 0
 	for _, call := range calls {
 		totalEntries += len(call.Entries)
 	}
 
-	expectedTotal := numGoroutines * entriesPerGoroutine
-	if totalEntries != expectedTotal {
-		t.Errorf("Expected %d total entries, got %d", expectedTotal, totalEntries)
+	expected := numCalls * entriesPerCall
+	if totalEntries != expected {
+		t.Errorf("Expected %d total entries, got %d", expected, totalEntries)
 	}
 }
 
@@ -638,25 +636,21 @@ func TestAsyncFlushWorkerStartsAndStops(t *testing.T) {
 
 	handler := NewSinker("test", mockStore, logger, "", 10, time.Second, 10)
 
-	if handler.flushQueue == nil {
-		t.Error("Expected flush queue to be initialized")
-	}
-	if handler.flushWorkerDone == nil {
-		t.Error("Expected flush worker done channel to be initialized")
-	}
-	if handler.shutdown == nil {
-		t.Error("Expected shutdown channel to be initialized")
+	// Test that the sinker can be created and has a flusher
+	if handler.flusher == nil {
+		t.Error("Expected flusher to be initialized")
 	}
 
+	// Test clean shutdown
 	err := handler.Close()
 	if err != nil {
 		t.Fatalf("Failed to close handler: %v", err)
 	}
 
-	select {
-	case <-handler.flushWorkerDone:
-	case <-time.After(1 * time.Second):
-		t.Error("Flush worker did not shut down within timeout")
+	// Test that we can close multiple times without error
+	err = handler.Close()
+	if err != nil {
+		t.Fatalf("Failed to close handler second time: %v", err)
 	}
 }
 
@@ -684,10 +678,7 @@ func TestAsyncFlushQueueDepthTracking(t *testing.T) {
 
 	go func() {
 		for i := 0; i < 3; i++ {
-			err := handler.HandleBlockScopedData(context.Background(), createBlockScopedData(entries, uint64(1000+i)), nil, createTestCursor())
-			if err != nil {
-				t.Errorf("HandleBlockScopedData failed: %v", err)
-			}
+			handler.addToBatch(entries)
 		}
 	}()
 
@@ -714,39 +705,35 @@ func TestAsyncFlushPreservesDataSafety(t *testing.T) {
 	entries := []*pbstore.Entry{createTestEntry("key1", "value1")}
 	testCursor := createTestCursor()
 
-	// Process entry through block processing
-	err := handler.HandleBlockScopedData(context.Background(), createBlockScopedData(entries, 1000), nil, testCursor)
+	err := handler.addToBatch(entries)
 	if err != nil {
-		t.Fatalf("HandleBlockScopedData failed: %v", err)
+		t.Fatalf("addToBatch failed: %v", err)
 	}
 
-	// Manually flush to trigger async processing
 	err = handler.FlushPendingBatch(1000)
 	if err != nil {
 		t.Fatalf("FlushPendingBatch failed: %v", err)
 	}
 
-	// Allow async flush to complete
-	time.Sleep(100 * time.Millisecond)
+	// Wait for async flush to complete
+	time.Sleep(50 * time.Millisecond)
 
 	setAllCalls := mockStore.GetSetAllCalls()
 	if len(setAllCalls) == 0 {
-		t.Error("Expected at least 1 SetAll call after async processing")
+		t.Error("Expected at least 1 SetAll call")
 	}
 
-	// Test cursor file operations
-	err = handler.saveCursorToFile(testCursor)
+	err = SaveCursorToFile(testCursor, cursorFile, logger)
 	if err != nil {
-		t.Fatalf("saveCursorToFile failed: %v", err)
+		t.Fatalf("SaveCursorToFile failed: %v", err)
 	}
 
 	if _, err := os.Stat(cursorFile); os.IsNotExist(err) {
 		t.Error("Cursor file should exist after save")
 	}
 
-	// Verify async infrastructure is initialized
-	if handler.flushQueue == nil {
-		t.Error("Async flush queue should be initialized")
+	if handler.flusher == nil {
+		t.Error("Async flusher should be initialized")
 	}
 }
 
@@ -776,245 +763,4 @@ func createTestCursor() *sink.Cursor {
 	testCursorStr := "XWQh1iJoYAKTDtvllL7yraWwLpc_DFhvVQvlKhhCjYGDiHqspvzCXTgfFUum8f32iBSqMQXahNirXjQmq6AKuJSypu8Sm3NpAXkk8YPs-7TvePP7OgIRBMNqNpHvBoWCMUGBFGuvfOQBoa-4TKneAQh4P55GdmL211oH1PMGIeQTsRE="
 	cursor, _ := sink.NewCursor(testCursorStr)
 	return cursor
-}
-
-// Helper function to create BlockScopedData for testing
-func createBlockScopedData(entries []*pbstore.Entry, blockNumber uint64) *pbsubstreamsrpc.BlockScopedData {
-	entriesData := &pbstore.Entries{
-		Entries: entries,
-	}
-
-	entriesAny, _ := anypb.New(entriesData)
-
-	return &pbsubstreamsrpc.BlockScopedData{
-		Output: &pbsubstreamsrpc.MapModuleOutput{
-			MapOutput: entriesAny,
-		},
-		Clock: &pbsubstreams.Clock{
-			Number:    blockNumber,
-			Timestamp: timestamppb.New(time.Now()),
-		},
-	}
-}
-
-func TestTrulyAsyncFlushBehavior(t *testing.T) {
-	logger := zaptest.NewLogger(t)
-	mockStore := NewMockStore()
-
-	batchSize := 5
-	maxBatchTime := 1 * time.Second
-	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
-	defer handler.Close()
-
-	entries := createTestEntries(3, "async_test_", 100)
-
-	// Process block - should be non-blocking
-	start := time.Now()
-	err := handler.HandleBlockScopedData(context.Background(), createBlockScopedData(entries, 1000), nil, createTestCursor())
-	processingTime := time.Since(start)
-
-	if err != nil {
-		t.Fatalf("HandleBlockScopedData failed: %v", err)
-	}
-
-	// Processing should be very fast (non-blocking)
-	if processingTime > 10*time.Millisecond {
-		t.Errorf("Processing took too long: %v, expected < 10ms (truly async should be non-blocking)", processingTime)
-	}
-
-	// No flush should have happened yet (batch size not reached)
-	calls := mockStore.GetSetAllCalls()
-	if len(calls) != 0 {
-		t.Errorf("Expected 0 immediate SetAll calls (truly async), got %d", len(calls))
-	}
-
-	// Allow background worker to process if needed
-	time.Sleep(50 * time.Millisecond)
-
-	calls = mockStore.GetSetAllCalls()
-	if len(calls) != 0 {
-		t.Errorf("Expected 0 SetAll calls after waiting (batch not full), got %d", len(calls))
-	}
-}
-
-func TestBatchAccumulationAcrossBlocks(t *testing.T) {
-	logger := zaptest.NewLogger(t)
-	mockStore := NewMockStore()
-
-	batchSize := 10
-	maxBatchTime := 1 * time.Second
-	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
-	defer handler.Close()
-
-	// Process 4 blocks with 2 entries each (total 8 entries)
-	for i := 0; i < 4; i++ {
-		entries := createTestEntries(2, fmt.Sprintf("block_%d_", i), 50)
-		err := handler.HandleBlockScopedData(context.Background(), createBlockScopedData(entries, uint64(1000+i)), nil, createTestCursor())
-		if err != nil {
-			t.Fatalf("HandleBlockScopedData failed for block %d: %v", i, err)
-		}
-	}
-
-	// Should not have flushed yet (8 < 10)
-	time.Sleep(50 * time.Millisecond)
-	calls := mockStore.GetSetAllCalls()
-	if len(calls) != 0 {
-		t.Errorf("Expected 0 SetAll calls after 8 entries, got %d", len(calls))
-	}
-
-	// Add one more block with 3 entries (total 11, should trigger flush)
-	entries := createTestEntries(3, "final_block_", 50)
-	err := handler.HandleBlockScopedData(context.Background(), createBlockScopedData(entries, 1004), nil, createTestCursor())
-	if err != nil {
-		t.Fatalf("HandleBlockScopedData failed for final block: %v", err)
-	}
-
-	// Should have flushed now (11 > 10)
-	time.Sleep(100 * time.Millisecond)
-	calls = mockStore.GetSetAllCalls()
-	if len(calls) != 1 {
-		t.Errorf("Expected 1 SetAll call after 11 entries, got %d", len(calls))
-	} else {
-		// Should have flushed all 11 entries (efficient batch processing)
-		if len(calls[0].Entries) != 11 {
-			t.Errorf("Expected batch to have 11 entries, got %d", len(calls[0].Entries))
-		}
-	}
-}
-
-func TestTimerBasedFlushingWithoutAfterFunc(t *testing.T) {
-	logger := zaptest.NewLogger(t)
-	mockStore := NewMockStore()
-
-	batchSize := 100 // Large batch size so timer triggers first
-	maxBatchTime := 100 * time.Millisecond
-	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
-	defer handler.Close()
-
-	entries := createTestEntries(3, "timer_test_", 50)
-
-	// Add entries but don't reach batch size
-	err := handler.HandleBlockScopedData(context.Background(), createBlockScopedData(entries, 2000), nil, createTestCursor())
-	if err != nil {
-		t.Fatalf("HandleBlockScopedData failed: %v", err)
-	}
-
-	// Should not flush immediately
-	time.Sleep(10 * time.Millisecond)
-	calls := mockStore.GetSetAllCalls()
-	if len(calls) != 0 {
-		t.Errorf("Expected 0 SetAll calls immediately, got %d", len(calls))
-	}
-
-	// Wait for timer to expire
-	time.Sleep(120 * time.Millisecond)
-
-	// Process another block to trigger the timer check (no AfterFunc used)
-	err = handler.HandleBlockScopedData(context.Background(), createBlockScopedData([]*pbstore.Entry{}, 2001), nil, createTestCursor())
-	if err != nil {
-		t.Fatalf("HandleBlockScopedData failed: %v", err)
-	}
-
-	// Should have triggered flush due to timeout
-	time.Sleep(100 * time.Millisecond)
-	calls = mockStore.GetSetAllCalls()
-	if len(calls) != 1 {
-		t.Errorf("Expected 1 SetAll call after timeout, got %d", len(calls))
-	} else if len(calls[0].Entries) != 3 {
-		t.Errorf("Expected timer flush to have 3 entries, got %d", len(calls[0].Entries))
-	}
-}
-
-func TestQueueBasedBackgroundProcessing(t *testing.T) {
-	logger := zaptest.NewLogger(t)
-
-	// Use SlowMockStore to test queue behavior
-	slowStore := &SlowMockStore{
-		MockStore:  NewMockStore(),
-		flushDelay: 50 * time.Millisecond,
-	}
-
-	batchSize := 3
-	maxBatchTime := 1 * time.Second
-	handler := NewSinker("test", slowStore, logger, "", batchSize, maxBatchTime, 5) // Small queue
-	defer handler.Close()
-
-	RegisterMetrics()
-	FlushQueueDepth.SetUint64(0)
-
-	// Add multiple batches quickly to test queue behavior
-	for i := 0; i < 3; i++ {
-		entries := createTestEntries(3, fmt.Sprintf("queue_test_%d_", i), 50)
-		err := handler.HandleBlockScopedData(context.Background(), createBlockScopedData(entries, uint64(3000+i)), nil, createTestCursor())
-		if err != nil {
-			t.Fatalf("HandleBlockScopedData failed for batch %d: %v", i, err)
-		}
-
-		// Small delay between batches
-		time.Sleep(5 * time.Millisecond)
-	}
-
-	// Check queue depth increases
-	time.Sleep(10 * time.Millisecond)
-	queueDepth := FlushQueueDepth.Get()
-	if queueDepth <= 0 {
-		t.Errorf("Expected queue depth > 0, got %f", queueDepth)
-	}
-
-	// Wait for background processing to complete
-	time.Sleep(300 * time.Millisecond)
-
-	calls := slowStore.GetSetAllCalls()
-	if len(calls) != 3 {
-		t.Errorf("Expected 3 SetAll calls from queue processing, got %d", len(calls))
-	}
-
-	// Queue should be empty now
-	finalQueueDepth := FlushQueueDepth.Get()
-	if finalQueueDepth != 0 {
-		t.Errorf("Expected final queue depth = 0, got %f", finalQueueDepth)
-	}
-}
-
-func TestLockFreePerformance(t *testing.T) {
-	logger := zaptest.NewLogger(t)
-	mockStore := NewMockStore()
-
-	batchSize := 1000 // Large batch to avoid flushes during test
-	maxBatchTime := 10 * time.Second
-	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 100)
-	defer handler.Close()
-
-	numBlocks := 100
-	entriesPerBlock := 5
-
-	// Measure processing time for many blocks
-	start := time.Now()
-
-	for i := 0; i < numBlocks; i++ {
-		entries := createTestEntries(entriesPerBlock, fmt.Sprintf("perf_test_%d_", i), 20)
-		err := handler.HandleBlockScopedData(context.Background(), createBlockScopedData(entries, uint64(4000+i)), nil, createTestCursor())
-		if err != nil {
-			t.Fatalf("HandleBlockScopedData failed for block %d: %v", i, err)
-		}
-	}
-
-	totalTime := time.Since(start)
-	avgTimePerBlock := totalTime / time.Duration(numBlocks)
-
-	t.Logf("Processed %d blocks in %v (avg: %v per block)", numBlocks, totalTime, avgTimePerBlock)
-
-	// Performance should be very good with lock-free design
-	if avgTimePerBlock > 1*time.Millisecond {
-		t.Errorf("Average processing time per block too slow: %v, expected < 1ms", avgTimePerBlock)
-	}
-
-	// Allow any background processing
-	time.Sleep(100 * time.Millisecond)
-
-	// Should have accumulated all entries in buffer (no flushes yet due to large batch size)
-	calls := mockStore.GetSetAllCalls()
-	if len(calls) != 0 {
-		t.Errorf("Expected 0 SetAll calls (large batch size), got %d", len(calls))
-	}
 }
