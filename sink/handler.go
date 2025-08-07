@@ -3,7 +3,6 @@ package sink
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
@@ -24,7 +23,6 @@ type Handler struct {
 	cursorFilePath string
 
 	// Batching fields (protected by batchMutex)
-	batchMutex     sync.Mutex
 	batchBuffer    []*pbstore.Entry
 	batchSize      int
 	batchSizeBytes int
@@ -140,20 +138,21 @@ func (h *Handler) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsr
 func (h *Handler) Close() error {
 
 	// Get any remaining batch entries and send to flush worker
-	batch, batchBytes := h.GetPendingBatchAndReset(0)
-	if len(batch) > 0 {
-		req := &flushRequest{
-			blockNumber: 0,
-			cursor:      nil,
-			batch:       batch,
-			batchBytes:  batchBytes,
-		}
-
-		// Send final batch (blocking to ensure it gets queued)
-		h.flushQueue <- req
-		FlushQueueDepth.SetUint64(uint64(len(h.flushQueue)))
-	}
-
+	// FIXME stepd
+	//	batch, batchBytes := h.GetPendingBatchAndReset(0)
+	//	if len(batch) > 0 {
+	//		req := &flushRequest{
+	//			blockNumber: 0,
+	//			cursor:      nil,
+	//			batch:       batch,
+	//			batchBytes:  batchBytes,
+	//		}
+	//
+	//		// Send final batch (blocking to ensure it gets queued)
+	//		h.flushQueue <- req
+	//		FlushQueueDepth.SetUint64(uint64(len(h.flushQueue)))
+	//	}
+	//
 	// Signal shutdown to flush worker and wait for it to finish
 	close(h.shutdown)
 	<-h.flushWorkerDone

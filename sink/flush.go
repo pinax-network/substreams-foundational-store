@@ -18,8 +18,6 @@ type flushRequest struct {
 
 // shouldFlush determines if the current batch should be flushed based on size, bytes, or time
 func (h *Handler) shouldFlush() bool {
-	h.batchMutex.Lock()
-	defer h.batchMutex.Unlock()
 
 	return len(h.batchBuffer) >= h.batchSize ||
 		h.batchSizeBytes >= h.maxBatchBytes ||

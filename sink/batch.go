@@ -13,8 +13,6 @@ func (h *Handler) addToBatch(entries []*pbstore.Entry) error {
 		newBytes += len(entry.Key) + len(entry.Value.Value)
 	}
 
-	h.batchMutex.Lock()
-	defer h.batchMutex.Unlock()
 
 	// Add entries to batch buffer
 	h.batchBuffer = append(h.batchBuffer, entries...)
@@ -28,11 +26,8 @@ func (h *Handler) addToBatch(entries []*pbstore.Entry) error {
 	return nil
 }
 
-
 // GetPendingBatchAndReset returns the pending batch and its size in bytes, then resets the batch state
 func (h *Handler) GetPendingBatchAndReset(blockNumber uint64) ([]*pbstore.Entry, int) {
-	h.batchMutex.Lock()
-	defer h.batchMutex.Unlock()
 
 	if len(h.batchBuffer) == 0 {
 		return nil, 0
