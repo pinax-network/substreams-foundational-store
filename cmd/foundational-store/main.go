@@ -7,7 +7,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/streamingfast/substreams-foundational-store/commands"
 )
 
 var (
@@ -28,13 +27,13 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.foundational-foundational-store.yaml)")
 
 	// Add commands
-	rootCmd.AddCommand(commands.AccountListCmd)
-	rootCmd.AddCommand(commands.GetCmd)
-	rootCmd.AddCommand(commands.GetAllCmd)
-	rootCmd.AddCommand(commands.LoaderCmd)
-	rootCmd.AddCommand(commands.LookupCmd)
-	rootCmd.AddCommand(commands.PerfCmd)
-	rootCmd.AddCommand(commands.ServerCmd)
+	rootCmd.AddCommand(AccountListCmd)
+	rootCmd.AddCommand(GetCmd)
+	rootCmd.AddCommand(GetAllCmd)
+	rootCmd.AddCommand(LoaderCmd)
+	rootCmd.AddCommand(LookupCmd)
+	rootCmd.AddCommand(PerfCmd)
+	rootCmd.AddCommand(ServerCmd)
 }
 
 func initConfig() {
