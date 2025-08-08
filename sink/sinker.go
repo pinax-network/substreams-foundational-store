@@ -35,7 +35,7 @@ type Sinker struct {
 	flusher *Flusher
 
 	// Shutdown coordination
-	shutter *shutter.Shutter
+	*shutter.Shutter
 }
 
 func NewSinker(typeUrl string, store store.ForkawareStore, logger *zap.Logger, cursorFilePath string, batchSize int, maxBatchTime time.Duration, flushQueueSize int) *Sinker {
@@ -69,7 +69,7 @@ func NewSinker(typeUrl string, store store.ForkawareStore, logger *zap.Logger, c
 		maxBatchBytes:  8 * 1024 * 1024,
 		batchSizeBytes: 0,
 		flusher:        flusher,
-		shutter:        shutter,
+		Shutter:        shutter,
 	}
 
 	return sinker
@@ -130,8 +130,6 @@ func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrp
 			return fmt.Errorf("error during last flush: %w", err)
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-s.shutter.Terminating():
-			return fmt.Errorf("shutting down")
 		default:
 			s.logger.Warn("Flusher queue full, dropping batch")
 		}
@@ -143,34 +141,12 @@ func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrp
 	return nil
 }
 
-// shutdown gracefully shuts down the handler with the given error
-func (s *Sinker) shutdown(err error) {
-	s.logger.Info("Handler shutdown requested", zap.Error(err))
-	s.shutter.Shutdown(err)
-}
-
-func (s *Sinker) Close() error {
-	// Use shutdown for cleanup
-	s.shutdown(nil)
-
-	// Wait for flusher to complete
-	if s.flusher != nil {
-		s.flusher.Close()
-	}
-
-	s.logger.Info("Handler closed successfully")
-	return nil
-}
-
 // shouldFlush determines if the current batch should be flushed based on size, bytes, or time
 func (s *Sinker) shouldFlush() bool {
 	// Check if we're shutting down, if so, flush immediately
-	select {
-	case <-s.shutter.Terminating():
+	if s.IsTerminating() {
 		return true
-	default:
 	}
-
 	return len(s.batchBuffer) >= s.batchSize ||
 		s.batchSizeBytes >= s.maxBatchBytes ||
 		(s.batchStartTime != (time.Time{}) && time.Since(s.batchStartTime) > s.maxBatchTime)

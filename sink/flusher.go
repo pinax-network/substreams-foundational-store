@@ -103,7 +103,8 @@ func (f *Flusher) processBatch(req *BatchRequest) {
 	if len(req.batch) > 0 {
 		setAllStart := time.Now()
 		err := f.store.SetAll(req.batch, req.blockNumber)
-		StoreSetAllDuration.ObserveDuration(time.Since(setAllStart))
+		setAllDuration := time.Since(setAllStart)
+		StoreSetAllDuration.ObserveDuration(setAllDuration)
 
 		if err != nil {
 			AsyncFlushDuration.ObserveDuration(time.Since(asyncFlushStart))
@@ -129,7 +130,8 @@ func (f *Flusher) processBatch(req *BatchRequest) {
 	// Flush to disk
 	flushStart := time.Now()
 	err := f.store.FlushUpToBlock(req.blockNumber)
-	StoreFlushDuration.ObserveDuration(time.Since(flushStart))
+	flushDuration := time.Since(flushStart)
+	StoreFlushDuration.ObserveDuration(flushDuration)
 
 	if err != nil {
 		AsyncFlushDuration.ObserveDuration(time.Since(asyncFlushStart))
@@ -161,7 +163,8 @@ func (f *Flusher) processBatch(req *BatchRequest) {
 		}
 	}
 
-	AsyncFlushDuration.ObserveDuration(time.Since(asyncFlushStart))
+	totalDuration := time.Since(asyncFlushStart)
+	AsyncFlushDuration.ObserveDuration(totalDuration)
 }
 
 // Close gracefully shuts down the flusher

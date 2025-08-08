@@ -18,7 +18,6 @@ import (
 	"github.com/streamingfast/substreams-foundational-store/store/postgres"
 
 	subsink "github.com/streamingfast/substreams/sink"
-	"go.uber.org/zap"
 )
 
 // ServerCmd represents the server command
@@ -27,150 +26,144 @@ var ServerCmd = &cobra.Command{
 	Short: "Start the gRPC server",
 	Long: `Start the gRPC server that provides access to the foundational-store.
 The server supports various foundational-store implementations (PostgreSQL, Badger) with different configurations.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// Initialize logger
-		zlog, tracer := logging.ApplicationLogger("server", "info")
+	RunE: serverCmdE,
+}
 
-		// Initialize metrics
-		sink.RegisterMetrics()
+func serverCmdE(cmd *cobra.Command, args []string) error {
+	// Initialize logger
+	zlog, tracer := logging.ApplicationLogger("server", "info")
 
-		// Get flag values
-		serverDSN, _ := cmd.Flags().GetString("dsn")
-		serverTypeUrl, _ := cmd.Flags().GetString("type-url")
-		serverAddr, _ := cmd.Flags().GetString("addr")
-		serverWorkers, _ := cmd.Flags().GetInt("workers")
-		manifestPath, _ := cmd.Flags().GetString("manifest-path")
-		outputModuleName, _ := cmd.Flags().GetString("output-module-name")
-		cursorFilePath, _ := cmd.Flags().GetString("cursor-file-path")
-		batchSize, _ := cmd.Flags().GetInt("batch-size")
-		maxBatchTime, _ := cmd.Flags().GetDuration("max-batch-time")
-		flushQueueSize, _ := cmd.Flags().GetInt("flush-queue-size")
+	// Initialize metrics
+	sink.RegisterMetrics()
 
-		if serverDSN == "" {
-			return fmt.Errorf("dsn is required")
-		}
+	// Get flag values
+	serverDSN, _ := cmd.Flags().GetString("dsn")
+	serverTypeUrl, _ := cmd.Flags().GetString("type-url")
+	serverAddr, _ := cmd.Flags().GetString("addr")
+	serverWorkers, _ := cmd.Flags().GetInt("workers")
+	manifestPath, _ := cmd.Flags().GetString("manifest-path")
+	outputModuleName, _ := cmd.Flags().GetString("output-module-name")
+	cursorFilePath, _ := cmd.Flags().GetString("cursor-file-path")
+	batchSize, _ := cmd.Flags().GetInt("batch-size")
+	maxBatchTime, _ := cmd.Flags().GetDuration("max-batch-time")
+	flushQueueSize, _ := cmd.Flags().GetInt("flush-queue-size")
 
-		if serverTypeUrl == "" {
-			return fmt.Errorf("type URL is required")
-		}
+	if serverDSN == "" {
+		return fmt.Errorf("dsn is required")
+	}
 
-		// Parse the DSN
-		dsn, err := store.ParseDSN(serverDSN)
-		if err != nil {
-			return fmt.Errorf("failed to parse DSN: %w", err)
-		}
+	if serverTypeUrl == "" {
+		return fmt.Errorf("type URL is required")
+	}
 
-		// Create the foundational-store based on the DSN driver
-		var baseStore store.Store
-		var badgerStore *badger.Store
+	// Parse the DSN
+	dsn, err := store.ParseDSN(serverDSN)
+	if err != nil {
+		return fmt.Errorf("failed to parse DSN: %w", err)
+	}
 
-		switch dsn.Driver() {
-		case "badger":
-			badgerStore, err = badger.NewStore(dsn, serverTypeUrl,
-				badger.WithNumWorkers(serverWorkers),
-				badger.WithLogger(zlog),
-			)
-			if err != nil {
-				return fmt.Errorf("failed to create Badger foundational-store: %w", err)
-			}
-			baseStore = badgerStore
-		case "postgres":
-			pgStore, err := postgres.NewStore(dsn, serverTypeUrl)
-			if err != nil {
-				return fmt.Errorf("failed to create Postgres foundational-store: %w", err)
-			}
-			baseStore = pgStore
-		default:
-			return fmt.Errorf("unsupported foundational-store driver: %s", dsn.Driver())
-		}
+	// Create the foundational-store based on the DSN driver
+	var baseStore store.Store
+	var badgerStore *badger.Store
 
-		// Wrap the foundational-store with a ForkAware foundational-store
-		storeImpl := ForkAware.NewStore(baseStore)
-
-		// Ensure we close the Badger foundational-store when we're done
-		if badgerStore != nil {
-			defer badgerStore.Close()
-		}
-
-		// Create a channel to listen for interrupt signals
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-
-		// Load cursor from file if it exists and set it in the command flags so subsink.NewFromViper can use it
-		cursor := sink.LoadCursorFromFile(zlog, cursorFilePath)
-		if cursor != nil {
-			zlog.Info("Loaded cursor from file, will resume from saved position")
-		} else {
-			zlog.Info("No cursor file found, will start from the beginning")
-		}
-
-		// Create a substreams sink using Viper configuration
-		substreamsClient, err := subsink.NewFromViper(
-			cmd,
-			"",
-			manifestPath,
-			outputModuleName,
-			"substreams-foundational-store",
-			zlog,
-			tracer, // tracer is nil
+	switch dsn.Driver() {
+	case "badger":
+		badgerStore, err = badger.NewStore(dsn, serverTypeUrl,
+			badger.WithNumWorkers(serverWorkers),
+			badger.WithLogger(zlog),
 		)
 		if err != nil {
-			return fmt.Errorf("failed to create substreams sink: %w", err)
+			return fmt.Errorf("failed to create Badger foundational-store: %w", err)
 		}
-
-		// Create a sinker for the substreams sink
-		sinker := sink.NewSinker(serverTypeUrl, storeImpl, zlog, cursorFilePath, batchSize, maxBatchTime, flushQueueSize)
-
-		// Start the gRPC server in a goroutine
-		errCh := make(chan error, 1)
-		go func() {
-			errCh <- server.Serve(serverAddr, storeImpl, zlog)
-		}()
-
-		// Start periodic database stats logging
-		dbStatsTicker := time.NewTicker(15 * time.Second)
-		go func() {
-			for range dbStatsTicker.C {
-				sink.LogDatabaseStats(zlog)
-			}
-		}()
-		defer dbStatsTicker.Stop()
-
-		// Start the substreams sink in a goroutine
-		sinkerDone := make(chan struct{})
-		go func() {
-			substreamsClient.OnTerminating(func(err error) {
-				zlog.Error("sinker terminating", zap.Error(err))
-				close(sinkerDone)
-			})
-			substreamsClient.Run(cmd.Context(), cursor, sinker)
-		}()
-
-		// Wait for an interrupt signal or an error from the server
-		select {
-		case <-sigCh:
-			zlog.Info("received interrupt signal, shutting down...")
-			// Clean shutdown with timer cleanup and batch flush
- 			sinker.Close()
-			substreamsClient.Shutdown(nil)
-			return nil
-		case err := <-errCh:
-			// Clean shutdown with timer cleanup and batch flush
-			if closeErr := sinker.Close(); closeErr != nil {
-				zlog.Warn("failed to close sinker cleanly during shutdown", zap.Error(closeErr))
-			}
-			substreamsClient.Shutdown(err)
-			return fmt.Errorf("server error: %w", err)
-		case <-sinkerDone:
-			zlog.Info("sinker is shutting down")
-			// Clean shutdown with timer cleanup and batch flush
-			if err := sinker.Close(); err != nil {
-				zlog.Warn("failed to close sinker cleanly during shutdown", zap.Error(err))
-			}
-			return nil
+		baseStore = badgerStore
+	case "postgres":
+		pgStore, err := postgres.NewStore(dsn, serverTypeUrl)
+		if err != nil {
+			return fmt.Errorf("failed to create Postgres foundational-store: %w", err)
 		}
+		baseStore = pgStore
+	default:
+		return fmt.Errorf("unsupported foundational-store driver: %s", dsn.Driver())
+	}
 
-	},
+	// Wrap the foundational-store with a ForkAware foundational-store
+	storeImpl := ForkAware.NewStore(baseStore)
+
+	// Ensure we close the Badger foundational-store when we're done
+	if badgerStore != nil {
+		defer badgerStore.Close()
+	}
+
+	// Create a channel to listen for interrupt signals
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	// Load cursor from file if it exists and set it in the command flags so subsink.NewFromViper can use it
+	cursor := sink.LoadCursorFromFile(zlog, cursorFilePath)
+	if cursor != nil {
+		zlog.Info("Loaded cursor from file, will resume from saved position")
+	} else {
+		zlog.Info("No cursor file found, will start from the beginning")
+	}
+
+	// Create a substreams sink using Viper configuration
+	substreamsClient, err := subsink.NewFromViper(
+		cmd,
+		"",
+		manifestPath,
+		outputModuleName,
+		"substreams-foundational-store",
+		zlog,
+		tracer, // tracer is nil
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create substreams sink: %w", err)
+	}
+
+	// Create a sinker for the substreams sink
+	sinker := sink.NewSinker(serverTypeUrl, storeImpl, zlog, cursorFilePath, batchSize, maxBatchTime, flushQueueSize)
+
+	// Start the gRPC server in a goroutine
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.Serve(serverAddr, storeImpl, zlog)
+	}()
+
+	// Start periodic database stats logging
+	dbStatsTicker := time.NewTicker(15 * time.Second)
+	go func() {
+		for range dbStatsTicker.C {
+			sink.LogDatabaseStats(zlog)
+		}
+	}()
+	defer dbStatsTicker.Stop()
+
+	// Start the substreams sink in a goroutine
+	go func() {
+		substreamsClient.OnTerminating(func(err error) {
+			sinker.Shutdown(err)
+		})
+		substreamsClient.Run(cmd.Context(), cursor, sinker)
+	}()
+	// ensure we catch any shutdown on sinker to always close substreamsclient too
+	sinker.OnTerminating(func(err error) {
+		substreamsClient.Shutdown(err)
+	})
+	// Wait for an interrupt signal or an error from the server
+	select {
+	case <-sigCh:
+		zlog.Info("received interrupt signal, shutting down...")
+		// Clean shutdown with timer cleanup and batch flush
+		substreamsClient.Shutdown(nil)
+		sinker.Shutdown(fmt.Errorf("received shutdown signal"))
+	case err := <-errCh:
+		substreamsClient.Shutdown(err)
+		sinker.Shutdown(fmt.Errorf("server error: %w", err))
+		err = fmt.Errorf("server error: %w", err)
+	case <-sinker.Terminating():
+	}
+	<-sinker.Terminated() // final batch flush process
+	return nil
 }
 
 func init() {

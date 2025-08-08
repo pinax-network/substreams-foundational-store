@@ -23,7 +23,10 @@ func TestCursorSaveAndLoad(t *testing.T) {
 
 	mockStore := NewMockStore()
 	handler := NewSinker("test", mockStore, logger, cursorFilePath, 10, time.Second, 10)
-	defer handler.Close()
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
 
 	testCursorStr := "XWQh1iJoYAKTDtvllL7yraWwLpc_DFhvVQvlKhhCjYGDiHqspvzCXTgfFUum8f32iBSqMQXahNirXjQmq6AKuJSypu8Sm3NpAXkk8YPs-7TvePP7OgIRBMNqNpHvBoWCMUGBFGuvfOQBoa-4TKneAQh4P55GdmL211oH1PMGIeQTsRE="
 
@@ -113,7 +116,10 @@ func TestCursorRoundTrip(t *testing.T) {
 
 			mockStore := NewMockStore()
 			handler := NewSinker("test", mockStore, logger, cursorFilePath, 10, time.Second, 10)
-			defer handler.Close()
+			defer func() {
+				handler.Shutdown(nil)
+				<-handler.Terminated()
+			}()
 
 			originalCursor, err := sink.NewCursor(testCursorStr)
 			if err != nil {
@@ -354,7 +360,10 @@ func TestBatchingByEntryCount(t *testing.T) {
 	batchSize := 5
 	maxBatchTime := 10 * time.Second
 	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
-	defer handler.Close()
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
 
 	entries := createTestEntries(12, "test_", 100)
 
@@ -478,7 +487,10 @@ func TestBatchingByTimeout(t *testing.T) {
 	batchSize := 1000
 	maxBatchTime := 50 * time.Millisecond
 	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
-	defer handler.Close()
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
 
 	entries := createTestEntries(3, "timeout_test_", 100)
 	if err := handler.addToBatch(entries); err != nil {
@@ -512,7 +524,10 @@ func TestBatchingByByteSize(t *testing.T) {
 	batchSize := 1000
 	maxBatchTime := 10 * time.Second
 	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
-	defer handler.Close()
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
 
 	// force a low byte threshold
 	handler.maxBatchBytes = 1000
@@ -573,10 +588,9 @@ func TestHandlerClose(t *testing.T) {
 		t.Errorf("Expected batch to have 3 entries, got %d", len(calls[0].Entries))
 	}
 
-	// calling Close() now should not add any more batches
-	if err := handler.Close(); err != nil {
-		t.Fatalf("Failed to close handler: %v", err)
-	}
+	// calling Shutdown() now should not add any more batches
+	handler.Shutdown(nil)
+	<-handler.Terminated()
 	time.Sleep(50 * time.Millisecond)
 	if calls2 := mockStore.GetSetAllCalls(); len(calls2) != 1 {
 		t.Errorf("Expected no additional SetAll calls after Close(), got %d", len(calls2))
@@ -590,7 +604,10 @@ func TestBatchAccumulation(t *testing.T) {
 	batchSize := 50 // Large batch size so we don't auto‐flush during the test
 	maxBatchTime := 10 * time.Second
 	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
-	defer handler.Close()
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
 
 	numCalls := 5
 	entriesPerCall := 4
@@ -642,16 +659,12 @@ func TestAsyncFlushWorkerStartsAndStops(t *testing.T) {
 	}
 
 	// Test clean shutdown
-	err := handler.Close()
-	if err != nil {
-		t.Fatalf("Failed to close handler: %v", err)
-	}
+	handler.Shutdown(nil)
+	<-handler.Terminated()
 
-	// Test that we can close multiple times without error
-	err = handler.Close()
-	if err != nil {
-		t.Fatalf("Failed to close handler second time: %v", err)
-	}
+	// Test that we can shutdown multiple times without error
+	handler.Shutdown(nil)
+	<-handler.Terminated()
 }
 
 func TestAsyncFlushQueueDepthTracking(t *testing.T) {
@@ -663,7 +676,10 @@ func TestAsyncFlushQueueDepthTracking(t *testing.T) {
 	}
 
 	handler := NewSinker("test", slowStore, logger, "", 10, time.Second, 5)
-	defer handler.Close()
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
 
 	RegisterMetrics()
 
@@ -700,7 +716,10 @@ func TestAsyncFlushPreservesDataSafety(t *testing.T) {
 	cursorFile := filepath.Join(tempDir, "test.cursor")
 
 	handler := NewSinker("test", mockStore, logger, cursorFile, 10, time.Second, 10)
-	defer handler.Close()
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
 
 	entries := []*pbstore.Entry{createTestEntry("key1", "value1")}
 	testCursor := createTestCursor()
