@@ -121,6 +121,7 @@ func (f *Flusher) processBatch(req *BatchRequest) {
 
 		if err != nil {
 			AsyncFlushDuration.ObserveDuration(time.Since(asyncFlushStart))
+			AsyncFlushErrors.Inc()
 			f.logger.Error("Failed to store batch to database",
 				zap.Uint64("block", req.blockNumber),
 				zap.Int("batch_size", len(req.batch)),
@@ -144,6 +145,7 @@ func (f *Flusher) processBatch(req *BatchRequest) {
 
 	if err != nil {
 		AsyncFlushDuration.ObserveDuration(time.Since(asyncFlushStart))
+		AsyncFlushErrors.Inc()
 		f.logger.Error("Failed to flush to database",
 			zap.Uint64("block", req.blockNumber),
 			zap.Error(err))
@@ -156,6 +158,7 @@ func (f *Flusher) processBatch(req *BatchRequest) {
 		if err := SaveCursorToFile(req.cursor, req.cursorFilePath, f.logger); err != nil {
 			CursorSaveErrors.Inc()
 			AsyncFlushDuration.ObserveDuration(time.Since(asyncFlushStart))
+			AsyncFlushErrors.Inc()
 			f.logger.Error("Failed to save cursor after flush",
 				zap.Uint64("block", req.blockNumber),
 				zap.Error(err))
@@ -166,4 +169,5 @@ func (f *Flusher) processBatch(req *BatchRequest) {
 
 	totalDuration := time.Since(asyncFlushStart)
 	AsyncFlushDuration.ObserveDuration(totalDuration)
+	AsyncFlushOperations.Inc()
 }
