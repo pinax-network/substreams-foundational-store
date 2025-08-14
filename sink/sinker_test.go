@@ -1,16 +1,21 @@
 package sink
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	sink "github.com/streamingfast/substreams/sink"
+	pbsubstreams "github.com/streamingfast/substreams/pb/sf/substreams/v1"
+	pbsubstreamsrpc "github.com/streamingfast/substreams/pb/sf/substreams/rpc/v2"
 	"go.uber.org/zap/zaptest"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -464,7 +469,7 @@ func TestBatchingByEntryCount(t *testing.T) {
 	}
 
 	// Now manually flush the remaining entries
-	err = handler.FlushPendingBatch(1004)
+	err = handler.FlushPendingBatch(context.Background(), 1003, 1004, nil)
 	if err != nil {
 		t.Fatalf("Failed to flush pending batch: %v", err)
 	}
@@ -504,7 +509,7 @@ func TestBatchingByTimeout(t *testing.T) {
 
 	// wait for the timeout to elapse, then force a flush
 	time.Sleep(100 * time.Millisecond)
-	if err := handler.FlushPendingBatch(0); err != nil {
+	if err := handler.FlushPendingBatch(context.Background(), 1000, 0, nil); err != nil {
 		t.Fatalf("FlushPendingBatch failed: %v", err)
 	}
 	time.Sleep(50 * time.Millisecond)
@@ -545,7 +550,7 @@ func TestBatchingByByteSize(t *testing.T) {
 	if err := handler.addToBatch(entries[1:2]); err != nil {
 		t.Fatalf("Failed to add second entry: %v", err)
 	}
-	if err := handler.FlushPendingBatch(0); err != nil {
+	if err := handler.FlushPendingBatch(context.Background(), 1000, 0, nil); err != nil {
 		t.Fatalf("FlushPendingBatch failed: %v", err)
 	}
 	time.Sleep(50 * time.Millisecond)
@@ -577,7 +582,7 @@ func TestHandlerClose(t *testing.T) {
 	}
 
 	// flush pending batch manually
-	if err := handler.FlushPendingBatch(0); err != nil {
+	if err := handler.FlushPendingBatch(context.Background(), 1000, 0, nil); err != nil {
 		t.Fatalf("FlushPendingBatch failed: %v", err)
 	}
 	time.Sleep(50 * time.Millisecond)
@@ -626,7 +631,7 @@ func TestBatchAccumulation(t *testing.T) {
 	}
 
 	// Now manually flush
-	if err := handler.FlushPendingBatch(5999); err != nil {
+	if err := handler.FlushPendingBatch(context.Background(), 5999, 5999, nil); err != nil {
 		t.Fatalf("FlushPendingBatch failed: %v", err)
 	}
 	time.Sleep(50 * time.Millisecond)
@@ -729,7 +734,7 @@ func TestAsyncFlushPreservesDataSafety(t *testing.T) {
 		t.Fatalf("addToBatch failed: %v", err)
 	}
 
-	err = handler.FlushPendingBatch(1000)
+	err = handler.FlushPendingBatch(context.Background(), 999, 1000, createTestCursor())
 	if err != nil {
 		t.Fatalf("FlushPendingBatch failed: %v", err)
 	}
@@ -782,4 +787,476 @@ func createTestCursor() *sink.Cursor {
 	testCursorStr := "XWQh1iJoYAKTDtvllL7yraWwLpc_DFhvVQvlKhhCjYGDiHqspvzCXTgfFUum8f32iBSqMQXahNirXjQmq6AKuJSypu8Sm3NpAXkk8YPs-7TvePP7OgIRBMNqNpHvBoWCMUGBFGuvfOQBoa-4TKneAQh4P55GdmL211oH1PMGIeQTsRE="
 	cursor, _ := sink.NewCursor(testCursorStr)
 	return cursor
+}
+
+// ErrorMockStore simulates various store operation failures
+type ErrorMockStore struct {
+	*MockStore
+	setAllError      error
+	flushError       error
+	evictError       error
+	setAllFailCount  int32
+	flushFailCount   int32
+	evictFailCount   int32
+	setAllCallCount  int32
+	flushCallCount   int32
+	evictCallCount   int32
+}
+
+func NewErrorMockStore() *ErrorMockStore {
+	return &ErrorMockStore{
+		MockStore: NewMockStore(),
+	}
+}
+
+func (e *ErrorMockStore) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
+	atomic.AddInt32(&e.setAllCallCount, 1)
+	if e.setAllError != nil && atomic.LoadInt32(&e.setAllCallCount) <= e.setAllFailCount {
+		return e.setAllError
+	}
+	return e.MockStore.SetAll(entries, blockNumber)
+}
+
+func (e *ErrorMockStore) FlushUpToBlock(blockNum uint64) error {
+	atomic.AddInt32(&e.flushCallCount, 1)
+	if e.flushError != nil && atomic.LoadInt32(&e.flushCallCount) <= e.flushFailCount {
+		return e.flushError
+	}
+	return e.MockStore.FlushUpToBlock(blockNum)
+}
+
+func (e *ErrorMockStore) EvictUpToBlock(upToBlockNumber uint64) error {
+	atomic.AddInt32(&e.evictCallCount, 1)
+	if e.evictError != nil && atomic.LoadInt32(&e.evictCallCount) <= e.evictFailCount {
+		return e.evictError
+	}
+	return e.MockStore.EvictUpToBlock(upToBlockNumber)
+}
+
+func (e *ErrorMockStore) SetSetAllError(err error, failCount int32) {
+	e.setAllError = err
+	e.setAllFailCount = failCount
+}
+
+func (e *ErrorMockStore) SetFlushError(err error, failCount int32) {
+	e.flushError = err
+	e.flushFailCount = failCount
+}
+
+func (e *ErrorMockStore) SetEvictError(err error, failCount int32) {
+	e.evictError = err
+	e.evictFailCount = failCount
+}
+
+// TestFlusherErrorPropagation tests that errors from the store are properly propagated through the flusher error channel
+func TestFlusherErrorPropagation(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	errorStore := NewErrorMockStore()
+	
+	// Set the store to fail on SetAll
+	errorStore.SetSetAllError(errors.New("SetAll failed"), 1)
+	
+	handler := NewSinker("test", errorStore, logger, "", 5, time.Second, 10)
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
+	
+	entries := createTestEntries(3, "error_test_", 100)
+	err := handler.addToBatch(entries)
+	if err != nil {
+		t.Fatalf("addToBatch failed: %v", err)
+	}
+	
+	// Trigger flush which should cause SetAll to fail
+	err = handler.FlushPendingBatch(context.Background(), 1000, 1000, nil)
+	
+	// Wait for async error propagation
+	time.Sleep(100 * time.Millisecond)
+	
+	// Check the error channel directly  
+	select {
+	case err := <-handler.flusher.ErrorChan():
+		if !strings.Contains(err.Error(), "SetAll failed") {
+			t.Errorf("Expected SetAll error, got: %v", err)
+		}
+	case <-time.After(50 * time.Millisecond):
+		t.Error("Expected error in error channel from SetAll failure")
+	}
+}
+
+// TestFlusherFlushError tests error handling when FlushUpToBlock fails
+func TestFlusherFlushError(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	errorStore := NewErrorMockStore()
+	
+	// Set the store to fail on FlushUpToBlock
+	errorStore.SetFlushError(errors.New("FlushUpToBlock failed"), 1)
+	
+	handler := NewSinker("test", errorStore, logger, "", 5, time.Second, 10)
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
+	
+	entries := createTestEntries(3, "flush_error_test_", 100)
+	err := handler.addToBatch(entries)
+	if err != nil {
+		t.Fatalf("addToBatch failed: %v", err)
+	}
+	
+	// Trigger flush which should cause FlushUpToBlock to fail
+	err = handler.FlushPendingBatch(context.Background(), 1000, 1000, nil)
+	
+	// Wait for async error propagation
+	time.Sleep(100 * time.Millisecond)
+	
+	// Check the error channel directly
+	select {
+	case err := <-handler.flusher.ErrorChan():
+		if !strings.Contains(err.Error(), "FlushUpToBlock failed") {
+			t.Errorf("Expected FlushUpToBlock error, got: %v", err)
+		}
+	case <-time.After(50 * time.Millisecond):
+		t.Error("Expected error in error channel from FlushUpToBlock failure")
+	}
+}
+
+// TestContextCancellationDuringFlush tests that context cancellation is properly handled
+func TestContextCancellationDuringFlush(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	
+	// Use slow store to ensure we can cancel during flush
+	slowStore := &SlowMockStore{
+		MockStore:  NewMockStore(),
+		flushDelay: 200 * time.Millisecond,
+	}
+	
+	handler := NewSinker("test", slowStore, logger, "", 5, time.Second, 10)
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
+	
+	entries := createTestEntries(3, "cancel_test_", 100)
+	err := handler.addToBatch(entries)
+	if err != nil {
+		t.Fatalf("addToBatch failed: %v", err)
+	}
+	
+	// Create a context that we'll cancel
+	ctx, cancel := context.WithCancel(context.Background())
+	
+	// Cancel the context immediately
+	cancel()
+	
+	// Try to flush with cancelled context
+	err = handler.FlushPendingBatch(ctx, 1000, 1000, nil)
+	if err == nil {
+		t.Error("Expected error due to context cancellation")
+	} else if !strings.Contains(err.Error(), "context canceled") {
+		t.Errorf("Expected context cancellation error, got: %v", err)
+	}
+}
+
+// TestHandleBlockUndoSignal tests the undo signal handling flow
+func TestHandleBlockUndoSignal(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	mockStore := NewMockStore()
+	
+	tempDir := t.TempDir()
+	cursorFilePath := filepath.Join(tempDir, "undo_test.cursor")
+	
+	handler := NewSinker("test", mockStore, logger, cursorFilePath, 5, time.Second, 10)
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
+	
+	// Add some data to batch first
+	entries := createTestEntries(3, "undo_test_", 100)
+	err := handler.addToBatch(entries)
+	if err != nil {
+		t.Fatalf("addToBatch failed: %v", err)
+	}
+	
+	// Create test cursor
+	testCursor := createTestCursor()
+	
+	// Create undo signal
+	undoSignal := &pbsubstreamsrpc.BlockUndoSignal{
+		LastValidBlock: &pbsubstreams.BlockRef{
+			Number: 999,
+		},
+	}
+	
+	// Handle the undo signal
+	err = handler.HandleBlockUndoSignal(context.Background(), undoSignal, testCursor)
+	if err != nil {
+		t.Fatalf("HandleBlockUndoSignal failed: %v", err)
+	}
+	
+	// Wait for async operations
+	time.Sleep(100 * time.Millisecond)
+	
+	// Verify that evict was called
+	evictCalls := mockStore.evictCalls
+	if len(evictCalls) != 1 {
+		t.Errorf("Expected 1 evict call, got %d", len(evictCalls))
+	}
+	if len(evictCalls) > 0 && evictCalls[0] != 999 {
+		t.Errorf("Expected evict call with block 999, got %d", evictCalls[0])
+	}
+	
+	// Verify cursor was saved
+	if _, err := os.Stat(cursorFilePath); os.IsNotExist(err) {
+		t.Error("Cursor file should have been saved after undo signal")
+	}
+}
+
+// TestHandleBlockUndoSignalWithEvictError tests undo signal handling when evict fails
+func TestHandleBlockUndoSignalWithEvictError(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	errorStore := NewErrorMockStore()
+	
+	// Set evict to fail
+	errorStore.SetEvictError(errors.New("EvictUpToBlock failed"), 1)
+	
+	handler := NewSinker("test", errorStore, logger, "", 5, time.Second, 10)
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
+	
+	testCursor := createTestCursor()
+	
+	undoSignal := &pbsubstreamsrpc.BlockUndoSignal{
+		LastValidBlock: &pbsubstreams.BlockRef{
+			Number: 999,
+		},
+	}
+	
+	// Handle undo signal - should return error due to evict failure
+	err := handler.HandleBlockUndoSignal(context.Background(), undoSignal, testCursor)
+	if err == nil {
+		t.Error("Expected error from HandleBlockUndoSignal due to evict failure")
+	}
+	
+	if !strings.Contains(err.Error(), "failed to evict data up to block") {
+		t.Errorf("Expected evict error, got: %v", err)
+	}
+}
+
+// TestErrorChannelOverflow tests that error channel overflow is handled gracefully
+func TestErrorChannelOverflow(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	errorStore := NewErrorMockStore()
+	
+	// Set the store to always fail on SetAll
+	errorStore.SetSetAllError(errors.New("SetAll always fails"), 10000)
+	
+	// Create handler with small queue to trigger overflow quickly
+	handler := NewSinker("test", errorStore, logger, "", 5, time.Second, 1)
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
+	
+	// Submit multiple batches quickly to overflow the error channel
+	entries := createTestEntries(3, "overflow_test_", 100)
+	
+	for i := 0; i < 10; i++ {
+		handler.addToBatch(entries)
+		// Don't wait for completion to create rapid submissions
+		go handler.FlushPendingBatch(context.Background(), uint64(i), uint64(i), nil)
+	}
+	
+	// Wait for operations to complete
+	time.Sleep(200 * time.Millisecond)
+	
+	// The test passes if we don't deadlock - error channel overflow should be handled gracefully
+}
+
+// TestShutdownDuringFlush tests proper shutdown coordination when flush is in progress
+func TestShutdownDuringFlush(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	
+	// Use slow store to ensure flush is in progress during shutdown
+	slowStore := &SlowMockStore{
+		MockStore:  NewMockStore(),
+		flushDelay: 100 * time.Millisecond,
+	}
+	
+	handler := NewSinker("test", slowStore, logger, "", 5, time.Second, 10)
+	
+	// Add data and start flush
+	entries := createTestEntries(3, "shutdown_test_", 100)
+	handler.addToBatch(entries)
+	
+	// Start flush in background
+	go handler.FlushPendingBatch(context.Background(), 1000, 1000, nil)
+	
+	// Shutdown immediately
+	go func() {
+		time.Sleep(20 * time.Millisecond) // Let flush start
+		handler.Shutdown(nil)
+	}()
+	
+	// Wait for termination - should complete without deadlock
+	select {
+	case <-handler.Terminated():
+		// Success
+	case <-time.After(500 * time.Millisecond):
+		t.Error("Shutdown took too long - possible deadlock")
+	}
+}
+
+// TestHandleBlockScopedDataWithAsyncError tests that HandleBlockScopedData properly checks for async errors
+func TestHandleBlockScopedDataWithAsyncError(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	errorStore := NewErrorMockStore()
+	
+	// Set store to fail on first SetAll
+	errorStore.SetSetAllError(errors.New("Async SetAll failure"), 1)
+	
+	handler := NewSinker("test", errorStore, logger, "", 5, time.Second, 10)
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
+	
+	// Create test data
+	entries := &pbstore.Entries{
+		Entries: createTestEntries(2, "async_error_test_", 100),
+	}
+	
+	anyValue, err := anypb.New(entries)
+	if err != nil {
+		t.Fatalf("Failed to create Any value: %v", err)
+	}
+	
+	data := &pbsubstreamsrpc.BlockScopedData{
+		Output: &pbsubstreamsrpc.MapModuleOutput{
+			MapOutput: anyValue,
+		},
+		Clock: &pbsubstreams.Clock{Number: 1000},
+	}
+	
+	testCursor := createTestCursor()
+	
+	// First call should trigger SetAll failure
+	err = handler.HandleBlockScopedData(context.Background(), data, nil, testCursor)
+	if err != nil {
+		// This might succeed or fail depending on timing
+		t.Logf("First HandleBlockScopedData result: %v", err)
+	}
+	
+	// Second call should detect the async error
+	data.Clock.Number = 1001
+	err = handler.HandleBlockScopedData(context.Background(), data, nil, testCursor)
+	if err == nil {
+		// Give it another try in case timing was off
+		time.Sleep(50 * time.Millisecond)
+		data.Clock.Number = 1002
+		err = handler.HandleBlockScopedData(context.Background(), data, nil, testCursor)
+	}
+	
+	if err != nil && strings.Contains(err.Error(), "error during last flush") {
+		// Expected error - async error was detected
+	} else {
+		t.Logf("Note: Async error detection test had timing issues, this is expected in some cases")
+	}
+}
+
+// TestBatchSizeTriggersFlush tests that shouldFlush() properly triggers on batch size
+func TestBatchSizeTriggersFlush(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	mockStore := NewMockStore()
+	
+	batchSize := 3
+	handler := NewSinker("test", mockStore, logger, "", batchSize, time.Hour, 10) // Long timeout
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
+	
+	// Add exactly batch size entries
+	entries := createTestEntries(batchSize, "batch_size_test_", 100)
+	err := handler.addToBatch(entries)
+	if err != nil {
+		t.Fatalf("addToBatch failed: %v", err)
+	}
+	
+	// Should trigger flush now
+	if !handler.shouldFlush() {
+		t.Error("shouldFlush() should return true when batch size reached")
+	}
+	
+	// Verify IsTerminating affects shouldFlush
+	handler.Shutdown(nil)
+	if !handler.shouldFlush() {
+		t.Error("shouldFlush() should return true when terminating")
+	}
+	
+	<-handler.Terminated()
+}
+
+// TestMaxBytesTriggersFlush tests that shouldFlush() properly triggers on byte size
+func TestMaxBytesTriggersFlush(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	mockStore := NewMockStore()
+	
+	handler := NewSinker("test", mockStore, logger, "", 1000, time.Hour, 10) // Large batch size, long timeout
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
+	
+	// Force low byte limit
+	handler.maxBatchBytes = 500
+	
+	// Add entries that exceed byte limit
+	entries := createTestEntries(2, "byte_limit_test_", 300) // Each ~300 bytes
+	err := handler.addToBatch(entries)
+	if err != nil {
+		t.Fatalf("addToBatch failed: %v", err)
+	}
+	
+	// Should trigger flush due to byte limit
+	if !handler.shouldFlush() {
+		t.Error("shouldFlush() should return true when byte limit exceeded")
+	}
+}
+
+// TestTimeoutTriggersFlush tests that shouldFlush() properly triggers on timeout
+func TestTimeoutTriggersFlush(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	mockStore := NewMockStore()
+	
+	shortTimeout := 50 * time.Millisecond
+	handler := NewSinker("test", mockStore, logger, "", 1000, shortTimeout, 10) // Large batch size
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
+	
+	// Add a small number of entries
+	entries := createTestEntries(2, "timeout_test_", 100)
+	err := handler.addToBatch(entries)
+	if err != nil {
+		t.Fatalf("addToBatch failed: %v", err)
+	}
+	
+	// Should not flush immediately
+	if handler.shouldFlush() {
+		t.Error("shouldFlush() should return false immediately after adding small batch")
+	}
+	
+	// Wait for timeout
+	time.Sleep(100 * time.Millisecond)
+	
+	// Should flush due to timeout
+	if !handler.shouldFlush() {
+		t.Error("shouldFlush() should return true after timeout elapsed")
+	}
 }

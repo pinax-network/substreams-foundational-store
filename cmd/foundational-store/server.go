@@ -89,7 +89,6 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	// Wrap the foundational-store with a ForkAware foundational-store
 	storeImpl := ForkAware.NewStore(baseStore)
 
-
 	// Create a channel to listen for interrupt signals
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
@@ -176,7 +175,7 @@ func init() {
 	ServerCmd.Flags().String("cursor-file-path", "state.cursor", "Path to the cursor file")
 	ServerCmd.Flags().Int("batch-size", 1000, "Number of entries to batch for insertion")
 	ServerCmd.Flags().Duration("max-batch-time", 30*time.Second, "Maximum time to wait before flushing a partial batch")
-	ServerCmd.Flags().Int("flush-queue-size", 100, "Size of the async flush queue buffer")
+	ServerCmd.Flags().Int("flush-queue-size", 3, "Size of the async flush queue buffer")
 
 	ServerCmd.MarkFlagRequired("dsn")
 	ServerCmd.MarkFlagRequired("type-url")

@@ -50,9 +50,15 @@ func NewFlusher(store store.ForkawareStore, logger *zap.Logger, shutter *shutter
 		maxBatchBytes: maxBatchBytes,
 		maxBatchTime:  maxBatchTime,
 		batchQueue:    make(chan *BatchRequest, queueSize),
-		errorChan:     make(chan error, 1),
+		errorChan:     make(chan error, DefaultFlushQueueSize+1),
 		done:          make(chan struct{}),
 	}
+
+	// Flusher waits for done when terminating
+	shutter.OnTerminating(func(err error) {
+		<-f.done
+		f.logger.Info("Flusher worker completed")
+	})
 
 	// Start the flush worker
 	go f.startWorker()
@@ -61,20 +67,27 @@ func NewFlusher(store store.ForkawareStore, logger *zap.Logger, shutter *shutter
 }
 
 // SubmitBatch sends a batch to be flushed
-func (f *Flusher) SubmitBatch(req *BatchRequest) bool {
-	select {
-	case f.batchQueue <- req:
+func (f *Flusher) SubmitBatch(req *BatchRequest) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		f.batchQueue <- req
 		FlushQueueDepth.SetUint64(uint64(len(f.batchQueue)))
-		return true
-	default:
-		f.logger.Warn("Could not queue batch - queue full")
-		return false
-	}
+		close(done)
+	}()
+	return done
 }
 
 // ErrorChan returns the channel for receiving flush errors
 func (f *Flusher) ErrorChan() <-chan error {
 	return f.errorChan
+}
+
+func (f *Flusher) sendError(err error) {
+	select {
+	case f.errorChan <- err:
+	default:
+		f.logger.Error("Error channel full, dropping error", zap.Error(err))
+	}
 }
 
 // startWorker runs the flush worker loop
@@ -113,11 +126,7 @@ func (f *Flusher) processBatch(req *BatchRequest) {
 				zap.Int("batch_size", len(req.batch)),
 				zap.Int("batch_bytes", req.batchBytes),
 				zap.Error(err))
-			select {
-			case f.errorChan <- err:
-			default:
-				f.logger.Error("Error channel full, dropping error", zap.Error(err))
-			}
+			f.sendError(err)
 			return
 		}
 
@@ -138,11 +147,7 @@ func (f *Flusher) processBatch(req *BatchRequest) {
 		f.logger.Error("Failed to flush to database",
 			zap.Uint64("block", req.blockNumber),
 			zap.Error(err))
-		select {
-		case f.errorChan <- err:
-		default:
-			f.logger.Error("Error channel full, dropping error", zap.Error(err))
-		}
+		f.sendError(err)
 		return
 	}
 
@@ -154,22 +159,11 @@ func (f *Flusher) processBatch(req *BatchRequest) {
 			f.logger.Error("Failed to save cursor after flush",
 				zap.Uint64("block", req.blockNumber),
 				zap.Error(err))
-			select {
-			case f.errorChan <- err:
-			default:
-				f.logger.Error("Error channel full, dropping error", zap.Error(err))
-			}
+			f.sendError(err)
 			return
 		}
 	}
 
 	totalDuration := time.Since(asyncFlushStart)
 	AsyncFlushDuration.ObserveDuration(totalDuration)
-}
-
-// Close gracefully shuts down the flusher
-func (f *Flusher) Close() error {
-	f.shutter.Shutdown(nil)
-	<-f.done
-	return nil
 }
