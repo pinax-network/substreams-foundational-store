@@ -64,17 +64,17 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 
 	// Create the foundational-store based on the DSN driver
 	var baseStore store.Store
-	var badgerStore *badger.Store
 
 	switch dsn.Driver() {
 	case "badger":
-		badgerStore, err = badger.NewStore(dsn, serverTypeUrl,
+		badgerStore, err := badger.NewStore(dsn, serverTypeUrl,
 			badger.WithNumWorkers(serverWorkers),
 			badger.WithLogger(zlog),
 		)
 		if err != nil {
 			return fmt.Errorf("failed to create Badger foundational-store: %w", err)
 		}
+		defer badgerStore.Close()
 		baseStore = badgerStore
 	case "postgres":
 		pgStore, err := postgres.NewStore(dsn, serverTypeUrl)
@@ -89,10 +89,6 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	// Wrap the foundational-store with a ForkAware foundational-store
 	storeImpl := ForkAware.NewStore(baseStore)
 
-	// Ensure we close the Badger foundational-store when we're done
-	if badgerStore != nil {
-		defer badgerStore.Close()
-	}
 
 	// Create a channel to listen for interrupt signals
 	sigCh := make(chan os.Signal, 1)
@@ -138,17 +134,19 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	}()
 	defer dbStatsTicker.Stop()
 
-	// Start the substreams sink in a goroutine
-	go func() {
-		substreamsClient.OnTerminating(func(err error) {
-			sinker.Shutdown(err)
-		})
-		substreamsClient.Run(cmd.Context(), cursor, sinker)
-	}()
-	// ensure we catch any shutdown on sinker to always close substreamsclient too
+	// Set up termination handlers before starting
+	substreamsClient.OnTerminating(func(err error) {
+		sinker.Shutdown(err)
+	})
+
 	sinker.OnTerminating(func(err error) {
 		substreamsClient.Shutdown(err)
 	})
+
+	// Start the substreams sink in a goroutine
+	go func() {
+		substreamsClient.Run(cmd.Context(), cursor, sinker)
+	}()
 	// Wait for an interrupt signal or an error from the server
 	select {
 	case <-sigCh:
