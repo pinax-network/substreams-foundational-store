@@ -8,6 +8,11 @@ import (
 
 // addToBatch adds entries to the batch buffer with proper synchronization
 func (s *Sinker) addToBatch(entries []*pbstore.Entry) error {
+
+	if len(s.batchBuffer) == 0 {
+		s.batchStartTime = time.Now()
+	}
+
 	var newBytes int
 	for _, entry := range entries {
 		newBytes += len(entry.Key) + len(entry.Value.Value)
@@ -16,11 +21,6 @@ func (s *Sinker) addToBatch(entries []*pbstore.Entry) error {
 	// Add entries to batch buffer
 	s.batchBuffer = append(s.batchBuffer, entries...)
 	s.batchSizeBytes += newBytes
-
-	// Start timer on first entry if not already started
-	if len(s.batchBuffer) == len(entries) {
-		s.batchStartTime = time.Now()
-	}
 
 	return nil
 }

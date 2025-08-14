@@ -74,11 +74,6 @@ func NewSinker(typeUrl string, store store.ForkawareStore, logger *zap.Logger, c
 	return sinker
 }
 
-// Shutdown initiates shutdown and blocks until termination is complete
-func (s *Sinker) Shutdown(err error) {
-	s.Shutter.Shutdown(err)
-	<-s.Terminated()
-}
 
 func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrpc.BlockScopedData, isLive *bool, cursor *sink.Cursor) error {
 	// Check for async flush errors first - if flush failed, stop processing

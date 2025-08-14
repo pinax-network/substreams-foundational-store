@@ -135,11 +135,7 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 
 	// Set up termination handlers before starting
 	substreamsClient.OnTerminating(func(err error) {
-		sinker.Shutdown(err)
-	})
-
-	sinker.OnTerminating(func(err error) {
-		substreamsClient.Shutdown(err)
+		sinker.Shutter.Shutdown(err)
 	})
 
 	// Start the substreams sink in a goroutine
@@ -150,13 +146,11 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	select {
 	case <-sigCh:
 		zlog.Info("received interrupt signal, shutting down...")
-		// Clean shutdown with timer cleanup and batch flush
-		substreamsClient.Shutdown(nil)
-		sinker.Shutdown(fmt.Errorf("received shutdown signal"))
+		// Shutdown with signal error, will propagate to sinker via OnTerminating
+		substreamsClient.Shutdown(fmt.Errorf("received shutdown signal"))
 	case err := <-errCh:
-		substreamsClient.Shutdown(err)
-		sinker.Shutdown(fmt.Errorf("server error: %w", err))
-		err = fmt.Errorf("server error: %w", err)
+		// Shutdown with server error, will propagate to sinker via OnTerminating
+		substreamsClient.Shutdown(fmt.Errorf("server error: %w", err))
 	case <-sinker.Terminating():
 	}
 	<-sinker.Terminated() // final batch flush process
