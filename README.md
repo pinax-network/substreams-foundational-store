@@ -72,6 +72,7 @@ Enterprise-grade relational database for distributed deployments:
 
 ## Configuration
 
+```bash
 foundational-store --help
 account-list   Extract accounts from a CSV file and save them to a binary file
 completion     Generate autocompletion scripts
@@ -85,6 +86,7 @@ server         Start the gRPC server
 foundational-store server --help
 Start the gRPC server that provides access to the foundational-store.
 Supports PostgreSQL, Badger.
+
 
 Flags:
   --addr string               Address to listen on (default ":50051")
@@ -125,6 +127,7 @@ Flags:
   --num-workers int       Workers for Badger backend (default 10)
   --run-concurrent        Run concurrent multi-account queries
   --type-url string       Type URL for stored values
+```
 
 ## Data Model
 
