@@ -59,9 +59,9 @@ Example DSNs:
 	},
 }
 
-func batchInsert(store storelib.Store, entries []*pbstore.Entry, blockNumber uint64) error {
+func batchInsert(store storelib.Store, entries []*pbstore.Entry, blockNumber uint64, blockHash []byte) error {
 	// Use the foundational-store's SetAll method to insert all entries
-	err := store.SetAll(entries, blockNumber)
+	err := store.SetAll(entries, blockNumber, blockHash)
 	if err != nil {
 		return fmt.Errorf("failed to insert batch: %w", err)
 	}
@@ -101,7 +101,9 @@ func LoadCSVIntoStore(dataStore storelib.Store, csvFilePath string, batchSize in
 			if err.Error() == "EOF" {
 				// Insert remaining batch
 				if len(storeEntries) > 0 {
-					err = batchInsert(dataStore, storeEntries, blockNumber)
+					// Create a placeholder block hash for utility command
+					blockHash := []byte(fmt.Sprintf("loader_block_%d", blockNumber))
+					err = batchInsert(dataStore, storeEntries, blockNumber, blockHash)
 					if err != nil {
 						return fmt.Errorf("failed to insert final batch: %w", err)
 					}
@@ -146,7 +148,9 @@ func LoadCSVIntoStore(dataStore storelib.Store, csvFilePath string, batchSize in
 
 		// Batch insert every batchSize (N) entries
 		if len(storeEntries) >= batchSize {
-			err := batchInsert(dataStore, storeEntries, blockNumber)
+			// Create a placeholder block hash for utility command
+			blockHash := []byte(fmt.Sprintf("loader_block_%d", blockNumber))
+			err := batchInsert(dataStore, storeEntries, blockNumber, blockHash)
 			if err != nil {
 				return fmt.Errorf("failed to insert batch: %w", err)
 			}

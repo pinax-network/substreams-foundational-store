@@ -126,12 +126,13 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 			entry, err := createEntry(tc.blockNumber, tc.key, accountOwner, ts.typeURL)
 			require.NoError(t, err)
 
-			err = ts.store.Set(entry, tc.blockNumber)
+			err = ts.store.Set(entry, tc.blockNumber, []byte("test_block_hash"))
 			require.NoError(t, err)
 
 			// Create a GetRequest to retrieve the Entry
 			getRequest := &pbstore.GetRequest{
 				BlockNumber: tc.requestBlock,
+				BlockHash:   []byte("test_block_hash"),
 				Key:         tc.key,
 			}
 
@@ -151,7 +152,7 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 				assert.Equal(t, accountOwner.Mint, retrievedAccountOwner.Mint)
 				assert.Equal(t, accountOwner.Owner, retrievedAccountOwner.Owner)
 			} else {
-				assert.Equal(t, pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACH, getResponse.Response)
+				assert.Equal(t, pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED, getResponse.Response)
 			}
 		})
 	}
@@ -273,13 +274,14 @@ func TestGetWithBlockNumber(t *testing.T) {
 				entry, err := createEntry(setup.blockNumber, setup.key, accountOwner, ts.typeURL)
 				require.NoError(t, err)
 
-				err = ts.store.Set(entry, setup.blockNumber)
+				err = ts.store.Set(entry, setup.blockNumber, []byte("test_block_hash"))
 				require.NoError(t, err)
 			}
 
 			// Create a GetRequest to retrieve the Entry
 			getRequest := &pbstore.GetRequest{
 				BlockNumber: tc.requestBlock,
+				BlockHash:   []byte("test_block_hash"),
 				Key:         tc.requestKey,
 			}
 
@@ -301,7 +303,7 @@ func TestGetWithBlockNumber(t *testing.T) {
 				assert.Equal(t, expectedOwner, retrievedAccountOwner.Owner,
 					"Should retrieve %s", tc.expectedOwner)
 			} else {
-				assert.Equal(t, pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACH, getResponse.Response,
+				assert.Equal(t, pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED, getResponse.Response,
 					"Should not find entry with block number %d", tc.requestBlock)
 			}
 		})
@@ -381,12 +383,13 @@ func TestSetAllAndGetAll(t *testing.T) {
 			}
 
 			// Store all entries using SetAll
-			err := ts.store.SetAll(entries, tc.blockNumber)
+			err := ts.store.SetAll(entries, tc.blockNumber, []byte("test_block_hash"))
 			require.NoError(t, err)
 
 			// Create a GetAllRequest to retrieve all entries
 			getAllRequest := &pbstore.GetAllRequest{
 				BlockNumber: tc.requestBlock,
+				BlockHash:   []byte("test_block_hash"),
 				Keys:        keys,
 			}
 
@@ -437,7 +440,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 					assert.Equal(t, originalAccountOwner.Mint, retrievedAccountOwner.Mint)
 					assert.Equal(t, originalAccountOwner.Owner, retrievedAccountOwner.Owner)
 				} else {
-					assert.Equal(t, pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACH, responseEntry.Response.Response,
+					assert.Equal(t, pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED, responseEntry.Response.Response,
 						"Should not find entry with block number %d for key %s", tc.requestBlock, key)
 				}
 			}
@@ -646,13 +649,14 @@ func TestGetAllWithBlockNumber(t *testing.T) {
 
 			// Store entries for each block
 			for blockNumber, entries := range entriesByBlock {
-				err := ts.store.SetAll(entries, blockNumber)
+				err := ts.store.SetAll(entries, blockNumber, []byte("test_block_hash"))
 				require.NoError(t, err)
 			}
 
 			// Create a GetAllRequest to retrieve all entries
 			getAllRequest := &pbstore.GetAllRequest{
 				BlockNumber: tc.requestBlock,
+				BlockHash:   []byte("test_block_hash"),
 				Keys:        byteKeys,
 			}
 
@@ -695,7 +699,7 @@ func TestGetAllWithBlockNumber(t *testing.T) {
 					// For this test, we don't need to verify the specific owner value
 					// as we're just testing if the keys are found or not
 				} else {
-					assert.Equal(t, pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACH, responseEntry.Response.Response,
+					assert.Equal(t, pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED, responseEntry.Response.Response,
 						"Should not find entry with block number %d for key %s", tc.requestBlock, key)
 				}
 			}
@@ -769,7 +773,7 @@ func TestSetAllAndGetAllWithNonExistentKey(t *testing.T) {
 			}
 
 			// Store all entries using SetAll
-			err := ts.store.SetAll(entries, tc.blockNumber)
+			err := ts.store.SetAll(entries, tc.blockNumber, []byte("test_block_hash"))
 			require.NoError(t, err)
 
 			// Create non-existent keys
@@ -784,6 +788,7 @@ func TestSetAllAndGetAllWithNonExistentKey(t *testing.T) {
 			// Create a GetAllRequest to retrieve all entries including non-existent keys
 			getAllRequest := &pbstore.GetAllRequest{
 				BlockNumber: tc.requestBlock,
+				BlockHash:   []byte("test_block_hash"),
 				Keys:        allKeys,
 			}
 

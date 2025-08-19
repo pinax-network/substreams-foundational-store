@@ -13,6 +13,7 @@ import (
 // BatchRequest represents a batch to be flushed
 type BatchRequest struct {
 	blockNumber    uint64
+	blockHash      []byte
 	cursor         *sink.Cursor
 	cursorFilePath string
 	batch          []*pbstore.Entry
@@ -115,7 +116,7 @@ func (f *Flusher) processBatch(req *BatchRequest) {
 	// Store batch data if we have any
 	if len(req.batch) > 0 {
 		setAllStart := time.Now()
-		err := f.store.SetAll(req.batch, req.blockNumber)
+		err := f.store.SetAll(req.batch, req.blockNumber, req.blockHash)
 		setAllDuration := time.Since(setAllStart)
 		StoreSetAllDuration.ObserveDuration(setAllDuration)
 

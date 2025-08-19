@@ -47,7 +47,7 @@ func NewStore(dsn *store.DSN, typeUrl string) (*Store, error) {
 }
 
 func (s *Store) prepareStatements() error {
-	insertEntry := fmt.Sprintf(`insert into %s.entries (block_number, key, value, create_time) values ($1,$2,$3,$4);`, s.schemaName)
+	insertEntry := fmt.Sprintf(`insert into %s.entries (block_number, block_hash, key, value, create_time) values ($1,$2,$3,$4,$5);`, s.schemaName)
 
 	insertStatement, err := s.db.Preparex(insertEntry)
 	if err != nil {
@@ -55,14 +55,14 @@ func (s *Store) prepareStatements() error {
 	}
 	s.insertStatement = insertStatement
 
-	selectEntry := fmt.Sprintf(`select * from %s.entries where key = $1;`, s.schemaName)
+	selectEntry := fmt.Sprintf(`select * from %s.entries where key = $1 and block_number = $2 and block_hash = $3;`, s.schemaName)
 	selectStatement, err := s.db.Preparex(selectEntry)
 	if err != nil {
 		return fmt.Errorf("failed to prepare statement for select entry %q: %w", selectEntry, err)
 	}
 	s.selectStatement = selectStatement
 
-	selectAny := fmt.Sprintf(`SELECT * FROM %s.entries WHERE key = ANY($1);`, s.schemaName)
+	selectAny := fmt.Sprintf(`SELECT * FROM %s.entries WHERE key = ANY($1) and block_number = $2 and block_hash = $3;`, s.schemaName)
 	selectAnyStatement, err := s.db.Preparex(selectAny)
 	if err != nil {
 		return fmt.Errorf("failed to prepare statement for select any %q: %w", selectAny, err)

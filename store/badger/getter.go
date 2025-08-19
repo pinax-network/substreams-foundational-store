@@ -68,24 +68,36 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 
 	sink.DatabaseGetHits.Inc()
 
-	// Extract the block number and the actual value
-	// Ensure we have at least 8 bytes for the block number
-	if len(storedValue) < 8 {
-		return nil, fmt.Errorf("invalid stored value: expected at least 8 bytes for block number")
+	// Extract the block number, block hash, and the actual value
+	// Ensure we have at least 8 bytes for the block number + block hash length
+	requestBlockHashLen := len(request.BlockHash)
+	minLength := 8 + requestBlockHashLen
+	if len(storedValue) < minLength {
+		return nil, fmt.Errorf("invalid stored value: expected at least %d bytes for block number and hash", minLength)
 	}
 
 	// Extract the block number from the first 8 bytes
-	// This is extracted for potential logging or debugging purposes
-	// but not included in the response as the GetResponse struct doesn't have a block_number field
 	blockNumber := binary.BigEndian.Uint64(storedValue[:8])
-
-	// The actual value is everything after the first 8 bytes
-	actualValue := storedValue[8:]
+	
+	// Extract the stored block hash
+	storedBlockHash := storedValue[8 : 8+requestBlockHashLen]
+	
+	// The actual value is everything after the block number and hash
+	actualValue := storedValue[8+requestBlockHashLen:]
 
 	if request.BlockNumber < blockNumber {
 		return &pbstore.GetResponse{
-			Response: pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACH,
+			Response: pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED,
 		}, nil
+	}
+
+	// Validate block hash matches
+	if len(request.BlockHash) > 0 && len(storedBlockHash) > 0 {
+		if string(request.BlockHash) != string(storedBlockHash) {
+			return &pbstore.GetResponse{
+				Response: pbstore.ResponseCode_NOT_FOUND,
+			}, nil
+		}
 	}
 
 	return &pbstore.GetResponse{
@@ -170,31 +182,50 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 						return
 					}
 
-					// Extract the block number and the actual value
-					// Ensure we have at least 8 bytes for the block number
-					if len(value) < 8 {
-						errChan <- fmt.Errorf("invalid stored value: expected at least 8 bytes for block number")
+					// Extract the block number, block hash, and the actual value
+					// Ensure we have at least 8 bytes for the block number + block hash length
+					requestBlockHashLen := len(request.BlockHash)
+					minLength := 8 + requestBlockHashLen
+					if len(value) < minLength {
+						errChan <- fmt.Errorf("invalid stored value: expected at least %d bytes for block number and hash", minLength)
 						return
 					}
 
 					// Extract the block number from the first 8 bytes
-					// This is extracted for potential logging or debugging purposes
-					// but not included in the response as the GetResponse struct doesn't have a block_number field
 					blockNumber := binary.BigEndian.Uint64(value[:8])
+					
+					// Extract the stored block hash
+					storedBlockHash := value[8 : 8+requestBlockHashLen]
+					
+					// The actual value is everything after the block number and hash
+					actualValue := value[8+requestBlockHashLen:]
+
 					if request.BlockNumber < blockNumber {
 						mutex.Lock()
 						entries = append(entries, &pbstore.ResponseEntry{
 							Key: key,
 							Response: &pbstore.GetResponse{
-								Response: pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACH,
+								Response: pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED,
 							},
 						})
 						mutex.Unlock()
 						continue
 					}
 
-					// The actual value is everything after the first 8 bytes
-					actualValue := value[8:]
+					// Validate block hash matches
+					if len(request.BlockHash) > 0 && len(storedBlockHash) > 0 {
+						if string(request.BlockHash) != string(storedBlockHash) {
+							mutex.Lock()
+							entries = append(entries, &pbstore.ResponseEntry{
+								Key: key,
+								Response: &pbstore.GetResponse{
+									Response: pbstore.ResponseCode_NOT_FOUND,
+								},
+							})
+							mutex.Unlock()
+							continue
+						}
+					}
 
 					mutex.Lock()
 					entries = append(entries,

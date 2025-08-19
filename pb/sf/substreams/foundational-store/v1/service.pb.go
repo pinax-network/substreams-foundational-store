@@ -25,11 +25,11 @@ const (
 type ResponseCode int32
 
 const (
-	ResponseCode_UNSET                     ResponseCode = 0
-	ResponseCode_FOUND                     ResponseCode = 1
-	ResponseCode_NOT_FOUND                 ResponseCode = 2
-	ResponseCode_NOT_FOUND_FINALIZE        ResponseCode = 4
-	ResponseCode_NOT_FOUND_BLOCK_NOT_REACH ResponseCode = 5
+	ResponseCode_UNSET                       ResponseCode = 0
+	ResponseCode_FOUND                       ResponseCode = 1
+	ResponseCode_NOT_FOUND                   ResponseCode = 2
+	ResponseCode_NOT_FOUND_FINALIZE          ResponseCode = 4
+	ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED ResponseCode = 5
 )
 
 // Enum value maps for ResponseCode.
@@ -39,14 +39,14 @@ var (
 		1: "FOUND",
 		2: "NOT_FOUND",
 		4: "NOT_FOUND_FINALIZE",
-		5: "NOT_FOUND_BLOCK_NOT_REACH",
+		5: "NOT_FOUND_BLOCK_NOT_REACHED",
 	}
 	ResponseCode_value = map[string]int32{
-		"UNSET":                     0,
-		"FOUND":                     1,
-		"NOT_FOUND":                 2,
-		"NOT_FOUND_FINALIZE":        4,
-		"NOT_FOUND_BLOCK_NOT_REACH": 5,
+		"UNSET":                       0,
+		"FOUND":                       1,
+		"NOT_FOUND":                   2,
+		"NOT_FOUND_FINALIZE":          4,
+		"NOT_FOUND_BLOCK_NOT_REACHED": 5,
 	}
 )
 
@@ -80,6 +80,7 @@ func (ResponseCode) EnumDescriptor() ([]byte, []int) {
 type GetRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BlockNumber   uint64                 `protobuf:"varint,1,opt,name=block_number,json=blockNumber,proto3" json:"block_number,omitempty"`
+	BlockHash     []byte                 `protobuf:"bytes,2,opt,name=block_hash,json=blockHash,proto3" json:"block_hash,omitempty"`
 	OmitDeleted   bool                   `protobuf:"varint,3,opt,name=omit_deleted,json=omitDeleted,proto3" json:"omit_deleted,omitempty"`
 	Key           []byte                 `protobuf:"bytes,4,opt,name=key,proto3" json:"key,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -121,6 +122,13 @@ func (x *GetRequest) GetBlockNumber() uint64 {
 		return x.BlockNumber
 	}
 	return 0
+}
+
+func (x *GetRequest) GetBlockHash() []byte {
+	if x != nil {
+		return x.BlockHash
+	}
+	return nil
 }
 
 func (x *GetRequest) GetOmitDeleted() bool {
@@ -192,6 +200,7 @@ func (x *GetResponse) GetValue() *anypb.Any {
 type GetAllRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BlockNumber   uint64                 `protobuf:"varint,1,opt,name=block_number,json=blockNumber,proto3" json:"block_number,omitempty"`
+	BlockHash     []byte                 `protobuf:"bytes,2,opt,name=block_hash,json=blockHash,proto3" json:"block_hash,omitempty"`
 	OmitDeleted   bool                   `protobuf:"varint,3,opt,name=omit_deleted,json=omitDeleted,proto3" json:"omit_deleted,omitempty"`
 	Keys          [][]byte               `protobuf:"bytes,4,rep,name=keys,proto3" json:"keys,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -233,6 +242,13 @@ func (x *GetAllRequest) GetBlockNumber() uint64 {
 		return x.BlockNumber
 	}
 	return 0
+}
+
+func (x *GetAllRequest) GetBlockHash() []byte {
+	if x != nil {
+		return x.BlockHash
+	}
+	return nil
 }
 
 func (x *GetAllRequest) GetOmitDeleted() bool {
@@ -349,30 +365,34 @@ var File_sf_substreams_foundational_store_v1_service_proto protoreflect.FileDesc
 
 const file_sf_substreams_foundational_store_v1_service_proto_rawDesc = "" +
 	"\n" +
-	"1sf/substreams/foundational-store/v1/service.proto\x12\x12foundational_store\x1a\x19google/protobuf/any.proto\"d\n" +
+	"1sf/substreams/foundational-store/v1/service.proto\x12\x12foundational_store\x1a\x19google/protobuf/any.proto\"\x83\x01\n" +
 	"\n" +
 	"GetRequest\x12!\n" +
-	"\fblock_number\x18\x01 \x01(\x04R\vblockNumber\x12!\n" +
+	"\fblock_number\x18\x01 \x01(\x04R\vblockNumber\x12\x1d\n" +
+	"\n" +
+	"block_hash\x18\x02 \x01(\fR\tblockHash\x12!\n" +
 	"\fomit_deleted\x18\x03 \x01(\bR\vomitDeleted\x12\x10\n" +
 	"\x03key\x18\x04 \x01(\fR\x03key\"w\n" +
 	"\vGetResponse\x12<\n" +
 	"\bresponse\x18\x04 \x01(\x0e2 .foundational_store.ResponseCodeR\bresponse\x12*\n" +
-	"\x05value\x18\x05 \x01(\v2\x14.google.protobuf.AnyR\x05value\"i\n" +
+	"\x05value\x18\x05 \x01(\v2\x14.google.protobuf.AnyR\x05value\"\x88\x01\n" +
 	"\rGetAllRequest\x12!\n" +
-	"\fblock_number\x18\x01 \x01(\x04R\vblockNumber\x12!\n" +
+	"\fblock_number\x18\x01 \x01(\x04R\vblockNumber\x12\x1d\n" +
+	"\n" +
+	"block_hash\x18\x02 \x01(\fR\tblockHash\x12!\n" +
 	"\fomit_deleted\x18\x03 \x01(\bR\vomitDeleted\x12\x12\n" +
 	"\x04keys\x18\x04 \x03(\fR\x04keys\"^\n" +
 	"\rResponseEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\fR\x03key\x12;\n" +
 	"\bresponse\x18\x02 \x01(\v2\x1f.foundational_store.GetResponseR\bresponse\"M\n" +
 	"\x0eGetAllResponse\x12;\n" +
-	"\aentries\x18\x01 \x03(\v2!.foundational_store.ResponseEntryR\aentries*j\n" +
+	"\aentries\x18\x01 \x03(\v2!.foundational_store.ResponseEntryR\aentries*l\n" +
 	"\fResponseCode\x12\t\n" +
 	"\x05UNSET\x10\x00\x12\t\n" +
 	"\x05FOUND\x10\x01\x12\r\n" +
 	"\tNOT_FOUND\x10\x02\x12\x16\n" +
-	"\x12NOT_FOUND_FINALIZE\x10\x04\x12\x1d\n" +
-	"\x19NOT_FOUND_BLOCK_NOT_REACH\x10\x052\xa2\x01\n" +
+	"\x12NOT_FOUND_FINALIZE\x10\x04\x12\x1f\n" +
+	"\x1bNOT_FOUND_BLOCK_NOT_REACHED\x10\x052\xa2\x01\n" +
 	"\aStoreKV\x12F\n" +
 	"\x03Get\x12\x1e.foundational_store.GetRequest\x1a\x1f.foundational_store.GetResponse\x12O\n" +
 	"\x06GetAll\x12!.foundational_store.GetAllRequest\x1a\".foundational_store.GetAllResponseB\xe9\x01\n" +

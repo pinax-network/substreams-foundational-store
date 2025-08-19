@@ -201,7 +201,10 @@ func runRandomDataInsertion(ctx context.Context, storeInstance store.Store, type
 
 			// Insert the entries using SetAll
 			insertStart := time.Now()
-			err := storeInstance.SetAll(entries, uint64(localRand.Intn(1000)))
+			blockNumber := uint64(localRand.Intn(1000))
+			// Create a placeholder block hash for performance testing
+			blockHash := []byte(fmt.Sprintf("perf_block_%d", blockNumber))
+			err := storeInstance.SetAll(entries, blockNumber, blockHash)
 			insertTime := time.Since(insertStart)
 			totalInsertTime += insertTime
 
@@ -233,6 +236,7 @@ func runSingleQuery(accounts []string, storeInstance store.Store) error {
 	start := time.Now()
 	response, err := storeInstance.Get(&pbStore.GetRequest{
 		BlockNumber: 400000000,
+		BlockHash:   []byte("perf_block_400000000"),
 		OmitDeleted: false,
 		Key:         store.MustBase58Decode(randomAddress),
 	})
@@ -272,6 +276,7 @@ func runMultiAccountQuery(size int, accounts []string, storeInstance store.Store
 	queryStart := time.Now()
 	response, err := storeInstance.GetAll(&pbStore.GetAllRequest{
 		BlockNumber: 400000000,
+		BlockHash:   []byte("perf_block_400000000"),
 		OmitDeleted: false,
 		Keys:        accountsBytes,
 	})
@@ -360,6 +365,7 @@ func runConcurrentMultiAccountQueries(numClients, accountsPerQuery int, accounts
 					queryStart := time.Now()
 					resp, err := storeInstance.GetAll(&pbStore.GetAllRequest{
 						BlockNumber: 400000000,
+						BlockHash:   []byte("perf_block_400000000"),
 						OmitDeleted: false,
 						Keys:        accountsBytes,
 					})

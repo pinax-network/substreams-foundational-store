@@ -14,7 +14,7 @@ import (
 
 type Entry struct {
 	BlockNumber uint64    `db:"block_number"`
-	BlockHash   string    `db:"block_hash"`
+	BlockHash   []byte    `db:"block_hash"`
 	Key         []byte    `db:"key"`
 	Value       []byte    `db:"value"`
 	CreateTime  time.Time `db:"create_time"`
@@ -22,7 +22,7 @@ type Entry struct {
 
 func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 	entry := &Entry{}
-	err := s.selectStatement.Get(entry, request.Key)
+	err := s.selectStatement.Get(entry, request.Key, request.BlockNumber, request.BlockHash)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return &pbstore.GetResponse{
@@ -42,7 +42,7 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 }
 
 func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {
-	rows, err := s.selectAnyStatement.Queryx(pq.Array(request.Keys))
+	rows, err := s.selectAnyStatement.Queryx(pq.Array(request.Keys), request.BlockNumber, request.BlockHash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to select entries: %w", err)
 	}

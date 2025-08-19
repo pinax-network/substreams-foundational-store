@@ -16,6 +16,7 @@ service StoreKV {
 
 message GetRequest {
   uint64 block_number = 1;
+  bytes block_hash = 2;
   bool omit_deleted = 3;
   bytes key = 4;
 }
@@ -27,6 +28,7 @@ message GetResponse {
 
 message GetAllRequest {
   uint64 block_number = 1;
+  bytes block_hash = 2;
   bool omit_deleted = 3;
   repeated bytes keys = 4;
 }

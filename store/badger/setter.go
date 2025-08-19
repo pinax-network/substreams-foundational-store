@@ -11,7 +11,7 @@ import (
 )
 
 // Set stores a single entry in Badger
-func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
+func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64, blockHash []byte) error {
 	start := time.Now()
 	defer func() {
 		sink.StoreSetAllDuration.ObserveDuration(time.Since(start))
@@ -19,16 +19,17 @@ func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 		sink.DatabaseKeysProcessed.Inc()
 	}()
 
-	// Prepend block_number as bytes to the value
+	// Prepend block_number and block_hash as bytes to the value
 	blockNumBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(blockNumBytes, blockNumber)
 
-	// Combine block number bytes with the value
-	valueWithBlockNum := append(blockNumBytes, entry.Value.Value...)
+	// Combine block number, block hash, and value
+	valueWithBlockInfo := append(blockNumBytes, blockHash...)
+	valueWithBlockInfo = append(valueWithBlockInfo, entry.Value.Value...)
 
 	err := s.db.Update(func(txn *badger.Txn) error {
 		// Use the entry.Key value with the combined value
-		err := txn.Set(entry.Key, valueWithBlockNum)
+		err := txn.Set(entry.Key, valueWithBlockInfo)
 		if err != nil {
 			return fmt.Errorf("failed to set value in Badger: %w", err)
 		}
@@ -43,7 +44,7 @@ func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 }
 
 // SetAll stores multiple entries in Badger
-func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
+func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64, blockHash []byte) error {
 	start := time.Now()
 	defer func() {
 		sink.StoreSetAllDuration.ObserveDuration(time.Since(start))
@@ -65,14 +66,15 @@ func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 	defer wb.Cancel()
 
 	for _, entry := range entries {
-		// Prepend block_number as bytes to the value
+		// Prepend block_number and block_hash as bytes to the value
 		blockNumBytes := make([]byte, 8)
 		binary.BigEndian.PutUint64(blockNumBytes, blockNumber)
 
-		// Combine block number bytes with the value
-		valueWithBlockNum := append(blockNumBytes, entry.Value.Value...)
+		// Combine block number, block hash, and value
+		valueWithBlockInfo := append(blockNumBytes, blockHash...)
+		valueWithBlockInfo = append(valueWithBlockInfo, entry.Value.Value...)
 
-		err := wb.Set(entry.Key, valueWithBlockNum)
+		err := wb.Set(entry.Key, valueWithBlockInfo)
 		if err != nil {
 			return fmt.Errorf("failed to add entry to batch: %w", err)
 		}

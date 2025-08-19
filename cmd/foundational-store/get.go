@@ -51,9 +51,20 @@ This command connects to a gRPC server and retrieves a value for the specified k
 		// Create a client for the StoreKV service
 		client := pbStore.NewStoreKVClient(conn)
 
+		// Get block hash flag value
+		getBlockHash, _ := cmd.Flags().GetString("block-hash")
+		var blockHashBytes []byte
+		if getBlockHash != "" {
+			blockHashBytes, err = base58.Decode(getBlockHash)
+			if err != nil {
+				return fmt.Errorf("failed to decode block-hash as base58: %w", err)
+			}
+		}
+
 		// Create the GetRequest
 		request := &pbStore.GetRequest{
 			BlockNumber: getBlockNumber,
+			BlockHash:   blockHashBytes,
 			OmitDeleted: getOmitDeleted,
 			Key:         keyBytes,
 		}
@@ -78,7 +89,7 @@ This command connects to a gRPC server and retrieves a value for the specified k
 			response = resp
 
 			// Check if we need to retry
-			if response.Response == pbStore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACH {
+			if response.Response == pbStore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED {
 				if attempt < maxRetries {
 					fmt.Printf("Block not reached yet, retrying in %v (attempt %d/%d)\n", retryDelay, attempt+1, maxRetries+1)
 					time.Sleep(retryDelay)
@@ -103,7 +114,7 @@ This command connects to a gRPC server and retrieves a value for the specified k
 			fmt.Println("Value not found")
 		case pbStore.ResponseCode_NOT_FOUND_FINALIZE:
 			fmt.Println("Value not found (finalized)")
-		case pbStore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACH:
+		case pbStore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED:
 			fmt.Println("Block not reached (after retries)")
 		default:
 			fmt.Printf("Unknown response code: %s\n", response.Response)
@@ -117,6 +128,7 @@ func init() {
 	GetCmd.Flags().String("server", "localhost:50051", "gRPC server address")
 	GetCmd.Flags().String("key", "", "Key to lookup (base58 encoded)")
 	GetCmd.Flags().Uint64("block-number", 0, "Block number for the query")
+	GetCmd.Flags().String("block-hash", "", "Block hash for the query (base58 encoded)")
 	GetCmd.Flags().Bool("omit-deleted", false, "Whether to omit deleted values")
 
 	GetCmd.MarkFlagRequired("key")
@@ -125,5 +137,6 @@ func init() {
 	viper.BindPFlag("get.server", GetCmd.Flags().Lookup("server"))
 	viper.BindPFlag("get.key", GetCmd.Flags().Lookup("key"))
 	viper.BindPFlag("get.block_number", GetCmd.Flags().Lookup("block-number"))
+	viper.BindPFlag("get.block_hash", GetCmd.Flags().Lookup("block-hash"))
 	viper.BindPFlag("get.omit_deleted", GetCmd.Flags().Lookup("omit-deleted"))
 }

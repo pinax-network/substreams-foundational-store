@@ -254,6 +254,7 @@ type MockStore struct {
 type SetAllCall struct {
 	Entries     []*pbstore.Entry
 	BlockNumber uint64
+	BlockHash   []byte
 }
 
 func NewMockStore() *MockStore {
@@ -264,11 +265,11 @@ func NewMockStore() *MockStore {
 	}
 }
 
-func (m *MockStore) Set(entry *pbstore.Entry, blockNumber uint64) error {
-	return m.SetAll([]*pbstore.Entry{entry}, blockNumber)
+func (m *MockStore) Set(entry *pbstore.Entry, blockNumber uint64, blockHash []byte) error {
+	return m.SetAll([]*pbstore.Entry{entry}, blockNumber, blockHash)
 }
 
-func (m *MockStore) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
+func (m *MockStore) SetAll(entries []*pbstore.Entry, blockNumber uint64, blockHash []byte) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -278,6 +279,7 @@ func (m *MockStore) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 	m.setAllCalls = append(m.setAllCalls, SetAllCall{
 		Entries:     entriesCopy,
 		BlockNumber: blockNumber,
+		BlockHash:   blockHash,
 	})
 	return nil
 }
@@ -469,7 +471,7 @@ func TestBatchingByEntryCount(t *testing.T) {
 	}
 
 	// Now manually flush the remaining entries
-	err = handler.FlushPendingBatch(context.Background(), 1003, 1004, nil)
+	err = handler.FlushPendingBatch(context.Background(), 1003, []byte("test_hash_1003"), 1004, nil)
 	if err != nil {
 		t.Fatalf("Failed to flush pending batch: %v", err)
 	}
@@ -509,7 +511,7 @@ func TestBatchingByTimeout(t *testing.T) {
 
 	// wait for the timeout to elapse, then force a flush
 	time.Sleep(100 * time.Millisecond)
-	if err := handler.FlushPendingBatch(context.Background(), 1000, 0, nil); err != nil {
+	if err := handler.FlushPendingBatch(context.Background(), 1000, []byte("test_hash_1000"), 0, nil); err != nil {
 		t.Fatalf("FlushPendingBatch failed: %v", err)
 	}
 	time.Sleep(50 * time.Millisecond)
@@ -550,7 +552,7 @@ func TestBatchingByByteSize(t *testing.T) {
 	if err := handler.addToBatch(entries[1:2]); err != nil {
 		t.Fatalf("Failed to add second entry: %v", err)
 	}
-	if err := handler.FlushPendingBatch(context.Background(), 1000, 0, nil); err != nil {
+	if err := handler.FlushPendingBatch(context.Background(), 1000, []byte("test_hash_1000"), 0, nil); err != nil {
 		t.Fatalf("FlushPendingBatch failed: %v", err)
 	}
 	time.Sleep(50 * time.Millisecond)
@@ -582,7 +584,7 @@ func TestHandlerClose(t *testing.T) {
 	}
 
 	// flush pending batch manually
-	if err := handler.FlushPendingBatch(context.Background(), 1000, 0, nil); err != nil {
+	if err := handler.FlushPendingBatch(context.Background(), 1000, []byte("test_hash_1000"), 0, nil); err != nil {
 		t.Fatalf("FlushPendingBatch failed: %v", err)
 	}
 	time.Sleep(50 * time.Millisecond)
@@ -631,7 +633,7 @@ func TestBatchAccumulation(t *testing.T) {
 	}
 
 	// Now manually flush
-	if err := handler.FlushPendingBatch(context.Background(), 5999, 5999, nil); err != nil {
+	if err := handler.FlushPendingBatch(context.Background(), 5999, []byte("test_hash_5999"), 5999, nil); err != nil {
 		t.Fatalf("FlushPendingBatch failed: %v", err)
 	}
 	time.Sleep(50 * time.Millisecond)
@@ -734,7 +736,7 @@ func TestAsyncFlushPreservesDataSafety(t *testing.T) {
 		t.Fatalf("addToBatch failed: %v", err)
 	}
 
-	err = handler.FlushPendingBatch(context.Background(), 999, 1000, createTestCursor())
+	err = handler.FlushPendingBatch(context.Background(), 999, []byte("test_hash_999"), 1000, createTestCursor())
 	if err != nil {
 		t.Fatalf("FlushPendingBatch failed: %v", err)
 	}
@@ -809,12 +811,12 @@ func NewErrorMockStore() *ErrorMockStore {
 	}
 }
 
-func (e *ErrorMockStore) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
+func (e *ErrorMockStore) SetAll(entries []*pbstore.Entry, blockNumber uint64, blockHash []byte) error {
 	atomic.AddInt32(&e.setAllCallCount, 1)
 	if e.setAllError != nil && atomic.LoadInt32(&e.setAllCallCount) <= e.setAllFailCount {
 		return e.setAllError
 	}
-	return e.MockStore.SetAll(entries, blockNumber)
+	return e.MockStore.SetAll(entries, blockNumber, blockHash)
 }
 
 func (e *ErrorMockStore) FlushUpToBlock(blockNum uint64) error {
@@ -869,7 +871,7 @@ func TestFlusherErrorPropagation(t *testing.T) {
 	}
 
 	// Trigger flush which should cause SetAll to fail
-	err = handler.FlushPendingBatch(context.Background(), 1000, 1000, nil)
+	err = handler.FlushPendingBatch(context.Background(), 1000, []byte("test_hash_1000"), 1000, nil)
 
 	// Wait for async error propagation
 	time.Sleep(100 * time.Millisecond)
@@ -906,7 +908,7 @@ func TestFlusherFlushError(t *testing.T) {
 	}
 
 	// Trigger flush which should cause FlushUpToBlock to fail
-	err = handler.FlushPendingBatch(context.Background(), 1000, 1000, nil)
+	err = handler.FlushPendingBatch(context.Background(), 1000, []byte("test_hash_1000"), 1000, nil)
 
 	// Wait for async error propagation
 	time.Sleep(100 * time.Millisecond)
@@ -951,7 +953,7 @@ func TestContextCancellationDuringFlush(t *testing.T) {
 	cancel()
 
 	// Try to flush with cancelled context
-	err = handler.FlushPendingBatch(ctx, 1000, 1000, nil)
+	err = handler.FlushPendingBatch(ctx, 1000, []byte("test_hash_1000"), 1000, nil)
 	if err == nil {
 		t.Error("Expected error due to context cancellation")
 	} else if !strings.Contains(err.Error(), "context canceled") {
@@ -1070,7 +1072,7 @@ func TestErrorChannelOverflow(t *testing.T) {
 			t.Fatalf("addToBatch failed: %v", err)
 		}
 		// don't wait for processing, only for enqueue.
-		_ = handler.FlushPendingBatch(context.Background(), uint64(i), uint64(i), nil)
+		_ = handler.FlushPendingBatch(context.Background(), uint64(i), []byte("test_hash"), uint64(i), nil)
 	}
 
 	// Give the flusher a moment to process and drop errors (if the errorChan fills)
@@ -1096,7 +1098,7 @@ func TestShutdownDuringFlush(t *testing.T) {
 	handler.addToBatch(entries)
 
 	// Start flush in background
-	go handler.FlushPendingBatch(context.Background(), 1000, 1000, nil)
+	go handler.FlushPendingBatch(context.Background(), 1000, []byte("test_hash_1000"), 1000, nil)
 
 	// Shutdown immediately
 	go func() {

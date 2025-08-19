@@ -106,7 +106,7 @@ func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrp
 		return nil
 	}
 
-	s.FlushPendingBatch(ctx, lib, data.Clock.Number, cursor)
+	s.FlushPendingBatch(ctx, lib, []byte(data.Clock.Id), data.Clock.Number, cursor)
 
 	blockNum := data.GetClock().Number
 	RecordBlockProcessing(entriesCount, blockNum)
@@ -126,7 +126,7 @@ func (s *Sinker) shouldFlush() bool {
 }
 
 // FlushPendingBatch flushes any pending batch entries to the flusher
-func (s *Sinker) FlushPendingBatch(ctx context.Context, blockNumber uint64, clockNum uint64, cursor *sink.Cursor) error {
+func (s *Sinker) FlushPendingBatch(ctx context.Context, blockNumber uint64, blockHash []byte, clockNum uint64, cursor *sink.Cursor) error {
 	// Get the batch data to flush
 	batch, batchBytes := s.GetPendingBatchAndReset(clockNum)
 
@@ -137,6 +137,7 @@ func (s *Sinker) FlushPendingBatch(ctx context.Context, blockNumber uint64, cloc
 	// Submit batch to flusher
 	req := &BatchRequest{
 		blockNumber:    blockNumber,
+		blockHash:      blockHash,
 		cursor:         cursor,
 		cursorFilePath: s.cursorFilePath,
 		batch:          batch,
@@ -161,7 +162,7 @@ func (s *Sinker) HandleBlockUndoSignal(ctx context.Context, undoSignal *pbsubstr
 	blockNum := undoSignal.LastValidBlock.Number
 	lib := cursor.LIB.Num()
 
-	if err := s.FlushPendingBatch(ctx, lib, blockNum, cursor); err != nil {
+	if err := s.FlushPendingBatch(ctx, lib, []byte(undoSignal.LastValidBlock.Id), blockNum, cursor); err != nil {
 		s.logger.Warn("failed to flush pending batch before undo", zap.Error(err))
 	}
 
