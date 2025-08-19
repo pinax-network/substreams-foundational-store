@@ -159,6 +159,14 @@ message GetRequest {
   bytes key = 4;
 }
 ```
+#### GetAll Request
+```protobuf
+message GetAllRequest {
+  uint64 block_number = 1;
+  bool omit_deleted = 3;
+  repeated bytes keys = 4;
+}
+```
 
 #### Response Codes
 - `FOUND`: Key exists at specified block

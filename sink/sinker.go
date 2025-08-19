@@ -74,7 +74,6 @@ func NewSinker(typeUrl string, store store.ForkawareStore, logger *zap.Logger, c
 	return sinker
 }
 
-
 func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrpc.BlockScopedData, isLive *bool, cursor *sink.Cursor) error {
 	// Check for async flush errors first - if flush failed, stop processing
 	select {
