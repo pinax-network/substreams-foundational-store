@@ -96,9 +96,9 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	// Load cursor from file if it exists and set it in the command flags so subsink.NewFromViper can use it
 	cursor := sink.LoadCursorFromFile(zlog, cursorFilePath)
 	if cursor != nil {
-		zlog.Info("Loaded cursor from file, will resume from saved position")
+		zlog.Info("loaded cursor from file, will resume from saved position")
 	} else {
-		zlog.Info("No cursor file found, will start from the beginning")
+		zlog.Info("no cursor file found, will start from the beginning")
 	}
 
 	// Create a substreams sink using Viper configuration

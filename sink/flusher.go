@@ -57,7 +57,7 @@ func NewFlusher(store store.ForkawareStore, logger *zap.Logger, shutter *shutter
 	// Flusher waits for done when terminating
 	shutter.OnTerminating(func(err error) {
 		<-f.done
-		f.logger.Info("Flusher worker completed")
+		f.logger.Info("flusher worker completed")
 	})
 
 	// Start the flush worker
@@ -86,7 +86,7 @@ func (f *Flusher) sendError(err error) {
 	select {
 	case f.errorChan <- err:
 	default:
-		f.logger.Error("Error channel full, dropping error", zap.Error(err))
+		f.logger.Error("error channel full, dropping error", zap.Error(err))
 	}
 }
 
@@ -102,7 +102,7 @@ func (f *Flusher) startWorker() {
 			f.processBatch(req)
 
 		case <-f.shutter.Terminating():
-			f.logger.Info("Flusher shutting down")
+			f.logger.Info("flusher shutting down")
 			return
 		}
 	}
@@ -122,7 +122,7 @@ func (f *Flusher) processBatch(req *BatchRequest) {
 		if err != nil {
 			AsyncFlushDuration.ObserveDuration(time.Since(asyncFlushStart))
 			AsyncFlushErrors.Inc()
-			f.logger.Error("Failed to store batch to database",
+			f.logger.Error("failed to store batch to database",
 				zap.Uint64("block", req.blockNumber),
 				zap.Int("batch_size", len(req.batch)),
 				zap.Int("batch_bytes", req.batchBytes),
@@ -131,7 +131,7 @@ func (f *Flusher) processBatch(req *BatchRequest) {
 			return
 		}
 
-		f.logger.Debug("Successfully stored batch",
+		f.logger.Debug("successfully stored batch",
 			zap.Uint64("block", req.blockNumber),
 			zap.Int("batch_size", len(req.batch)),
 			zap.Int("batch_bytes", req.batchBytes))
@@ -146,7 +146,7 @@ func (f *Flusher) processBatch(req *BatchRequest) {
 	if err != nil {
 		AsyncFlushDuration.ObserveDuration(time.Since(asyncFlushStart))
 		AsyncFlushErrors.Inc()
-		f.logger.Error("Failed to flush to database",
+		f.logger.Error("failed to flush to database",
 			zap.Uint64("block", req.blockNumber),
 			zap.Error(err))
 		f.sendError(err)
@@ -159,7 +159,7 @@ func (f *Flusher) processBatch(req *BatchRequest) {
 			CursorSaveErrors.Inc()
 			AsyncFlushDuration.ObserveDuration(time.Since(asyncFlushStart))
 			AsyncFlushErrors.Inc()
-			f.logger.Error("Failed to save cursor after flush",
+			f.logger.Error("failed to save cursor after flush",
 				zap.Uint64("block", req.blockNumber),
 				zap.Error(err))
 			f.sendError(err)

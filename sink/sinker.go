@@ -163,7 +163,7 @@ func (s *Sinker) HandleBlockUndoSignal(ctx context.Context, undoSignal *pbsubstr
 	lib := cursor.LIB.Num()
 
 	if err := s.FlushPendingBatch(ctx, lib, blockNum, cursor); err != nil {
-		s.logger.Warn("Failed to flush pending batch before undo", zap.Error(err))
+		s.logger.Warn("failed to flush pending batch before undo", zap.Error(err))
 	}
 
 	evictStart := time.Now()
@@ -175,11 +175,11 @@ func (s *Sinker) HandleBlockUndoSignal(ctx context.Context, undoSignal *pbsubstr
 	// Save the cursor to a file after handling the undo signal
 	if err := SaveCursorToFile(cursor, s.cursorFilePath, s.logger); err != nil {
 		CursorSaveErrors.Inc()
-		s.logger.Warn("Failed to save cursor to file after undo signal", zap.Error(err))
+		s.logger.Warn("failed to save cursor to file after undo signal", zap.Error(err))
 		// Don't return an error here, as we don't want to fail the processing
 	}
 
-	s.logger.Debug("Evicted data due to undo signal",
+	s.logger.Debug("evicted data due to undo signal",
 		zap.Uint64("block_number", blockNum))
 
 	return nil

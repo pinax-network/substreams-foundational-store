@@ -67,7 +67,7 @@ func NewStore(dsn *store.DSN, typeUrl string, opts ...StoreOption) (*Store, erro
 		opt(store)
 	}
 
-	store.logger.Info("Badger foundational-store initialized",
+	store.logger.Info("badger foundational-store initialized",
 		zap.String("path", dbPath),
 		zap.Int("workers", store.numWorkers))
 

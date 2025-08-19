@@ -75,7 +75,7 @@ func Serve(addr string, store store.Store, logger *zap.Logger, opts ...grpc.Serv
 	// Handle server termination
 	grpcServer.OnTerminated(func(err error) {
 		if err != nil {
-			logger.Error("gRPC server unexpected failure", zap.Error(err))
+			logger.Error("grpc server unexpected failure", zap.Error(err))
 			errCh <- err
 		}
 	})
