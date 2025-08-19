@@ -82,7 +82,8 @@ loader         Load data into a foundational-store
 lookup         Lookup keys with a prefix in a Badger foundational-store
 perf           Performance testing for the foundational-store
 server         Start the gRPC server
-
+```
+```bash
 foundational-store server --help
 Start the gRPC server that provides access to the foundational-store.
 Supports PostgreSQL, Badger.
@@ -104,7 +105,8 @@ Flags:
   --stop-block string         Stop block (default "0")
   --undo-buffer-size int      Number of blocks kept buffered for forks
   ... (other flags for headers, API keys, retries, insecure mode, etc.)
-
+```
+```bash
 foundational-store loader --help
 Usage:
   foundational-store loader [flags]
@@ -113,7 +115,8 @@ Flags:
   --file string      Path to CSV file (default "/path/to/initialized_accounts.csv")
   --dsn string       DSN connection string (Postgres/Badger)
   --batch-size int   Batch size for insertion (default 1000)
-
+```
+```bash
 foundational-store perf --help
 Usage:
   foundational-store perf [flags]
