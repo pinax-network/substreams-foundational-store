@@ -141,7 +141,7 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 			require.NoError(t, err)
 
 			if tc.expectFound {
-				assert.Equal(t, pbstore.ResponseCode_FOUND, getResponse.Response)
+				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, getResponse.Response)
 
 				// Unmarshal the retrieved value into an AccountOwner
 				retrievedAccountOwner := &pbstore.AccountOwner{}
@@ -152,7 +152,7 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 				assert.Equal(t, accountOwner.Mint, retrievedAccountOwner.Mint)
 				assert.Equal(t, accountOwner.Owner, retrievedAccountOwner.Owner)
 			} else {
-				assert.Equal(t, pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED, getResponse.Response)
+				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED, getResponse.Response)
 			}
 		})
 	}
@@ -290,7 +290,7 @@ func TestGetWithBlockNumber(t *testing.T) {
 			require.NoError(t, err)
 
 			if tc.expectFound {
-				assert.Equal(t, pbstore.ResponseCode_FOUND, getResponse.Response,
+				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, getResponse.Response,
 					"Should find entry with block number %d", tc.requestBlock)
 
 				// Unmarshal the retrieved value into an AccountOwner
@@ -303,7 +303,7 @@ func TestGetWithBlockNumber(t *testing.T) {
 				assert.Equal(t, expectedOwner, retrievedAccountOwner.Owner,
 					"Should retrieve %s", tc.expectedOwner)
 			} else {
-				assert.Equal(t, pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED, getResponse.Response,
+				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED, getResponse.Response,
 					"Should not find entry with block number %d", tc.requestBlock)
 			}
 		})
@@ -411,7 +411,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 			foundCount := 0
 			for _, responseEntry := range getAllResponse.Entries {
 				responseMap[string(responseEntry.Key)] = responseEntry
-				if responseEntry.Response.Response == pbstore.ResponseCode_FOUND {
+				if responseEntry.Response.Response == pbstore.ResponseCode_RESPONSE_CODE_FOUND {
 					foundCount++
 				}
 			}
@@ -424,7 +424,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 				// Check if the key is expected to be found
 				expectedFound := tc.expectedKeys[string(key)]
 				if expectedFound {
-					assert.Equal(t, pbstore.ResponseCode_FOUND, responseEntry.Response.Response,
+					assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Response,
 						"Should find entry with block number %d for key %s", tc.requestBlock, key)
 
 					// Unmarshal the retrieved value into an AccountOwner
@@ -440,7 +440,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 					assert.Equal(t, originalAccountOwner.Mint, retrievedAccountOwner.Mint)
 					assert.Equal(t, originalAccountOwner.Owner, retrievedAccountOwner.Owner)
 				} else {
-					assert.Equal(t, pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED, responseEntry.Response.Response,
+					assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED, responseEntry.Response.Response,
 						"Should not find entry with block number %d for key %s", tc.requestBlock, key)
 				}
 			}
@@ -670,7 +670,7 @@ func TestGetAllWithBlockNumber(t *testing.T) {
 			foundCount := 0
 			for _, responseEntry := range getAllResponse.Entries {
 				responseMap[string(responseEntry.Key)] = responseEntry
-				if responseEntry.Response.Response == pbstore.ResponseCode_FOUND {
+				if responseEntry.Response.Response == pbstore.ResponseCode_RESPONSE_CODE_FOUND {
 					foundCount++
 				}
 			}
@@ -688,7 +688,7 @@ func TestGetAllWithBlockNumber(t *testing.T) {
 				// Check if the key is expected to be found
 				expectedFound := tc.expectedKeys[string(key)]
 				if expectedFound {
-					assert.Equal(t, pbstore.ResponseCode_FOUND, responseEntry.Response.Response,
+					assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Response,
 						"Should find entry with block number %d for key %s", tc.requestBlock, key)
 
 					// Unmarshal the retrieved value into an AccountOwner
@@ -699,7 +699,7 @@ func TestGetAllWithBlockNumber(t *testing.T) {
 					// For this test, we don't need to verify the specific owner value
 					// as we're just testing if the keys are found or not
 				} else {
-					assert.Equal(t, pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED, responseEntry.Response.Response,
+					assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED, responseEntry.Response.Response,
 						"Should not find entry with block number %d for key %s", tc.requestBlock, key)
 				}
 			}
@@ -809,7 +809,7 @@ func TestSetAllAndGetAllWithNonExistentKey(t *testing.T) {
 			for i, key := range existingKeys {
 				responseEntry := responseMap[string(key)]
 				require.NotNil(t, responseEntry, "Response entry not found for key %s", key)
-				assert.Equal(t, pbstore.ResponseCode_FOUND, responseEntry.Response.Response)
+				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Response)
 
 				// Unmarshal the retrieved value into an AccountOwner
 				retrievedAccountOwner := &pbstore.AccountOwner{}
@@ -825,7 +825,7 @@ func TestSetAllAndGetAllWithNonExistentKey(t *testing.T) {
 			for _, key := range nonExistentByteKeys {
 				responseEntry := responseMap[string(key)]
 				require.NotNil(t, responseEntry, "Response for non-existent key %s not found", key)
-				assert.Equal(t, pbstore.ResponseCode_NOT_FOUND, responseEntry.Response.Response)
+				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, responseEntry.Response.Response)
 			}
 		})
 	}

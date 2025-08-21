@@ -89,7 +89,7 @@ This command connects to a gRPC server and retrieves a value for the specified k
 			response = resp
 
 			// Check if we need to retry
-			if response.Response == pbStore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED {
+			if response.Response == pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED {
 				if attempt < maxRetries {
 					fmt.Printf("Block not reached yet, retrying in %v (attempt %d/%d)\n", retryDelay, attempt+1, maxRetries+1)
 					time.Sleep(retryDelay)
@@ -107,14 +107,14 @@ This command connects to a gRPC server and retrieves a value for the specified k
 
 		// Display the response
 		switch response.Response {
-		case pbStore.ResponseCode_FOUND:
+		case pbStore.ResponseCode_RESPONSE_CODE_FOUND:
 			fmt.Printf("Type URL: %s\n", response.Value.TypeUrl)
 			fmt.Printf("Value size: %d bytes\n", len(response.Value.Value))
-		case pbStore.ResponseCode_NOT_FOUND:
+		case pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND:
 			fmt.Println("Value not found")
-		case pbStore.ResponseCode_NOT_FOUND_FINALIZE:
+		case pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND_FINALIZE:
 			fmt.Println("Value not found (finalized)")
-		case pbStore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED:
+		case pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED:
 			fmt.Println("Block not reached (after retries)")
 		default:
 			fmt.Printf("Unknown response code: %s\n", response.Response)

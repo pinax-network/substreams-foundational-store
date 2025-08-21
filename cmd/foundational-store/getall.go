@@ -102,7 +102,7 @@ This command connects to a gRPC server and retrieves values for the specified ke
 			// Check if any entries need retry
 			hasBlockNotReached := false
 			for _, entry := range response.Entries {
-				if entry.Response.Response == pbStore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED {
+				if entry.Response.Response == pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED {
 					hasBlockNotReached = true
 					break
 				}
@@ -130,15 +130,15 @@ This command connects to a gRPC server and retrieves values for the specified ke
 			fmt.Printf("  Key: %s\n", base58.Encode(entry.Key))
 
 			switch entry.Response.Response {
-			case pbStore.ResponseCode_FOUND:
+			case pbStore.ResponseCode_RESPONSE_CODE_FOUND:
 				fmt.Println("  Status: Value found")
 				fmt.Printf("  Type URL: %s\n", entry.Response.Value.TypeUrl)
 				fmt.Printf("  Value size: %d bytes\n", len(entry.Response.Value.Value))
-			case pbStore.ResponseCode_NOT_FOUND:
+			case pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND:
 				fmt.Println("  Status: Value not found")
-			case pbStore.ResponseCode_NOT_FOUND_FINALIZE:
+			case pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND_FINALIZE:
 				fmt.Println("  Status: Value not found (finalized)")
-			case pbStore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED:
+			case pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED:
 				fmt.Println("  Status: Block not reached (after retries)")
 			default:
 				fmt.Printf("  Status: Unknown response code: %s\n", entry.Response.Response)

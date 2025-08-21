@@ -285,7 +285,7 @@ func (m *MockStore) SetAll(entries []*pbstore.Entry, blockNumber uint64, blockHa
 }
 
 func (m *MockStore) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
-	return &pbstore.GetResponse{Response: pbstore.ResponseCode_NOT_FOUND}, nil
+	return &pbstore.GetResponse{Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND}, nil
 }
 
 func (m *MockStore) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {

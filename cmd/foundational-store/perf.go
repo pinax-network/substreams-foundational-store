@@ -288,7 +288,7 @@ func runMultiAccountQuery(size int, accounts []string, storeInstance store.Store
 	}
 
 	for i, entry := range response.Entries {
-		if entry.Response.Response == pbStore.ResponseCode_NOT_FOUND {
+		if entry.Response.Response == pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND {
 			fmt.Printf("Account %s not found\n", base58.Encode(entry.Key))
 			continue
 		}
@@ -377,7 +377,7 @@ func runConcurrentMultiAccountQueries(numClients, accountsPerQuery int, accounts
 					} else {
 						foundCount := 0
 						for _, entry := range resp.Entries {
-							if entry.Response.Response == pbStore.ResponseCode_FOUND {
+							if entry.Response.Response == pbStore.ResponseCode_RESPONSE_CODE_FOUND {
 								foundCount++
 							}
 						}

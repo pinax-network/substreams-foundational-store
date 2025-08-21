@@ -26,14 +26,14 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return &pbstore.GetResponse{
-				Response: pbstore.ResponseCode_NOT_FOUND,
+				Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
 			}, nil
 		}
 		return nil, err
 	}
 
 	return &pbstore.GetResponse{
-		Response: pbstore.ResponseCode_FOUND,
+		Response: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
 		Value: &anypb.Any{
 			TypeUrl: s.typeUrl,
 			Value:   entry.Value,
@@ -65,7 +65,7 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 				append(out, &pbstore.ResponseEntry{
 					Key: key,
 					Response: &pbstore.GetResponse{
-						Response: pbstore.ResponseCode_NOT_FOUND,
+						Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
 						Value: &anypb.Any{
 							TypeUrl: s.typeUrl,
 							Value:   nil,
@@ -77,7 +77,7 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 		out = append(out, &pbstore.ResponseEntry{
 			Key: key,
 			Response: &pbstore.GetResponse{
-				Response: pbstore.ResponseCode_FOUND,
+				Response: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
 				Value: &anypb.Any{
 					TypeUrl: s.typeUrl,
 					Value:   entry.Value,

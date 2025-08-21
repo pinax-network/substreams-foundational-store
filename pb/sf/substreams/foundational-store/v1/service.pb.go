@@ -25,28 +25,28 @@ const (
 type ResponseCode int32
 
 const (
-	ResponseCode_UNSET                       ResponseCode = 0
-	ResponseCode_FOUND                       ResponseCode = 1
-	ResponseCode_NOT_FOUND                   ResponseCode = 2
-	ResponseCode_NOT_FOUND_FINALIZE          ResponseCode = 4
-	ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED ResponseCode = 5
+	ResponseCode_RESPONSE_CODE_UNSPECIFIED                 ResponseCode = 0
+	ResponseCode_RESPONSE_CODE_FOUND                       ResponseCode = 1
+	ResponseCode_RESPONSE_CODE_NOT_FOUND                   ResponseCode = 2
+	ResponseCode_RESPONSE_CODE_NOT_FOUND_FINALIZE          ResponseCode = 4
+	ResponseCode_RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED ResponseCode = 5
 )
 
 // Enum value maps for ResponseCode.
 var (
 	ResponseCode_name = map[int32]string{
-		0: "UNSET",
-		1: "FOUND",
-		2: "NOT_FOUND",
-		4: "NOT_FOUND_FINALIZE",
-		5: "NOT_FOUND_BLOCK_NOT_REACHED",
+		0: "RESPONSE_CODE_UNSPECIFIED",
+		1: "RESPONSE_CODE_FOUND",
+		2: "RESPONSE_CODE_NOT_FOUND",
+		4: "RESPONSE_CODE_NOT_FOUND_FINALIZE",
+		5: "RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED",
 	}
 	ResponseCode_value = map[string]int32{
-		"UNSET":                       0,
-		"FOUND":                       1,
-		"NOT_FOUND":                   2,
-		"NOT_FOUND_FINALIZE":          4,
-		"NOT_FOUND_BLOCK_NOT_REACHED": 5,
+		"RESPONSE_CODE_UNSPECIFIED":                 0,
+		"RESPONSE_CODE_FOUND":                       1,
+		"RESPONSE_CODE_NOT_FOUND":                   2,
+		"RESPONSE_CODE_NOT_FOUND_FINALIZE":          4,
+		"RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED": 5,
 	}
 )
 
@@ -187,7 +187,7 @@ func (x *GetResponse) GetResponse() ResponseCode {
 	if x != nil {
 		return x.Response
 	}
-	return ResponseCode_UNSET
+	return ResponseCode_RESPONSE_CODE_UNSPECIFIED
 }
 
 func (x *GetResponse) GetValue() *anypb.Any {
@@ -386,13 +386,13 @@ const file_sf_substreams_foundational_store_v1_service_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\fR\x03key\x12;\n" +
 	"\bresponse\x18\x02 \x01(\v2\x1f.foundational_store.GetResponseR\bresponse\"M\n" +
 	"\x0eGetAllResponse\x12;\n" +
-	"\aentries\x18\x01 \x03(\v2!.foundational_store.ResponseEntryR\aentries*l\n" +
-	"\fResponseCode\x12\t\n" +
-	"\x05UNSET\x10\x00\x12\t\n" +
-	"\x05FOUND\x10\x01\x12\r\n" +
-	"\tNOT_FOUND\x10\x02\x12\x16\n" +
-	"\x12NOT_FOUND_FINALIZE\x10\x04\x12\x1f\n" +
-	"\x1bNOT_FOUND_BLOCK_NOT_REACHED\x10\x052\xa2\x01\n" +
+	"\aentries\x18\x01 \x03(\v2!.foundational_store.ResponseEntryR\aentries*\xb8\x01\n" +
+	"\fResponseCode\x12\x1d\n" +
+	"\x19RESPONSE_CODE_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13RESPONSE_CODE_FOUND\x10\x01\x12\x1b\n" +
+	"\x17RESPONSE_CODE_NOT_FOUND\x10\x02\x12$\n" +
+	" RESPONSE_CODE_NOT_FOUND_FINALIZE\x10\x04\x12-\n" +
+	")RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED\x10\x052\xa2\x01\n" +
 	"\aStoreKV\x12F\n" +
 	"\x03Get\x12\x1e.foundational_store.GetRequest\x1a\x1f.foundational_store.GetResponse\x12O\n" +
 	"\x06GetAll\x12!.foundational_store.GetAllRequest\x1a\".foundational_store.GetAllResponseB\xe9\x01\n" +

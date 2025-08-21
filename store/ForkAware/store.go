@@ -104,14 +104,14 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 			if len(request.BlockHash) > 0 && len(cached.blockHash) > 0 {
 				if string(request.BlockHash) == string(cached.blockHash) {
 					return &pbstore.GetResponse{
-						Response: pbstore.ResponseCode_FOUND,
+						Response: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
 						Value:    cached.entry.Value,
 					}, nil
 				}
 			} else if len(request.BlockHash) == 0 || len(cached.blockHash) == 0 {
 				// If either hash is empty, just check block number for backward compatibility
 				return &pbstore.GetResponse{
-					Response: pbstore.ResponseCode_FOUND,
+					Response: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
 					Value:    cached.entry.Value,
 				}, nil
 			}
@@ -149,7 +149,7 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 						response.Entries = append(response.Entries, &pbstore.ResponseEntry{
 							Key: key,
 							Response: &pbstore.GetResponse{
-								Response: pbstore.ResponseCode_FOUND,
+								Response: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
 								Value:    cached.entry.Value,
 							},
 						})
@@ -160,7 +160,7 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 					response.Entries = append(response.Entries, &pbstore.ResponseEntry{
 						Key: key,
 						Response: &pbstore.GetResponse{
-							Response: pbstore.ResponseCode_FOUND,
+							Response: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
 							Value:    cached.entry.Value,
 						},
 					})
@@ -222,7 +222,7 @@ func (s *Store) FlushUpToBlock(blockNum uint64) error {
 		if cached.blockNumber <= blockNum {
 			// Create a key from blockNumber and blockHash
 			groupKey := fmt.Sprintf("%d-%x", cached.blockNumber, cached.blockHash)
-			
+
 			if group, exists := groupMap[groupKey]; exists {
 				group.entries = append(group.entries, cached.entry)
 			} else {

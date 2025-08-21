@@ -62,7 +62,7 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 	if !found {
 		sink.DatabaseGetMisses.Inc()
 		return &pbstore.GetResponse{
-			Response: pbstore.ResponseCode_NOT_FOUND,
+			Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
 		}, nil
 	}
 
@@ -78,16 +78,16 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 
 	// Extract the block number from the first 8 bytes
 	blockNumber := binary.BigEndian.Uint64(storedValue[:8])
-	
+
 	// Extract the stored block hash
 	storedBlockHash := storedValue[8 : 8+requestBlockHashLen]
-	
+
 	// The actual value is everything after the block number and hash
 	actualValue := storedValue[8+requestBlockHashLen:]
 
 	if request.BlockNumber < blockNumber {
 		return &pbstore.GetResponse{
-			Response: pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED,
+			Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED,
 		}, nil
 	}
 
@@ -95,13 +95,13 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 	if len(request.BlockHash) > 0 && len(storedBlockHash) > 0 {
 		if string(request.BlockHash) != string(storedBlockHash) {
 			return &pbstore.GetResponse{
-				Response: pbstore.ResponseCode_NOT_FOUND,
+				Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
 			}, nil
 		}
 	}
 
 	return &pbstore.GetResponse{
-		Response: pbstore.ResponseCode_FOUND,
+		Response: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
 		Value: &anypb.Any{
 			TypeUrl: s.typeUrl,
 			Value:   actualValue,
@@ -161,7 +161,7 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 								&pbstore.ResponseEntry{
 									Key: key,
 									Response: &pbstore.GetResponse{
-										Response: pbstore.ResponseCode_NOT_FOUND,
+										Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
 									},
 								})
 							mutex.Unlock()
@@ -193,10 +193,10 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 
 					// Extract the block number from the first 8 bytes
 					blockNumber := binary.BigEndian.Uint64(value[:8])
-					
+
 					// Extract the stored block hash
 					storedBlockHash := value[8 : 8+requestBlockHashLen]
-					
+
 					// The actual value is everything after the block number and hash
 					actualValue := value[8+requestBlockHashLen:]
 
@@ -205,7 +205,7 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 						entries = append(entries, &pbstore.ResponseEntry{
 							Key: key,
 							Response: &pbstore.GetResponse{
-								Response: pbstore.ResponseCode_NOT_FOUND_BLOCK_NOT_REACHED,
+								Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED,
 							},
 						})
 						mutex.Unlock()
@@ -219,7 +219,7 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 							entries = append(entries, &pbstore.ResponseEntry{
 								Key: key,
 								Response: &pbstore.GetResponse{
-									Response: pbstore.ResponseCode_NOT_FOUND,
+									Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
 								},
 							})
 							mutex.Unlock()
@@ -232,7 +232,7 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 						&pbstore.ResponseEntry{
 							Key: key,
 							Response: &pbstore.GetResponse{
-								Response: pbstore.ResponseCode_FOUND,
+								Response: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
 								Value: &anypb.Any{
 									TypeUrl: s.typeUrl,
 									Value:   actualValue,
