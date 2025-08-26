@@ -4,7 +4,7 @@
 // - protoc             (unknown)
 // source: sf/substreams/foundational-store/v1/service.proto
 
-package v1
+package foundational_storev1
 
 import (
 	context "context"
@@ -19,8 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	StoreKV_Get_FullMethodName    = "/foundational_store.StoreKV/Get"
-	StoreKV_GetAll_FullMethodName = "/foundational_store.StoreKV/GetAll"
+	StoreKV_Get_FullMethodName    = "/sf.substreams.foundational_store.v1.StoreKV/Get"
+	StoreKV_GetAll_FullMethodName = "/sf.substreams.foundational_store.v1.StoreKV/GetAll"
 )
 
 // StoreKVClient is the client API for StoreKV service.
@@ -142,7 +142,7 @@ func _StoreKV_GetAll_Handler(srv interface{}, ctx context.Context, dec func(inte
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var StoreKV_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "foundational_store.StoreKV",
+	ServiceName: "sf.substreams.foundational_store.v1.StoreKV",
 	HandlerType: (*StoreKVServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

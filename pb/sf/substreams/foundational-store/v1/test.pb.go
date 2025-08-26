@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: sf/substreams/foundational-store/v1/test.proto
 
-package v1
+package foundational_storev1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -21,7 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type AccountOwner struct {
+type TestAccountOwner struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Mint          []byte                 `protobuf:"bytes,1,opt,name=mint,proto3" json:"mint,omitempty"`
 	Owner         []byte                 `protobuf:"bytes,2,opt,name=owner,proto3" json:"owner,omitempty"`
@@ -29,20 +29,20 @@ type AccountOwner struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *AccountOwner) Reset() {
-	*x = AccountOwner{}
+func (x *TestAccountOwner) Reset() {
+	*x = TestAccountOwner{}
 	mi := &file_sf_substreams_foundational_store_v1_test_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AccountOwner) String() string {
+func (x *TestAccountOwner) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AccountOwner) ProtoMessage() {}
+func (*TestAccountOwner) ProtoMessage() {}
 
-func (x *AccountOwner) ProtoReflect() protoreflect.Message {
+func (x *TestAccountOwner) ProtoReflect() protoreflect.Message {
 	mi := &file_sf_substreams_foundational_store_v1_test_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -54,19 +54,19 @@ func (x *AccountOwner) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AccountOwner.ProtoReflect.Descriptor instead.
-func (*AccountOwner) Descriptor() ([]byte, []int) {
+// Deprecated: Use TestAccountOwner.ProtoReflect.Descriptor instead.
+func (*TestAccountOwner) Descriptor() ([]byte, []int) {
 	return file_sf_substreams_foundational_store_v1_test_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *AccountOwner) GetMint() []byte {
+func (x *TestAccountOwner) GetMint() []byte {
 	if x != nil {
 		return x.Mint
 	}
 	return nil
 }
 
-func (x *AccountOwner) GetOwner() []byte {
+func (x *TestAccountOwner) GetOwner() []byte {
 	if x != nil {
 		return x.Owner
 	}
@@ -77,11 +77,11 @@ var File_sf_substreams_foundational_store_v1_test_proto protoreflect.FileDescrip
 
 const file_sf_substreams_foundational_store_v1_test_proto_rawDesc = "" +
 	"\n" +
-	".sf/substreams/foundational-store/v1/test.proto\x12\x12foundational_store\"8\n" +
-	"\fAccountOwner\x12\x12\n" +
+	".sf/substreams/foundational-store/v1/test.proto\x12#sf.substreams.foundational_store.v1\"<\n" +
+	"\x10TestAccountOwner\x12\x12\n" +
 	"\x04mint\x18\x01 \x01(\fR\x04mint\x12\x14\n" +
-	"\x05owner\x18\x02 \x01(\fR\x05ownerB\xe6\x01\n" +
-	"\x16com.foundational_storeB\tTestProtoP\x01Z]github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1\xa2\x02\x03FXX\xaa\x02\x11FoundationalStore\xca\x02\x11FoundationalStore\xe2\x02\x1dFoundationalStore\\GPBMetadata\xea\x02\x11FoundationalStoreb\x06proto3"
+	"\x05owner\x18\x02 \x01(\fR\x05ownerB\xd3\x02\n" +
+	"'com.sf.substreams.foundational_store.v1B\tTestProtoP\x01Zrgithub.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1;foundational_storev1\xa2\x02\x03SSF\xaa\x02\"Sf.Substreams.FoundationalStore.V1\xca\x02\"Sf\\Substreams\\FoundationalStore\\V1\xe2\x02.Sf\\Substreams\\FoundationalStore\\V1\\GPBMetadata\xea\x02%Sf::Substreams::FoundationalStore::V1b\x06proto3"
 
 var (
 	file_sf_substreams_foundational_store_v1_test_proto_rawDescOnce sync.Once
@@ -97,7 +97,7 @@ func file_sf_substreams_foundational_store_v1_test_proto_rawDescGZIP() []byte {
 
 var file_sf_substreams_foundational_store_v1_test_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_sf_substreams_foundational_store_v1_test_proto_goTypes = []any{
-	(*AccountOwner)(nil), // 0: foundational_store.AccountOwner
+	(*TestAccountOwner)(nil), // 0: sf.substreams.foundational_store.v1.TestAccountOwner
 }
 var file_sf_substreams_foundational_store_v1_test_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type

@@ -15,6 +15,7 @@ require (
 	github.com/streamingfast/dgrpc v0.0.0-20250423172640-223250ed2391
 	github.com/streamingfast/dmetrics v0.0.0-20250711072030-f023e918a175
 	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091
+	github.com/streamingfast/shutter v1.5.0
 	github.com/streamingfast/substreams v1.16.3-0.20250805182141-b49a12fdb2ee
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
@@ -129,7 +130,6 @@ require (
 	github.com/streamingfast/opaque v0.0.0-20210811180740-0c01d37ea308 // indirect
 	github.com/streamingfast/pbgo v0.0.6-0.20240823134334-812f6a16c5cb // indirect
 	github.com/streamingfast/sf-tracing v0.0.0-20240430173521-888827872b90 // indirect
-	github.com/streamingfast/shutter v1.5.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/teris-io/shortid v0.0.0-20171029131806-771a37caa5cf // indirect
 	github.com/yourbasic/graph v0.0.0-20210606180040-8ecfec1c2869 // indirect

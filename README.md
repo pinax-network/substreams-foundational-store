@@ -276,5 +276,4 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 ## Related Projects
 
 - [Substreams](https://github.com/streamingfast/substreams) - Real-time blockchain data processing
-- [StreamingFast](https://github.com/streamingfast) - High-performance blockchain infrastructure
 - [Firehose](https://github.com/streamingfast/firehose) - Blockchain data extraction protocol

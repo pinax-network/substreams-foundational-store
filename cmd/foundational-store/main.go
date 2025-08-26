@@ -30,9 +30,7 @@ func init() {
 	rootCmd.AddCommand(AccountListCmd)
 	rootCmd.AddCommand(GetCmd)
 	rootCmd.AddCommand(GetAllCmd)
-	rootCmd.AddCommand(LoaderCmd)
 	rootCmd.AddCommand(LookupCmd)
-	rootCmd.AddCommand(PerfCmd)
 	rootCmd.AddCommand(ServerCmd)
 }
 

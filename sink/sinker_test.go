@@ -348,7 +348,7 @@ func createTestEntries(count int, keyPrefix string, valueSize int) []*pbstore.En
 			owner[j] = byte('o' + j%26)
 		}
 
-		anyValue, _ := anypb.New(&pbstore.AccountOwner{
+		anyValue, _ := anypb.New(&pbstore.TestAccountOwner{
 			Mint:  mint,
 			Owner: owner,
 		})

@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package foundational_store;
+package sf.substreams.foundational_store.v1;
 
 option go_package = "github.com/streamingfast/magic-foundational-store-server/pb/test";
 
-message AccountOwner {
+message TestAccountOwner {
   bytes mint = 1;
   bytes owner = 2;
 }

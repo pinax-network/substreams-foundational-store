@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: sf/substreams/foundational-store/v1/service.proto
 
-package v1
+package foundational_storev1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -147,7 +147,7 @@ func (x *GetRequest) GetKey() []byte {
 
 type GetResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Response      ResponseCode           `protobuf:"varint,4,opt,name=response,proto3,enum=foundational_store.ResponseCode" json:"response,omitempty"`
+	Response      ResponseCode           `protobuf:"varint,4,opt,name=response,proto3,enum=sf.substreams.foundational_store.v1.ResponseCode" json:"response,omitempty"`
 	Value         *anypb.Any             `protobuf:"bytes,5,opt,name=value,proto3" json:"value,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -361,42 +361,143 @@ func (x *GetAllResponse) GetEntries() []*ResponseEntry {
 	return nil
 }
 
+type Entry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           []byte                 `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	Value         *anypb.Any             `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Entry) Reset() {
+	*x = Entry{}
+	mi := &file_sf_substreams_foundational_store_v1_service_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Entry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Entry) ProtoMessage() {}
+
+func (x *Entry) ProtoReflect() protoreflect.Message {
+	mi := &file_sf_substreams_foundational_store_v1_service_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Entry.ProtoReflect.Descriptor instead.
+func (*Entry) Descriptor() ([]byte, []int) {
+	return file_sf_substreams_foundational_store_v1_service_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *Entry) GetKey() []byte {
+	if x != nil {
+		return x.Key
+	}
+	return nil
+}
+
+func (x *Entry) GetValue() *anypb.Any {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+type Entries struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entries       []*Entry               `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Entries) Reset() {
+	*x = Entries{}
+	mi := &file_sf_substreams_foundational_store_v1_service_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Entries) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Entries) ProtoMessage() {}
+
+func (x *Entries) ProtoReflect() protoreflect.Message {
+	mi := &file_sf_substreams_foundational_store_v1_service_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Entries.ProtoReflect.Descriptor instead.
+func (*Entries) Descriptor() ([]byte, []int) {
+	return file_sf_substreams_foundational_store_v1_service_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *Entries) GetEntries() []*Entry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
 var File_sf_substreams_foundational_store_v1_service_proto protoreflect.FileDescriptor
 
 const file_sf_substreams_foundational_store_v1_service_proto_rawDesc = "" +
 	"\n" +
-	"1sf/substreams/foundational-store/v1/service.proto\x12\x12foundational_store\x1a\x19google/protobuf/any.proto\"\x83\x01\n" +
+	"1sf/substreams/foundational-store/v1/service.proto\x12#sf.substreams.foundational_store.v1\x1a\x19google/protobuf/any.proto\"\x83\x01\n" +
 	"\n" +
 	"GetRequest\x12!\n" +
 	"\fblock_number\x18\x01 \x01(\x04R\vblockNumber\x12\x1d\n" +
 	"\n" +
 	"block_hash\x18\x02 \x01(\fR\tblockHash\x12!\n" +
 	"\fomit_deleted\x18\x03 \x01(\bR\vomitDeleted\x12\x10\n" +
-	"\x03key\x18\x04 \x01(\fR\x03key\"w\n" +
-	"\vGetResponse\x12<\n" +
-	"\bresponse\x18\x04 \x01(\x0e2 .foundational_store.ResponseCodeR\bresponse\x12*\n" +
+	"\x03key\x18\x04 \x01(\fR\x03key\"\x88\x01\n" +
+	"\vGetResponse\x12M\n" +
+	"\bresponse\x18\x04 \x01(\x0e21.sf.substreams.foundational_store.v1.ResponseCodeR\bresponse\x12*\n" +
 	"\x05value\x18\x05 \x01(\v2\x14.google.protobuf.AnyR\x05value\"\x88\x01\n" +
 	"\rGetAllRequest\x12!\n" +
 	"\fblock_number\x18\x01 \x01(\x04R\vblockNumber\x12\x1d\n" +
 	"\n" +
 	"block_hash\x18\x02 \x01(\fR\tblockHash\x12!\n" +
 	"\fomit_deleted\x18\x03 \x01(\bR\vomitDeleted\x12\x12\n" +
-	"\x04keys\x18\x04 \x03(\fR\x04keys\"^\n" +
+	"\x04keys\x18\x04 \x03(\fR\x04keys\"o\n" +
 	"\rResponseEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\fR\x03key\x12;\n" +
-	"\bresponse\x18\x02 \x01(\v2\x1f.foundational_store.GetResponseR\bresponse\"M\n" +
-	"\x0eGetAllResponse\x12;\n" +
-	"\aentries\x18\x01 \x03(\v2!.foundational_store.ResponseEntryR\aentries*\xb8\x01\n" +
+	"\x03key\x18\x01 \x01(\fR\x03key\x12L\n" +
+	"\bresponse\x18\x02 \x01(\v20.sf.substreams.foundational_store.v1.GetResponseR\bresponse\"^\n" +
+	"\x0eGetAllResponse\x12L\n" +
+	"\aentries\x18\x01 \x03(\v22.sf.substreams.foundational_store.v1.ResponseEntryR\aentries\"E\n" +
+	"\x05Entry\x12\x10\n" +
+	"\x03key\x18\x02 \x01(\fR\x03key\x12*\n" +
+	"\x05value\x18\x04 \x01(\v2\x14.google.protobuf.AnyR\x05value\"O\n" +
+	"\aEntries\x12D\n" +
+	"\aentries\x18\x01 \x03(\v2*.sf.substreams.foundational_store.v1.EntryR\aentries*\xb8\x01\n" +
 	"\fResponseCode\x12\x1d\n" +
 	"\x19RESPONSE_CODE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13RESPONSE_CODE_FOUND\x10\x01\x12\x1b\n" +
 	"\x17RESPONSE_CODE_NOT_FOUND\x10\x02\x12$\n" +
 	" RESPONSE_CODE_NOT_FOUND_FINALIZE\x10\x04\x12-\n" +
-	")RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED\x10\x052\xa2\x01\n" +
-	"\aStoreKV\x12F\n" +
-	"\x03Get\x12\x1e.foundational_store.GetRequest\x1a\x1f.foundational_store.GetResponse\x12O\n" +
-	"\x06GetAll\x12!.foundational_store.GetAllRequest\x1a\".foundational_store.GetAllResponseB\xe9\x01\n" +
-	"\x16com.foundational_storeB\fServiceProtoP\x01Z]github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1\xa2\x02\x03FXX\xaa\x02\x11FoundationalStore\xca\x02\x11FoundationalStore\xe2\x02\x1dFoundationalStore\\GPBMetadata\xea\x02\x11FoundationalStoreb\x06proto3"
+	")RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED\x10\x052\xe6\x01\n" +
+	"\aStoreKV\x12h\n" +
+	"\x03Get\x12/.sf.substreams.foundational_store.v1.GetRequest\x1a0.sf.substreams.foundational_store.v1.GetResponse\x12q\n" +
+	"\x06GetAll\x122.sf.substreams.foundational_store.v1.GetAllRequest\x1a3.sf.substreams.foundational_store.v1.GetAllResponseB\xd6\x02\n" +
+	"'com.sf.substreams.foundational_store.v1B\fServiceProtoP\x01Zrgithub.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1;foundational_storev1\xa2\x02\x03SSF\xaa\x02\"Sf.Substreams.FoundationalStore.V1\xca\x02\"Sf\\Substreams\\FoundationalStore\\V1\xe2\x02.Sf\\Substreams\\FoundationalStore\\V1\\GPBMetadata\xea\x02%Sf::Substreams::FoundationalStore::V1b\x06proto3"
 
 var (
 	file_sf_substreams_foundational_store_v1_service_proto_rawDescOnce sync.Once
@@ -411,30 +512,34 @@ func file_sf_substreams_foundational_store_v1_service_proto_rawDescGZIP() []byte
 }
 
 var file_sf_substreams_foundational_store_v1_service_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_sf_substreams_foundational_store_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_sf_substreams_foundational_store_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_sf_substreams_foundational_store_v1_service_proto_goTypes = []any{
-	(ResponseCode)(0),      // 0: foundational_store.ResponseCode
-	(*GetRequest)(nil),     // 1: foundational_store.GetRequest
-	(*GetResponse)(nil),    // 2: foundational_store.GetResponse
-	(*GetAllRequest)(nil),  // 3: foundational_store.GetAllRequest
-	(*ResponseEntry)(nil),  // 4: foundational_store.ResponseEntry
-	(*GetAllResponse)(nil), // 5: foundational_store.GetAllResponse
-	(*anypb.Any)(nil),      // 6: google.protobuf.Any
+	(ResponseCode)(0),      // 0: sf.substreams.foundational_store.v1.ResponseCode
+	(*GetRequest)(nil),     // 1: sf.substreams.foundational_store.v1.GetRequest
+	(*GetResponse)(nil),    // 2: sf.substreams.foundational_store.v1.GetResponse
+	(*GetAllRequest)(nil),  // 3: sf.substreams.foundational_store.v1.GetAllRequest
+	(*ResponseEntry)(nil),  // 4: sf.substreams.foundational_store.v1.ResponseEntry
+	(*GetAllResponse)(nil), // 5: sf.substreams.foundational_store.v1.GetAllResponse
+	(*Entry)(nil),          // 6: sf.substreams.foundational_store.v1.Entry
+	(*Entries)(nil),        // 7: sf.substreams.foundational_store.v1.Entries
+	(*anypb.Any)(nil),      // 8: google.protobuf.Any
 }
 var file_sf_substreams_foundational_store_v1_service_proto_depIdxs = []int32{
-	0, // 0: foundational_store.GetResponse.response:type_name -> foundational_store.ResponseCode
-	6, // 1: foundational_store.GetResponse.value:type_name -> google.protobuf.Any
-	2, // 2: foundational_store.ResponseEntry.response:type_name -> foundational_store.GetResponse
-	4, // 3: foundational_store.GetAllResponse.entries:type_name -> foundational_store.ResponseEntry
-	1, // 4: foundational_store.StoreKV.Get:input_type -> foundational_store.GetRequest
-	3, // 5: foundational_store.StoreKV.GetAll:input_type -> foundational_store.GetAllRequest
-	2, // 6: foundational_store.StoreKV.Get:output_type -> foundational_store.GetResponse
-	5, // 7: foundational_store.StoreKV.GetAll:output_type -> foundational_store.GetAllResponse
-	6, // [6:8] is the sub-list for method output_type
-	4, // [4:6] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	0, // 0: sf.substreams.foundational_store.v1.GetResponse.response:type_name -> sf.substreams.foundational_store.v1.ResponseCode
+	8, // 1: sf.substreams.foundational_store.v1.GetResponse.value:type_name -> google.protobuf.Any
+	2, // 2: sf.substreams.foundational_store.v1.ResponseEntry.response:type_name -> sf.substreams.foundational_store.v1.GetResponse
+	4, // 3: sf.substreams.foundational_store.v1.GetAllResponse.entries:type_name -> sf.substreams.foundational_store.v1.ResponseEntry
+	8, // 4: sf.substreams.foundational_store.v1.Entry.value:type_name -> google.protobuf.Any
+	6, // 5: sf.substreams.foundational_store.v1.Entries.entries:type_name -> sf.substreams.foundational_store.v1.Entry
+	1, // 6: sf.substreams.foundational_store.v1.StoreKV.Get:input_type -> sf.substreams.foundational_store.v1.GetRequest
+	3, // 7: sf.substreams.foundational_store.v1.StoreKV.GetAll:input_type -> sf.substreams.foundational_store.v1.GetAllRequest
+	2, // 8: sf.substreams.foundational_store.v1.StoreKV.Get:output_type -> sf.substreams.foundational_store.v1.GetResponse
+	5, // 9: sf.substreams.foundational_store.v1.StoreKV.GetAll:output_type -> sf.substreams.foundational_store.v1.GetAllResponse
+	8, // [8:10] is the sub-list for method output_type
+	6, // [6:8] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_sf_substreams_foundational_store_v1_service_proto_init() }
@@ -448,7 +553,7 @@ func file_sf_substreams_foundational_store_v1_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sf_substreams_foundational_store_v1_service_proto_rawDesc), len(file_sf_substreams_foundational_store_v1_service_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

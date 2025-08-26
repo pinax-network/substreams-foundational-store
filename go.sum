@@ -476,12 +476,6 @@ github.com/streamingfast/sf-tracing v0.0.0-20240430173521-888827872b90 h1:94Hllk
 github.com/streamingfast/sf-tracing v0.0.0-20240430173521-888827872b90/go.mod h1:e6tKS/udlfXFUTQBYfDDdISfjULvQXet1kBrOeRfgI4=
 github.com/streamingfast/shutter v1.5.0 h1:NpzDYzj0HVpSiDJVO/FFSL6QIK/YKOxY0gJAtyaTOgs=
 github.com/streamingfast/shutter v1.5.0/go.mod h1:B/T6efqdeMGbGwjzPS1ToXzYZI4kDzI5/u4I+7qbjY8=
-github.com/streamingfast/substreams v1.16.2-0.20250723162442-12d33e0c3492 h1:J5clByZEpqqjCDOPkmOJqP/3rLAUCh87HLv0PrHad3I=
-github.com/streamingfast/substreams v1.16.2-0.20250723162442-12d33e0c3492/go.mod h1:UGRcTl4TaAJ7VPWw5592znF0MulHQqJ1d6Rd2JnRfFM=
-github.com/streamingfast/substreams v1.16.2-0.20250730202443-0fac31be1d02 h1:wiYsopWc6l60/qCl+4IXvTfWrcWV6/sRvo40aN7L/go=
-github.com/streamingfast/substreams v1.16.2-0.20250730202443-0fac31be1d02/go.mod h1:UGRcTl4TaAJ7VPWw5592znF0MulHQqJ1d6Rd2JnRfFM=
-github.com/streamingfast/substreams v1.16.3-0.20250805182048-b2ea2bc543d6 h1:6qCh5vL7YfbIKDHYJYQK2yAb1hsvgt1jIbBb8zHObgA=
-github.com/streamingfast/substreams v1.16.3-0.20250805182048-b2ea2bc543d6/go.mod h1:UGRcTl4TaAJ7VPWw5592znF0MulHQqJ1d6Rd2JnRfFM=
 github.com/streamingfast/substreams v1.16.3-0.20250805182141-b49a12fdb2ee h1:8hRmMRI4/oNJXpwclP7tVfkWhB9K0+Scx2sffoKDxu4=
 github.com/streamingfast/substreams v1.16.3-0.20250805182141-b49a12fdb2ee/go.mod h1:kbf40QE6+k8XlUm6KgVFX2t873le2Jgtg/pB2db6YuE=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
