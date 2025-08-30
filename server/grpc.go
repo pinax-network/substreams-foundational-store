@@ -7,6 +7,7 @@ import (
 
 	dgrpcServer "github.com/streamingfast/dgrpc/server"
 	"github.com/streamingfast/dgrpc/server/factory"
+	"github.com/streamingfast/shutter"
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 	"github.com/streamingfast/substreams-foundational-store/sink"
 	"github.com/streamingfast/substreams-foundational-store/store"
@@ -16,14 +17,18 @@ import (
 
 // StoreServer implements the StoreKV gRPC service
 type StoreServer struct {
+	*shutter.Shutter
 	pbstore.UnimplementedStoreKVServer
-	store store.Store
+	store      store.Store
+	grpcServer dgrpcServer.Server
 }
 
 // NewStoreServer creates a new StoreServer with the given foundational-store
 func NewStoreServer(store store.Store) *StoreServer {
 	return &StoreServer{
-		store: store,
+		Shutter:    shutter.New(),
+		store:      store,
+		grpcServer: nil,
 	}
 }
 
@@ -53,38 +58,29 @@ func (s *StoreServer) GetAll(ctx context.Context, req *pbstore.GetAllRequest) (*
 	return s.store.GetAll(req)
 }
 
-// Serve starts the gRPC server on the given address
-func Serve(addr string, store store.Store, logger *zap.Logger, opts ...grpc.ServerOption) error {
-
-	// Create a channel to receive server errors
-	errCh := make(chan error, 1)
-
-	storeServer := NewStoreServer(store)
-
+func (s *StoreServer) Run(addr string, logger *zap.Logger, opts ...grpc.ServerOption) {
 	// Create the dgrpc server with reduced per-call logging
 	grpcLogger := logger.Named("grpc").WithOptions(zap.IncreaseLevel(zap.WarnLevel))
-	grpcServer := factory.ServerFromOptions(
+	s.grpcServer = factory.ServerFromOptions(
 		dgrpcServer.WithLogger(grpcLogger),
 		dgrpcServer.WithPlainTextServer(),
 		dgrpcServer.WithGRPCServerOptions(opts...),
 		dgrpcServer.WithRegisterService(func(gs *grpc.Server) {
-			pbstore.RegisterStoreKVServer(gs, storeServer)
+			pbstore.RegisterStoreKVServer(gs, s)
 		}),
 	)
 
-	// Handle server termination
-	grpcServer.OnTerminated(func(err error) {
-		if err != nil {
-			logger.Error("grpc server unexpected failure", zap.Error(err))
-			errCh <- err
-		}
+	s.grpcServer.OnTerminated(func(err error) {
+		s.Shutter.Shutdown(err)
 	})
 
-	// Launch the server
-	go grpcServer.Launch(addr)
+	s.grpcServer.Launch(addr)
+}
 
-	// Wait for an error from the server
-	// This will block until the server terminates with an error
-	// or until the application is shut down
-	return <-errCh
+func (s *StoreServer) Shutdown(err error) {
+	if server := s.grpcServer; server != nil {
+		server.Shutdown(15 * time.Second)
+	}
+
+	s.Shutter.Shutdown(err)
 }

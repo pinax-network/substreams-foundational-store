@@ -122,7 +122,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.5.0 // indirect
 	github.com/streamingfast/bstream v0.0.2-0.20250221181559-fb0809660f91 // indirect
-	github.com/streamingfast/cli v0.0.4-0.20241119021815-815afa473375 // indirect
+	github.com/streamingfast/cli v0.0.4-0.20250815192146-d8a233ec3d0b // indirect
 	github.com/streamingfast/dbin v0.9.1-0.20231117225723-59790c798e2c // indirect
 	github.com/streamingfast/derr v0.0.0-20250321151415-6b4fbbcb1bb5 // indirect
 	github.com/streamingfast/dstore v0.1.1-0.20250609173504-95368d3441ee // indirect

@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/streamingfast/cli"
 	"github.com/streamingfast/logging"
 	"github.com/streamingfast/substreams-foundational-store/server"
 	"github.com/streamingfast/substreams-foundational-store/sink"
@@ -16,6 +16,7 @@ import (
 	"github.com/streamingfast/substreams-foundational-store/store/ForkAware"
 	"github.com/streamingfast/substreams-foundational-store/store/badger"
 	"github.com/streamingfast/substreams-foundational-store/store/postgres"
+	"go.uber.org/zap"
 
 	subsink "github.com/streamingfast/substreams/sink"
 )
@@ -56,6 +57,10 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("type URL is required")
 	}
 
+	if !strings.HasPrefix(serverTypeUrl, "type.googleapis.com/") {
+		serverTypeUrl = "type.googleapis.com/" + serverTypeUrl
+	}
+
 	// Parse the DSN
 	dsn, err := store.ParseDSN(serverDSN)
 	if err != nil {
@@ -89,10 +94,6 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	// Wrap the foundational-store with a ForkAware foundational-store
 	storeImpl := ForkAware.NewStore(baseStore)
 
-	// Create a channel to listen for interrupt signals
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-
 	// Load cursor from file if it exists and set it in the command flags so subsink.NewFromViper can use it
 	cursor := sink.LoadCursorFromFile(zlog, cursorFilePath)
 	if cursor != nil {
@@ -100,6 +101,8 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	} else {
 		zlog.Info("no cursor file found, will start from the beginning")
 	}
+
+	app := cli.NewApplication(cmd.Context())
 
 	// Create a substreams sink using Viper configuration
 	substreamsClient, err := subsink.NewFromViper(
@@ -115,15 +118,6 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create substreams sink: %w", err)
 	}
 
-	// Create a sinker for the substreams sink
-	sinker := sink.NewSinker(serverTypeUrl, storeImpl, zlog, cursorFilePath, batchSize, maxBatchTime, flushQueueSize)
-
-	// Start the gRPC server in a goroutine
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- server.Serve(serverAddr, storeImpl, zlog)
-	}()
-
 	// Start periodic database stats logging
 	dbStatsTicker := time.NewTicker(15 * time.Second)
 	go func() {
@@ -133,26 +127,26 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	}()
 	defer dbStatsTicker.Stop()
 
-	// Set up termination handlers before starting
-	substreamsClient.OnTerminating(func(err error) {
-		sinker.Shutter.Shutdown(err)
+	sinker := sink.NewSinker(storeImpl, zlog, cursorFilePath, batchSize, maxBatchTime, flushQueueSize)
+	server := server.NewStoreServer(storeImpl)
+
+	app.SuperviseAndStartUsing(sinker.Shutter, func() {
+		substreamsClient.Run(cmd.Context(), cursor, sinker)
+		sinker.Shutdown(substreamsClient.Err())
 	})
 
-	// Start the substreams sink in a goroutine
-	go func() {
-		substreamsClient.Run(cmd.Context(), cursor, sinker)
-	}()
-	// Wait for an interrupt signal or an error from the server
-	select {
-	case <-sigCh:
-		zlog.Info("received interrupt signal, shutting down...")
-		// Shutdown with signal error, will propagate to sinker via OnTerminating
-		substreamsClient.Shutdown(fmt.Errorf("received shutdown signal"))
-	case err := <-errCh:
-		// Shutdown with server error, will propagate to sinker via OnTerminating
-		substreamsClient.Shutdown(fmt.Errorf("server error: %w", err))
-	case <-sinker.Terminating():
+	app.SuperviseAndStartUsing(server, func() {
+		server.Run(serverAddr, zlog)
+	})
+
+	appErr := app.WaitForTermination(zlog, 5*time.Second, 15*time.Second)
+	if appErr != nil {
+		zlog.Error("application error", zap.Error(appErr))
+		zlog.Core().Sync()
+		os.Exit(1)
 	}
+
+	// TODO: Double check, probably not require
 	<-sinker.Terminated() // final batch flush process
 	return nil
 }
@@ -162,7 +156,7 @@ func init() {
 
 	ServerCmd.Flags().String("addr", ":50051", "Address to listen on")
 	ServerCmd.Flags().String("dsn", "", "DSN for the foundational-store (e.g. badger:///path/to/db or postgres://user:pass@host:port/dbname)")
-	ServerCmd.Flags().String("type-url", "", "Type URL for the stored values")
+	ServerCmd.Flags().String("type-url", "", "any.Any type URL are stripped at storage, this needs to be the domain specific type URL like 'sf.substreams.spl-initialized-account.v1.AccountOwner', used by the server to reconstruct the correct any.Any value at retrieval time")
 	ServerCmd.Flags().Int("workers", 10, "Number of workers for parallel operations")
 	ServerCmd.Flags().String("manifest-path", "", "Path to the manifest file")
 	ServerCmd.Flags().String("output-module-name", "", "Name of the output module")

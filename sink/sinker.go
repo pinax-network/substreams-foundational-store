@@ -19,7 +19,6 @@ const (
 
 type Sinker struct {
 	store          store.ForkawareStore
-	typeUrl        string
 	logger         *zap.Logger
 	cursorFilePath string
 
@@ -38,7 +37,7 @@ type Sinker struct {
 	*shutter.Shutter
 }
 
-func NewSinker(typeUrl string, store store.ForkawareStore, logger *zap.Logger, cursorFilePath string, batchSize int, maxBatchTime time.Duration, flushQueueSize int) *Sinker {
+func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath string, batchSize int, maxBatchTime time.Duration, flushQueueSize int) *Sinker {
 	logger = logger.Named("foundational-store-sinker")
 
 	if batchSize <= 0 {
@@ -58,7 +57,6 @@ func NewSinker(typeUrl string, store store.ForkawareStore, logger *zap.Logger, c
 
 	sinker := &Sinker{
 		store:          store,
-		typeUrl:        typeUrl,
 		logger:         logger,
 		cursorFilePath: cursorFilePath,
 		batchBuffer:    make([]*pbstore.Entry, 0, batchSize),
@@ -86,10 +84,9 @@ func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrp
 
 	// Process data if present
 	if data.Output != nil && data.Output.MapOutput != nil && data.Output.MapOutput.Value != nil {
-
 		entries := &pbstore.Entries{}
 		if err := data.Output.MapOutput.UnmarshalTo(entries); err != nil {
-			return fmt.Errorf("unmarshalling map output to Entry: %w", err)
+			return fmt.Errorf("unmarshaling map output to Entry: %w", err)
 		}
 
 		entriesCount = len(entries.Entries)
