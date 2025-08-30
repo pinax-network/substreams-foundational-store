@@ -1,6 +1,7 @@
 package badger
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"sync"
@@ -93,7 +94,7 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 
 	// Validate block hash matches
 	if len(request.BlockHash) > 0 && len(storedBlockHash) > 0 {
-		if string(request.BlockHash) != string(storedBlockHash) {
+		if !bytes.Equal(request.BlockHash, storedBlockHash) {
 			return &pbstore.GetResponse{
 				Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
 			}, nil
