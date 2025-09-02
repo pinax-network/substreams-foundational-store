@@ -27,7 +27,7 @@ func TestCursorSaveAndLoad(t *testing.T) {
 	cursorFilePath := filepath.Join(tempDir, "test.cursor")
 
 	mockStore := NewMockStore()
-	handler := NewSinker("test", mockStore, logger, cursorFilePath, 10, time.Second, 10)
+	handler := NewSinker(mockStore, logger, cursorFilePath, 10, time.Second, 10)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -120,7 +120,7 @@ func TestCursorRoundTrip(t *testing.T) {
 			cursorFilePath := filepath.Join(tempDir, "roundtrip.cursor")
 
 			mockStore := NewMockStore()
-			handler := NewSinker("test", mockStore, logger, cursorFilePath, 10, time.Second, 10)
+			handler := NewSinker(mockStore, logger, cursorFilePath, 10, time.Second, 10)
 			defer func() {
 				handler.Shutdown(nil)
 				<-handler.Terminated()
@@ -366,7 +366,7 @@ func TestBatchingByEntryCount(t *testing.T) {
 
 	batchSize := 5
 	maxBatchTime := 10 * time.Second
-	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
+	handler := NewSinker(mockStore, logger, "", batchSize, maxBatchTime, 10)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -493,7 +493,7 @@ func TestBatchingByTimeout(t *testing.T) {
 
 	batchSize := 1000
 	maxBatchTime := 50 * time.Millisecond
-	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
+	handler := NewSinker(mockStore, logger, "", batchSize, maxBatchTime, 10)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -530,7 +530,7 @@ func TestBatchingByByteSize(t *testing.T) {
 
 	batchSize := 1000
 	maxBatchTime := 10 * time.Second
-	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
+	handler := NewSinker(mockStore, logger, "", batchSize, maxBatchTime, 10)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -571,7 +571,7 @@ func TestHandlerClose(t *testing.T) {
 
 	batchSize := 10
 	maxBatchTime := 100 * time.Millisecond
-	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
+	handler := NewSinker(mockStore, logger, "", batchSize, maxBatchTime, 10)
 
 	entries := createTestEntries(3, "close_test_", 100)
 	if err := handler.addToBatch(entries); err != nil {
@@ -610,7 +610,7 @@ func TestBatchAccumulation(t *testing.T) {
 
 	batchSize := 50 // Large batch size so we don't auto‐flush during the test
 	maxBatchTime := 10 * time.Second
-	handler := NewSinker("test", mockStore, logger, "", batchSize, maxBatchTime, 10)
+	handler := NewSinker(mockStore, logger, "", batchSize, maxBatchTime, 10)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -658,7 +658,7 @@ func TestAsyncFlushWorkerStartsAndStops(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	mockStore := NewMockStore()
 
-	handler := NewSinker("test", mockStore, logger, "", 10, time.Second, 10)
+	handler := NewSinker(mockStore, logger, "", 10, time.Second, 10)
 
 	// Test that the sinker can be created and has a flusher
 	if handler.flusher == nil {
@@ -682,7 +682,7 @@ func TestAsyncFlushQueueDepthTracking(t *testing.T) {
 		flushDelay: 100 * time.Millisecond,
 	}
 
-	handler := NewSinker("test", slowStore, logger, "", 10, time.Second, 5)
+	handler := NewSinker(slowStore, logger, "", 10, time.Second, 5)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -722,7 +722,7 @@ func TestAsyncFlushPreservesDataSafety(t *testing.T) {
 	tempDir := t.TempDir()
 	cursorFile := filepath.Join(tempDir, "test.cursor")
 
-	handler := NewSinker("test", mockStore, logger, cursorFile, 10, time.Second, 10)
+	handler := NewSinker(mockStore, logger, cursorFile, 10, time.Second, 10)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -858,7 +858,7 @@ func TestFlusherErrorPropagation(t *testing.T) {
 	// Set the store to fail on SetAll
 	errorStore.SetSetAllError(errors.New("SetAll failed"), 1)
 
-	handler := NewSinker("test", errorStore, logger, "", 5, time.Second, 10)
+	handler := NewSinker(errorStore, logger, "", 5, time.Second, 10)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -895,7 +895,7 @@ func TestFlusherFlushError(t *testing.T) {
 	// Set the store to fail on FlushUpToBlock
 	errorStore.SetFlushError(errors.New("FlushUpToBlock failed"), 1)
 
-	handler := NewSinker("test", errorStore, logger, "", 5, time.Second, 10)
+	handler := NewSinker(errorStore, logger, "", 5, time.Second, 10)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -934,7 +934,7 @@ func TestContextCancellationDuringFlush(t *testing.T) {
 		flushDelay: 200 * time.Millisecond,
 	}
 
-	handler := NewSinker("test", slowStore, logger, "", 5, time.Second, 10)
+	handler := NewSinker(slowStore, logger, "", 5, time.Second, 10)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -969,7 +969,7 @@ func TestHandleBlockUndoSignal(t *testing.T) {
 	tempDir := t.TempDir()
 	cursorFilePath := filepath.Join(tempDir, "undo_test.cursor")
 
-	handler := NewSinker("test", mockStore, logger, cursorFilePath, 5, time.Second, 10)
+	handler := NewSinker(mockStore, logger, cursorFilePath, 5, time.Second, 10)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -1024,7 +1024,7 @@ func TestHandleBlockUndoSignalWithEvictError(t *testing.T) {
 	// Set evict to fail
 	errorStore.SetEvictError(errors.New("EvictUpToBlock failed"), 1)
 
-	handler := NewSinker("test", errorStore, logger, "", 5, time.Second, 10)
+	handler := NewSinker(errorStore, logger, "", 5, time.Second, 10)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -1058,7 +1058,7 @@ func TestErrorChannelOverflow(t *testing.T) {
 	errorStore.SetSetAllError(errors.New("SetAll always fails"), 10000)
 
 	// Create handler with small queue to trigger overflow quickly
-	handler := NewSinker("test", errorStore, logger, "", 5, time.Second, 1)
+	handler := NewSinker(errorStore, logger, "", 5, time.Second, 1)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -1091,7 +1091,7 @@ func TestShutdownDuringFlush(t *testing.T) {
 		flushDelay: 100 * time.Millisecond,
 	}
 
-	handler := NewSinker("test", slowStore, logger, "", 5, time.Second, 10)
+	handler := NewSinker(slowStore, logger, "", 5, time.Second, 10)
 
 	// Add data and start flush
 	entries := createTestEntries(3, "shutdown_test_", 100)
@@ -1123,7 +1123,7 @@ func TestHandleBlockScopedDataWithAsyncError(t *testing.T) {
 	// Set store to fail on first SetAll
 	errorStore.SetSetAllError(errors.New("Async SetAll failure"), 1)
 
-	handler := NewSinker("test", errorStore, logger, "", 5, time.Second, 10)
+	handler := NewSinker(errorStore, logger, "", 5, time.Second, 10)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -1178,7 +1178,7 @@ func TestBatchSizeTriggersFlush(t *testing.T) {
 	mockStore := NewMockStore()
 
 	batchSize := 3
-	handler := NewSinker("test", mockStore, logger, "", batchSize, time.Hour, 10) // Long timeout
+	handler := NewSinker(mockStore, logger, "", batchSize, time.Hour, 10) // Long timeout
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -1210,7 +1210,7 @@ func TestMaxBytesTriggersFlush(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	mockStore := NewMockStore()
 
-	handler := NewSinker("test", mockStore, logger, "", 1000, time.Hour, 10) // Large batch size, long timeout
+	handler := NewSinker(mockStore, logger, "", 1000, time.Hour, 10) // Large batch size, long timeout
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -1238,7 +1238,7 @@ func TestTimeoutTriggersFlush(t *testing.T) {
 	mockStore := NewMockStore()
 
 	shortTimeout := 50 * time.Millisecond
-	handler := NewSinker("test", mockStore, logger, "", 1000, shortTimeout, 10) // Large batch size
+	handler := NewSinker(mockStore, logger, "", 1000, shortTimeout, 10) // Large batch size
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()

@@ -161,7 +161,7 @@ func init() {
 	ServerCmd.Flags().String("manifest-path", "", "Path to the manifest file")
 	ServerCmd.Flags().String("output-module-name", "", "Name of the output module")
 	ServerCmd.Flags().String("cursor-file-path", "state.cursor", "Path to the cursor file")
-	ServerCmd.Flags().Int("batch-size", 1000, "Number of entries to batch for insertion")
+	ServerCmd.Flags().Int("batch-size", 1, "Number of entries to batch for insertion")
 	ServerCmd.Flags().Duration("max-batch-time", 30*time.Second, "Maximum time to wait before flushing a partial batch")
 	ServerCmd.Flags().Int("flush-queue-size", 3, "Size of the async flush queue buffer")
 
