@@ -1,0 +1,4 @@
+global:
+  language: golang
+  variant: application
+  binary: foundational-store

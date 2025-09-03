@@ -4,3 +4,5 @@
 /lookup
 /perf
 .vscode
+/build
+/dist
