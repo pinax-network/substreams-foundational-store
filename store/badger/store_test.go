@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	pbtest "github.com/streamingfast/substreams-foundational-store/internal/pb/test"
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 	storelib "github.com/streamingfast/substreams-foundational-store/store"
 	"github.com/stretchr/testify/assert"
@@ -31,7 +32,7 @@ func setupTestStore(t *testing.T) *testStore {
 	require.NoError(t, err)
 
 	// Create a new badger foundational-store
-	typeURL := "type.googleapis.com/sf.substreams.foundational_store.v1.TestAccountOwner"
+	typeURL := "type.googleapis.com/test.TestAccountOwner"
 	badgerStore, err := NewStore(dsn, typeURL)
 	require.NoError(t, err)
 
@@ -49,15 +50,15 @@ func setupTestStore(t *testing.T) *testStore {
 }
 
 // createAccountOwner creates an AccountOwner with the given owner address
-func createAccountOwner(ownerAddress string) *pbstore.TestAccountOwner {
-	return &pbstore.TestAccountOwner{
+func createAccountOwner(ownerAddress string) *pbtest.TestAccountOwner {
+	return &pbtest.TestAccountOwner{
 		Mint:  []byte("mint-address"),
 		Owner: []byte(ownerAddress),
 	}
 }
 
 // createEntry creates a foundational-store Entry with the given block number, key, and AccountOwner
-func createEntry(blockNumber uint64, key []byte, accountOwner *pbstore.TestAccountOwner, typeURL string) (*pbstore.Entry, error) {
+func createEntry(blockNumber uint64, key []byte, accountOwner *pbtest.TestAccountOwner, typeURL string) (*pbstore.Entry, error) {
 	// Marshal the AccountOwner proto message
 	data, err := proto.Marshal(accountOwner)
 	if err != nil {
@@ -144,7 +145,7 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, getResponse.Response)
 
 				// Unmarshal the retrieved value into an AccountOwner
-				retrievedAccountOwner := &pbstore.TestAccountOwner{}
+				retrievedAccountOwner := &pbtest.TestAccountOwner{}
 				err = getResponse.Value.UnmarshalTo(retrievedAccountOwner)
 				require.NoError(t, err)
 
@@ -294,7 +295,7 @@ func TestGetWithBlockNumber(t *testing.T) {
 					"Should find entry with block number %d", tc.requestBlock)
 
 				// Unmarshal the retrieved value into an AccountOwner
-				retrievedAccountOwner := &pbstore.TestAccountOwner{}
+				retrievedAccountOwner := &pbtest.TestAccountOwner{}
 				err = getResponse.Value.UnmarshalTo(retrievedAccountOwner)
 				require.NoError(t, err)
 
@@ -365,7 +366,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 			// Create entries to foundational-store
 			entries := make([]*pbstore.Entry, len(tc.accounts))
 			keys := make([][]byte, len(tc.accounts))
-			accountOwners := make([]*pbstore.TestAccountOwner, len(tc.accounts))
+			accountOwners := make([]*pbtest.TestAccountOwner, len(tc.accounts))
 
 			for i, acc := range tc.accounts {
 				// Create an AccountOwner object
@@ -401,7 +402,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 			assert.Equal(t, len(keys), len(getAllResponse.Entries), "Should return responses for all keys")
 
 			// Create a map of keys to entries for easier verification
-			entryMap := make(map[string]*pbstore.TestAccountOwner)
+			entryMap := make(map[string]*pbtest.TestAccountOwner)
 			for i, entry := range entries {
 				entryMap[string(entry.Key)] = accountOwners[i]
 			}
@@ -428,7 +429,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 						"Should find entry with block number %d for key %s", tc.requestBlock, key)
 
 					// Unmarshal the retrieved value into an AccountOwner
-					retrievedAccountOwner := &pbstore.TestAccountOwner{}
+					retrievedAccountOwner := &pbtest.TestAccountOwner{}
 					err = responseEntry.Response.Value.UnmarshalTo(retrievedAccountOwner)
 					require.NoError(t, err)
 
@@ -692,7 +693,7 @@ func TestGetAllWithBlockNumber(t *testing.T) {
 						"Should find entry with block number %d for key %s", tc.requestBlock, key)
 
 					// Unmarshal the retrieved value into an AccountOwner
-					retrievedAccountOwner := &pbstore.TestAccountOwner{}
+					retrievedAccountOwner := &pbtest.TestAccountOwner{}
 					err = responseEntry.Response.Value.UnmarshalTo(retrievedAccountOwner)
 					require.NoError(t, err)
 
@@ -755,7 +756,7 @@ func TestSetAllAndGetAllWithNonExistentKey(t *testing.T) {
 			// Create entries to foundational-store
 			entries := make([]*pbstore.Entry, len(tc.accounts))
 			existingKeys := make([][]byte, len(tc.accounts))
-			accountOwners := make([]*pbstore.TestAccountOwner, len(tc.accounts))
+			accountOwners := make([]*pbtest.TestAccountOwner, len(tc.accounts))
 
 			for i, acc := range tc.accounts {
 				// Create an AccountOwner object
@@ -812,7 +813,7 @@ func TestSetAllAndGetAllWithNonExistentKey(t *testing.T) {
 				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Response)
 
 				// Unmarshal the retrieved value into an AccountOwner
-				retrievedAccountOwner := &pbstore.TestAccountOwner{}
+				retrievedAccountOwner := &pbtest.TestAccountOwner{}
 				err = responseEntry.Response.Value.UnmarshalTo(retrievedAccountOwner)
 				require.NoError(t, err)
 

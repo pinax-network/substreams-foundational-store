@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	pbtest "github.com/streamingfast/substreams-foundational-store/internal/pb/test"
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	pbsubstreamsrpc "github.com/streamingfast/substreams/pb/sf/substreams/rpc/v2"
@@ -348,7 +349,7 @@ func createTestEntries(count int, keyPrefix string, valueSize int) []*pbstore.En
 			owner[j] = byte('o' + j%26)
 		}
 
-		anyValue, _ := anypb.New(&pbstore.TestAccountOwner{
+		anyValue, _ := anypb.New(&pbtest.TestAccountOwner{
 			Mint:  mint,
 			Owner: owner,
 		})

@@ -19,139 +19,139 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	StoreKV_Get_FullMethodName    = "/sf.substreams.foundational_store.v1.StoreKV/Get"
-	StoreKV_GetAll_FullMethodName = "/sf.substreams.foundational_store.v1.StoreKV/GetAll"
+	Store_Get_FullMethodName    = "/sf.substreams.foundational_store.v1.Store/Get"
+	Store_GetAll_FullMethodName = "/sf.substreams.foundational_store.v1.Store/GetAll"
 )
 
-// StoreKVClient is the client API for StoreKV service.
+// StoreClient is the client API for Store service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type StoreKVClient interface {
+type StoreClient interface {
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
 	GetAll(ctx context.Context, in *GetAllRequest, opts ...grpc.CallOption) (*GetAllResponse, error)
 }
 
-type storeKVClient struct {
+type storeClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewStoreKVClient(cc grpc.ClientConnInterface) StoreKVClient {
-	return &storeKVClient{cc}
+func NewStoreClient(cc grpc.ClientConnInterface) StoreClient {
+	return &storeClient{cc}
 }
 
-func (c *storeKVClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error) {
+func (c *storeClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetResponse)
-	err := c.cc.Invoke(ctx, StoreKV_Get_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Store_Get_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *storeKVClient) GetAll(ctx context.Context, in *GetAllRequest, opts ...grpc.CallOption) (*GetAllResponse, error) {
+func (c *storeClient) GetAll(ctx context.Context, in *GetAllRequest, opts ...grpc.CallOption) (*GetAllResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetAllResponse)
-	err := c.cc.Invoke(ctx, StoreKV_GetAll_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Store_GetAll_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// StoreKVServer is the server API for StoreKV service.
-// All implementations must embed UnimplementedStoreKVServer
+// StoreServer is the server API for Store service.
+// All implementations must embed UnimplementedStoreServer
 // for forward compatibility.
-type StoreKVServer interface {
+type StoreServer interface {
 	Get(context.Context, *GetRequest) (*GetResponse, error)
 	GetAll(context.Context, *GetAllRequest) (*GetAllResponse, error)
-	mustEmbedUnimplementedStoreKVServer()
+	mustEmbedUnimplementedStoreServer()
 }
 
-// UnimplementedStoreKVServer must be embedded to have
+// UnimplementedStoreServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedStoreKVServer struct{}
+type UnimplementedStoreServer struct{}
 
-func (UnimplementedStoreKVServer) Get(context.Context, *GetRequest) (*GetResponse, error) {
+func (UnimplementedStoreServer) Get(context.Context, *GetRequest) (*GetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
 }
-func (UnimplementedStoreKVServer) GetAll(context.Context, *GetAllRequest) (*GetAllResponse, error) {
+func (UnimplementedStoreServer) GetAll(context.Context, *GetAllRequest) (*GetAllResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAll not implemented")
 }
-func (UnimplementedStoreKVServer) mustEmbedUnimplementedStoreKVServer() {}
-func (UnimplementedStoreKVServer) testEmbeddedByValue()                 {}
+func (UnimplementedStoreServer) mustEmbedUnimplementedStoreServer() {}
+func (UnimplementedStoreServer) testEmbeddedByValue()               {}
 
-// UnsafeStoreKVServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to StoreKVServer will
+// UnsafeStoreServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to StoreServer will
 // result in compilation errors.
-type UnsafeStoreKVServer interface {
-	mustEmbedUnimplementedStoreKVServer()
+type UnsafeStoreServer interface {
+	mustEmbedUnimplementedStoreServer()
 }
 
-func RegisterStoreKVServer(s grpc.ServiceRegistrar, srv StoreKVServer) {
-	// If the following call pancis, it indicates UnimplementedStoreKVServer was
+func RegisterStoreServer(s grpc.ServiceRegistrar, srv StoreServer) {
+	// If the following call pancis, it indicates UnimplementedStoreServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&StoreKV_ServiceDesc, srv)
+	s.RegisterService(&Store_ServiceDesc, srv)
 }
 
-func _StoreKV_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Store_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(StoreKVServer).Get(ctx, in)
+		return srv.(StoreServer).Get(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: StoreKV_Get_FullMethodName,
+		FullMethod: Store_Get_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StoreKVServer).Get(ctx, req.(*GetRequest))
+		return srv.(StoreServer).Get(ctx, req.(*GetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _StoreKV_GetAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Store_GetAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetAllRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(StoreKVServer).GetAll(ctx, in)
+		return srv.(StoreServer).GetAll(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: StoreKV_GetAll_FullMethodName,
+		FullMethod: Store_GetAll_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StoreKVServer).GetAll(ctx, req.(*GetAllRequest))
+		return srv.(StoreServer).GetAll(ctx, req.(*GetAllRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// StoreKV_ServiceDesc is the grpc.ServiceDesc for StoreKV service.
+// Store_ServiceDesc is the grpc.ServiceDesc for Store service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var StoreKV_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "sf.substreams.foundational_store.v1.StoreKV",
-	HandlerType: (*StoreKVServer)(nil),
+var Store_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "sf.substreams.foundational_store.v1.Store",
+	HandlerType: (*StoreServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "Get",
-			Handler:    _StoreKV_Get_Handler,
+			Handler:    _Store_Get_Handler,
 		},
 		{
 			MethodName: "GetAll",
-			Handler:    _StoreKV_GetAll_Handler,
+			Handler:    _Store_GetAll_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

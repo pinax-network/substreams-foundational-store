@@ -18,7 +18,7 @@ import (
 // StoreServer implements the StoreKV gRPC service
 type StoreServer struct {
 	*shutter.Shutter
-	pbstore.UnimplementedStoreKVServer
+	pbstore.UnimplementedStoreServer
 	store      store.Store
 	grpcServer dgrpcServer.Server
 }
@@ -66,7 +66,7 @@ func (s *StoreServer) Run(addr string, logger *zap.Logger, opts ...grpc.ServerOp
 		dgrpcServer.WithPlainTextServer(),
 		dgrpcServer.WithGRPCServerOptions(opts...),
 		dgrpcServer.WithRegisterService(func(gs *grpc.Server) {
-			pbstore.RegisterStoreKVServer(gs, s)
+			pbstore.RegisterStoreServer(gs, s)
 		}),
 	)
 

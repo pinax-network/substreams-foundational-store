@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package test;
+
+option go_package = "github.com/streamingfast/substreams-foundational-store/internal/pb/test;pbtest";
+
+message TestAccountOwner {
+  bytes mint = 1;
+  bytes owner = 2;
+}

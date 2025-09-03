@@ -49,7 +49,7 @@ This command connects to a gRPC server and retrieves a value for the specified k
 		defer conn.Close()
 
 		// Create a client for the StoreKV service
-		client := pbStore.NewStoreKVClient(conn)
+		client := pbStore.NewStoreClient(conn)
 
 		// Get block hash flag value
 		getBlockHash, _ := cmd.Flags().GetString("block-hash")

@@ -493,8 +493,8 @@ const file_sf_substreams_foundational_store_v1_service_proto_rawDesc = "" +
 	"\x13RESPONSE_CODE_FOUND\x10\x01\x12\x1b\n" +
 	"\x17RESPONSE_CODE_NOT_FOUND\x10\x02\x12$\n" +
 	" RESPONSE_CODE_NOT_FOUND_FINALIZE\x10\x04\x12-\n" +
-	")RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED\x10\x052\xe6\x01\n" +
-	"\aStoreKV\x12h\n" +
+	")RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED\x10\x052\xe4\x01\n" +
+	"\x05Store\x12h\n" +
 	"\x03Get\x12/.sf.substreams.foundational_store.v1.GetRequest\x1a0.sf.substreams.foundational_store.v1.GetResponse\x12q\n" +
 	"\x06GetAll\x122.sf.substreams.foundational_store.v1.GetAllRequest\x1a3.sf.substreams.foundational_store.v1.GetAllResponseB\xd6\x02\n" +
 	"'com.sf.substreams.foundational_store.v1B\fServiceProtoP\x01Zrgithub.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1;foundational_storev1\xa2\x02\x03SSF\xaa\x02\"Sf.Substreams.FoundationalStore.V1\xca\x02\"Sf\\Substreams\\FoundationalStore\\V1\xe2\x02.Sf\\Substreams\\FoundationalStore\\V1\\GPBMetadata\xea\x02%Sf::Substreams::FoundationalStore::V1b\x06proto3"
@@ -531,10 +531,10 @@ var file_sf_substreams_foundational_store_v1_service_proto_depIdxs = []int32{
 	4, // 3: sf.substreams.foundational_store.v1.GetAllResponse.entries:type_name -> sf.substreams.foundational_store.v1.ResponseEntry
 	8, // 4: sf.substreams.foundational_store.v1.Entry.value:type_name -> google.protobuf.Any
 	6, // 5: sf.substreams.foundational_store.v1.Entries.entries:type_name -> sf.substreams.foundational_store.v1.Entry
-	1, // 6: sf.substreams.foundational_store.v1.StoreKV.Get:input_type -> sf.substreams.foundational_store.v1.GetRequest
-	3, // 7: sf.substreams.foundational_store.v1.StoreKV.GetAll:input_type -> sf.substreams.foundational_store.v1.GetAllRequest
-	2, // 8: sf.substreams.foundational_store.v1.StoreKV.Get:output_type -> sf.substreams.foundational_store.v1.GetResponse
-	5, // 9: sf.substreams.foundational_store.v1.StoreKV.GetAll:output_type -> sf.substreams.foundational_store.v1.GetAllResponse
+	1, // 6: sf.substreams.foundational_store.v1.Store.Get:input_type -> sf.substreams.foundational_store.v1.GetRequest
+	3, // 7: sf.substreams.foundational_store.v1.Store.GetAll:input_type -> sf.substreams.foundational_store.v1.GetAllRequest
+	2, // 8: sf.substreams.foundational_store.v1.Store.Get:output_type -> sf.substreams.foundational_store.v1.GetResponse
+	5, // 9: sf.substreams.foundational_store.v1.Store.GetAll:output_type -> sf.substreams.foundational_store.v1.GetAllResponse
 	8, // [8:10] is the sub-list for method output_type
 	6, // [6:8] is the sub-list for method input_type
 	6, // [6:6] is the sub-list for extension type_name

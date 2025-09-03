@@ -6,12 +6,9 @@ package sf.substreams.foundational_store.v1;
 
 option go_package = "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1;foundationalstorev1";
 
-service StoreKV {
+service Store {
   rpc Get(GetRequest) returns (GetResponse);
   rpc GetAll(GetAllRequest) returns (GetAllResponse);
-
-//  rpc Exist(ExistRequest) returns (ExistResponse);
-//  rpc ExistAll(ExistAllRequest) returns (ExistAllResponse);
 }
 
 message GetRequest {
