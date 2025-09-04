@@ -76,31 +76,10 @@ This command connects to a gRPC server and retrieves a value for the specified k
 		fmt.Printf("Sending Get request for key: %s\n", getKey)
 		start := time.Now()
 
-		var response *pbStore.GetResponse
-		maxRetries := 10
-		retryDelay := 1 * time.Second
-
-		for attempt := 0; attempt <= maxRetries; attempt++ {
-			resp, err := client.Get(ctx, request)
-			if err != nil {
-				return fmt.Errorf("failed to get value: %w", err)
-			}
-
-			response = resp
-
-			// Check if we need to retry
-			if response.Response == pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED {
-				if attempt < maxRetries {
-					fmt.Printf("Block not reached yet, retrying in %v (attempt %d/%d)\n", retryDelay, attempt+1, maxRetries+1)
-					time.Sleep(retryDelay)
-					continue
-				} else {
-					fmt.Printf("Max retries reached, block still not available\n")
-				}
-			}
-
-			// Exit retry loop for other response codes
-			break
+		// Make the Get request, retry logic is handled by Substreams Engine
+		response, err := client.Get(ctx, request)
+		if err != nil {
+			return fmt.Errorf("failed to get value: %w", err)
 		}
 
 		fmt.Printf("Query time: %s\n", time.Since(start))

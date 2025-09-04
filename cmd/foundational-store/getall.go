@@ -80,45 +80,16 @@ This command connects to a gRPC server and retrieves values for the specified ke
 			Keys:        keyBytes,
 		}
 
-		// Make the GetAll request with retry logic, increased timeout for retries
+		// Make the GetAll request, retry logic Substreams Engine
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 
 		fmt.Printf("Sending GetAll request for %d keys\n", len(keyStrings))
 		start := time.Now()
 
-		var response *pbStore.GetAllResponse
-		maxRetries := 10
-		retryDelay := 1 * time.Second
-
-		for attempt := 0; attempt <= maxRetries; attempt++ {
-			resp, err := client.GetAll(ctx, request)
-			if err != nil {
-				return fmt.Errorf("failed to get values: %w", err)
-			}
-
-			response = resp
-
-			// Check if any entries need retry
-			hasBlockNotReached := false
-			for _, entry := range response.Entries {
-				if entry.Response.Response == pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED {
-					hasBlockNotReached = true
-					break
-				}
-			}
-
-			if hasBlockNotReached {
-				if attempt < maxRetries {
-					fmt.Printf("Some blocks not reached yet, retrying in %v (attempt %d/%d)\n", retryDelay, attempt+1, maxRetries+1)
-					time.Sleep(retryDelay)
-					continue
-				} else {
-					fmt.Printf("Max retries reached, some blocks still not available\n")
-				}
-			}
-
-			break
+		response, err := client.GetAll(ctx, request)
+		if err != nil {
+			return fmt.Errorf("failed to get values: %w", err)
 		}
 
 		fmt.Printf("Query time: %s\n", time.Since(start))
