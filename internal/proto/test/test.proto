@@ -4,6 +4,7 @@ package test;
 
 option go_package = "github.com/streamingfast/substreams-foundational-store/internal/pb/test;pbtest";
 
+// TestAccountOwner for testing purposes
 message TestAccountOwner {
   bytes mint = 1;
   bytes owner = 2;

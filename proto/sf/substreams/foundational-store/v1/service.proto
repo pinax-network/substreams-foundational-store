@@ -6,11 +6,13 @@ package sf.substreams.foundational_store.v1;
 
 option go_package = "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1;foundationalstorev1";
 
+// Store service provides access to foundational store data
 service Store {
   rpc Get(GetRequest) returns (GetResponse);
   rpc GetAll(GetAllRequest) returns (GetAllResponse);
 }
 
+// Specifies which value to retrieve
 message GetRequest {
   uint64 block_number = 1;
   bytes block_hash = 2;
@@ -18,11 +20,13 @@ message GetRequest {
   bytes key = 4;
 }
 
+// Contains the retrieved value and status
 message GetResponse {
   ResponseCode response = 4;
   google.protobuf.Any value = 5;
 }
 
+// Specifies multiple values to retrieve
 message GetAllRequest {
   uint64 block_number = 1;
   bytes block_hash = 2;
@@ -30,15 +34,18 @@ message GetAllRequest {
   repeated bytes keys = 4;
 }
 
+// Pairs a key with its response
 message ResponseEntry {
   bytes key = 1;
   GetResponse response = 2;
 }
 
+// Contains all retrieved entries
 message GetAllResponse {
   repeated ResponseEntry entries= 1;
 }
 
+// Indicates the result of a get operation
 enum ResponseCode {
   RESPONSE_CODE_UNSPECIFIED = 0;
   RESPONSE_CODE_FOUND = 1;
@@ -47,11 +54,13 @@ enum ResponseCode {
   RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED = 5;
 }
 
+// Represents a key-value pair in the store
 message Entry {
   bytes                 key   = 2;
   google.protobuf.Any   value = 4;
 }
 
+// Contains multiple key-value pairs
 message Entries {
   repeated Entry entries = 1;
 }
