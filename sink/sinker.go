@@ -94,6 +94,9 @@ func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrp
 	}
 
 	c := s.cursorHistory[cursor.LIB.ID()]
+	if c == nil {
+		c = cursor
+	}
 
 	// Always save the cursor to a file, regardless of whether there was output data
 	if err := SaveCursorToFile(c, s.cursorFilePath, s.logger); err != nil {

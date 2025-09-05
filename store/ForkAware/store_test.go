@@ -24,21 +24,21 @@ func newMockStore() *mockStore {
 	}
 }
 
-func (m *mockStore) Set(entry *pbstore.Entry, blockNumber uint64, blockHash []byte) error {
+func (m *mockStore) Set(entry *pbstore.Entry, blockNumber uint64) error {
 	m.entries[string(entry.Key)] = mockStoreCachedEntry{
 		entry:       entry,
 		blockNumber: blockNumber,
-		blockHash:   blockHash,
+		blockHash:   nil, // Keep for compatibility but not used
 	}
 	return nil
 }
 
-func (m *mockStore) SetAll(entries []*pbstore.Entry, blockNumber uint64, blockHash []byte) error {
+func (m *mockStore) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 	for _, entry := range entries {
 		m.entries[string(entry.Key)] = mockStoreCachedEntry{
 			entry:       entry,
 			blockNumber: blockNumber,
-			blockHash:   blockHash,
+			blockHash:   nil, // Keep for compatibility but not used
 		}
 	}
 	return nil
@@ -105,13 +105,13 @@ func TestCacheStore(t *testing.T) {
 	}
 
 	// Set entries in the ForkAware foundational-store
-	if err := cacheStore.Set(entry1, 100, []byte("test_hash_100")); err != nil {
+	if err := cacheStore.Set(entry1, 100); err != nil {
 		t.Fatalf("Failed to set entry1: %v", err)
 	}
-	if err := cacheStore.Set(entry2, 200, []byte("test_hash_200")); err != nil {
+	if err := cacheStore.Set(entry2, 200); err != nil {
 		t.Fatalf("Failed to set entry2: %v", err)
 	}
-	if err := cacheStore.Set(entry3, 300, []byte("test_hash_300")); err != nil {
+	if err := cacheStore.Set(entry3, 300); err != nil {
 		t.Fatalf("Failed to set entry3: %v", err)
 	}
 

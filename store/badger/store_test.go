@@ -127,7 +127,7 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 			entry, err := createEntry(tc.blockNumber, tc.key, accountOwner, ts.typeURL)
 			require.NoError(t, err)
 
-			err = ts.store.Set(entry, tc.blockNumber, []byte("test_block_hash"))
+			err = ts.store.Set(entry, tc.blockNumber)
 			require.NoError(t, err)
 
 			// Create a GetRequest to retrieve the Entry
@@ -275,7 +275,7 @@ func TestGetWithBlockNumber(t *testing.T) {
 				entry, err := createEntry(setup.blockNumber, setup.key, accountOwner, ts.typeURL)
 				require.NoError(t, err)
 
-				err = ts.store.Set(entry, setup.blockNumber, []byte("test_block_hash"))
+				err = ts.store.Set(entry, setup.blockNumber)
 				require.NoError(t, err)
 			}
 
@@ -384,7 +384,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 			}
 
 			// Store all entries using SetAll
-			err := ts.store.SetAll(entries, tc.blockNumber, []byte("test_block_hash"))
+			err := ts.store.SetAll(entries, tc.blockNumber)
 			require.NoError(t, err)
 
 			// Create a GetAllRequest to retrieve all entries
@@ -650,7 +650,7 @@ func TestGetAllWithBlockNumber(t *testing.T) {
 
 			// Store entries for each block
 			for blockNumber, entries := range entriesByBlock {
-				err := ts.store.SetAll(entries, blockNumber, []byte("test_block_hash"))
+				err := ts.store.SetAll(entries, blockNumber)
 				require.NoError(t, err)
 			}
 
@@ -774,7 +774,7 @@ func TestSetAllAndGetAllWithNonExistentKey(t *testing.T) {
 			}
 
 			// Store all entries using SetAll
-			err := ts.store.SetAll(entries, tc.blockNumber, []byte("test_block_hash"))
+			err := ts.store.SetAll(entries, tc.blockNumber)
 			require.NoError(t, err)
 
 			// Create non-existent keys

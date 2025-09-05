@@ -98,7 +98,7 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 		// If the block number is <= the requested block number, return it
 		if cached.blockNumber <= request.BlockNumber {
 			return &pbstore.GetResponse{
-				Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
+				Response: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
 				Value:    cached.entry.Value,
 			}, nil
 		}

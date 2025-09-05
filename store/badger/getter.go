@@ -68,20 +68,17 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 
 	sink.DatabaseGetHits.Inc()
 
-	// Extract the block number, block hash, and the actual value
-	// Ensure we have at least 8 bytes for the block number + block hash length
-	requestBlockHashLen := len(request.BlockHash)
-	minLength := 8 + requestBlockHashLen
-	if len(storedValue) < minLength {
-		return nil, fmt.Errorf("invalid stored value: expected at least %d bytes for block number and hash", minLength)
+	// Extract the block number and the actual value
+	// Ensure we have at least 8 bytes for the block number
+	if len(storedValue) < 8 {
+		return nil, fmt.Errorf("invalid stored value: expected at least 8 bytes for block number")
 	}
 
 	// Extract the block number from the first 8 bytes
 	blockNumber := binary.BigEndian.Uint64(storedValue[:8])
-
-	// Extract the stored block hash
-	// The actual value is everything after the block number and hash
-	actualValue := storedValue[8+requestBlockHashLen:]
+	
+	// The actual value is everything after the block number
+	actualValue := storedValue[8:]
 
 	if request.BlockNumber < blockNumber {
 		return &pbstore.GetResponse{
@@ -89,12 +86,8 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 		}, nil
 	}
 
-	// Validate block hash matches
-	if len(request.BlockHash) > 0 {
-		return &pbstore.GetResponse{
-			Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
-		}, nil
-	}
+	// Note: Block hash validation is not supported in this implementation
+	// as the setter does not store block hash information
 
 	return &pbstore.GetResponse{
 		Response: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
@@ -178,23 +171,18 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 						return
 					}
 
-					// Extract the block number, block hash, and the actual value
-					// Ensure we have at least 8 bytes for the block number + block hash length
-					requestBlockHashLen := len(request.BlockHash)
-					minLength := 8 + requestBlockHashLen
-					if len(value) < minLength {
-						errChan <- fmt.Errorf("invalid stored value: expected at least %d bytes for block number and hash", minLength)
+					// Extract the block number and the actual value
+					// Ensure we have at least 8 bytes for the block number
+					if len(value) < 8 {
+						errChan <- fmt.Errorf("invalid stored value: expected at least 8 bytes for block number")
 						return
 					}
 
 					// Extract the block number from the first 8 bytes
 					blockNumber := binary.BigEndian.Uint64(value[:8])
 
-					// Extract the stored block hash
-					storedBlockHash := value[8 : 8+requestBlockHashLen]
-
-					// The actual value is everything after the block number and hash
-					actualValue := value[8+requestBlockHashLen:]
+					// The actual value is everything after the block number
+					actualValue := value[8:]
 
 					if request.BlockNumber < blockNumber {
 						mutex.Lock()
@@ -208,20 +196,8 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 						continue
 					}
 
-					// Validate block hash matches
-					if len(request.BlockHash) > 0 && len(storedBlockHash) > 0 {
-						if string(request.BlockHash) != string(storedBlockHash) {
-							mutex.Lock()
-							entries = append(entries, &pbstore.ResponseEntry{
-								Key: key,
-								Response: &pbstore.GetResponse{
-									Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
-								},
-							})
-							mutex.Unlock()
-							continue
-						}
-					}
+					// Note: Block hash validation is not supported in this implementation
+					// as the setter does not store block hash information
 
 					mutex.Lock()
 					entries = append(entries,
