@@ -17,6 +17,7 @@ import (
 	pbsubstreamsrpc "github.com/streamingfast/substreams/pb/sf/substreams/rpc/v2"
 	pbsubstreams "github.com/streamingfast/substreams/pb/sf/substreams/v1"
 	sink "github.com/streamingfast/substreams/sink"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -770,7 +771,7 @@ type SlowMockStore struct {
 	flushDelay time.Duration
 }
 
-func (s *SlowMockStore) FlushUpToBlock(blockNum uint64) error {
+func (s *SlowMockStore) FlushUpToBlock(blockNum uint64, cursor *sink.Cursor, cursorPath string, logger *zap.Logger) error {
 	time.Sleep(s.flushDelay)
 	return s.MockStore.FlushUpToBlock(blockNum)
 }
@@ -820,7 +821,7 @@ func (e *ErrorMockStore) SetAll(entries []*pbstore.Entry, blockNumber uint64, bl
 	return e.MockStore.SetAll(entries, blockNumber, blockHash)
 }
 
-func (e *ErrorMockStore) FlushUpToBlock(blockNum uint64) error {
+func (e *ErrorMockStore) FlushUpToBlock(blockNum uint64, cursor *sink.Cursor, cursorPath string, logger *zap.Logger) error {
 	atomic.AddInt32(&e.flushCallCount, 1)
 	if e.flushError != nil && atomic.LoadInt32(&e.flushCallCount) <= e.flushFailCount {
 		return e.flushError

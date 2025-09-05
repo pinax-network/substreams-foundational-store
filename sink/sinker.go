@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/streamingfast/shutter"
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	pbsubstreamsrpc "github.com/streamingfast/substreams/pb/sf/substreams/rpc/v2"
@@ -29,12 +28,7 @@ type Sinker struct {
 	maxBatchTime   time.Duration
 	maxBatchBytes  int
 	batchStartTime time.Time
-
-	// Flusher for async ops
-	flusher *Flusher
-
-	// Shutdown coordination
-	*shutter.Shutter
+	cursorHistory  map[string]*sink.Cursor
 }
 
 func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath string, batchSize int, maxBatchTime time.Duration, flushQueueSize int) *Sinker {
@@ -50,11 +44,6 @@ func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath st
 		flushQueueSize = DefaultFlushQueueSize
 	}
 
-	shutter := shutter.New()
-
-	// Create the flusher
-	flusher := NewFlusher(store, logger, shutter, batchSize, 8*1024*1024, maxBatchTime, flushQueueSize)
-
 	sinker := &Sinker{
 		store:          store,
 		logger:         logger,
@@ -66,21 +55,15 @@ func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath st
 		// this represents ~80% badger size
 		maxBatchBytes:  8 * 1024 * 1024,
 		batchSizeBytes: 0,
-		flusher:        flusher,
-		Shutter:        shutter,
 	}
 	return sinker
 }
 
 func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrpc.BlockScopedData, isLive *bool, cursor *sink.Cursor) error {
-	// Check for async flush errors first - if flush failed, stop processing
-	select {
-	case err := <-s.flusher.ErrorChan():
-		return fmt.Errorf("error during last flush: %w", err)
-	default:
-	}
 
 	var entriesCount int
+
+	s.cursorHistory[data.Clock.Id] = cursor
 
 	// Process data if present
 	if data.Output != nil && data.Output.MapOutput != nil && data.Output.MapOutput.Value != nil {
@@ -91,19 +74,30 @@ func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrp
 
 		entriesCount = len(entries.Entries)
 
-		// Add entries to batch buffer instead of immediate insert
-		if err := s.addToBatch(entries.Entries); err != nil {
-			return fmt.Errorf("adding entries to batch: %w", err)
+		if err := s.store.SetAll(entries.Entries, data.GetClock().Number); err != nil {
+			return fmt.Errorf("setting foundational-store entry: %w", err)
 		}
 	}
 
 	lib := cursor.LIB.Num()
-
-	if !s.shouldFlush() {
-		return nil
+	err := s.store.FlushUpToBlock(lib)
+	if err != nil {
+		return fmt.Errorf("flushing up to block up to lib %d: %w", lib, err)
 	}
 
-	s.FlushPendingBatch(ctx, lib, []byte(data.Clock.Id), data.Clock.Number, cursor)
+	c := s.cursorHistory[cursor.LIB.ID()]
+
+	// Always save the cursor to a file, regardless of whether there was output data
+	if err := SaveCursorToFile(c, s.cursorFilePath, s.logger); err != nil {
+		CursorSaveErrors.Inc()
+		return fmt.Errorf("saving cursor to file %w", err)
+	}
+
+	for _, c := range s.cursorHistory {
+		if c.Block().Num() <= lib {
+			delete(s.cursorHistory, c.Block().ID())
+		}
+	}
 
 	blockNum := data.GetClock().Number
 	RecordBlockProcessing(entriesCount, blockNum)
@@ -111,57 +105,8 @@ func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrp
 	return nil
 }
 
-// shouldFlush determines if the current batch should be flushed based on size, bytes, or time
-func (s *Sinker) shouldFlush() bool {
-	// Check if we're shutting down, if so, flush immediately
-	if s.IsTerminating() {
-		return true
-	}
-	return len(s.batchBuffer) >= s.batchSize ||
-		s.batchSizeBytes >= s.maxBatchBytes ||
-		(s.batchStartTime != (time.Time{}) && time.Since(s.batchStartTime) > s.maxBatchTime)
-}
-
-// FlushPendingBatch flushes any pending batch entries to the flusher
-func (s *Sinker) FlushPendingBatch(ctx context.Context, blockNumber uint64, blockHash []byte, clockNum uint64, cursor *sink.Cursor) error {
-	// Get the batch data to flush
-	batch, batchBytes := s.GetPendingBatchAndReset(clockNum)
-
-	if len(batch) == 0 {
-		return nil // Nothing to flush
-	}
-
-	// Submit batch to flusher
-	req := &BatchRequest{
-		blockNumber:    blockNumber,
-		blockHash:      blockHash,
-		cursor:         cursor,
-		cursorFilePath: s.cursorFilePath,
-		batch:          batch,
-		batchBytes:     batchBytes,
-	}
-
-	// Submit batch to flusher (possibly blocking)
-	submitted := s.flusher.SubmitBatch(req)
-	select {
-	case err := <-s.flusher.ErrorChan():
-		return fmt.Errorf("error during last flush: %w", err)
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-submitted:
-	}
-
-	return nil
-}
-
 func (s *Sinker) HandleBlockUndoSignal(ctx context.Context, undoSignal *pbsubstreamsrpc.BlockUndoSignal, cursor *sink.Cursor) error {
-
 	blockNum := undoSignal.LastValidBlock.Number
-	lib := cursor.LIB.Num()
-
-	if err := s.FlushPendingBatch(ctx, lib, []byte(undoSignal.LastValidBlock.Id), blockNum, cursor); err != nil {
-		s.logger.Warn("failed to flush pending batch before undo", zap.Error(err))
-	}
 
 	evictStart := time.Now()
 	if err := s.store.EvictUpToBlock(blockNum); err != nil {

@@ -13,7 +13,6 @@ import (
 type cachedEntry struct {
 	entry       *pbstore.Entry
 	blockNumber uint64
-	blockHash   []byte
 }
 
 // Store implements the foundational-store.Store interface by wrapping another foundational-store
@@ -36,7 +35,7 @@ func NewStore(wrapped store.Store) *Store {
 
 // Set stores a single entry in the ForkAware.
 // If the entry's block number is <= flushUpToBlock, it's also stored in the wrapped foundational-store.
-func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64, blockHash []byte) error {
+func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -44,12 +43,11 @@ func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64, blockHash []byte) 
 	s.cache[string(entry.Key)] = cachedEntry{
 		entry:       entry,
 		blockNumber: blockNumber,
-		blockHash:   blockHash,
 	}
 
 	// If the entry's block number is <= flushUpToBlock, also foundational-store it in the wrapped foundational-store
 	if blockNumber <= s.flushUpToBlock {
-		if err := s.wrapped.Set(entry, blockNumber, blockHash); err != nil {
+		if err := s.wrapped.Set(entry, blockNumber); err != nil {
 			return fmt.Errorf("failed to set entry in wrapped foundational-store: %w", err)
 		}
 	}
@@ -59,7 +57,7 @@ func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64, blockHash []byte) 
 
 // SetAll stores multiple entries in the ForkAware.
 // Entries with block numbers <= flushUpToBlock are also stored in the wrapped foundational-store.
-func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64, blockHash []byte) error {
+func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -68,7 +66,6 @@ func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64, blockHash [
 		s.cache[string(entry.Key)] = cachedEntry{
 			entry:       entry,
 			blockNumber: blockNumber,
-			blockHash:   blockHash,
 		}
 	}
 
@@ -82,7 +79,7 @@ func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64, blockHash [
 
 	// Flush collected entries to the wrapped foundational-store
 	if len(toFlush) > 0 {
-		if err := s.wrapped.SetAll(toFlush, blockNumber, blockHash); err != nil {
+		if err := s.wrapped.SetAll(toFlush, blockNumber); err != nil {
 			return fmt.Errorf("failed to set entries in wrapped foundational-store: %w", err)
 		}
 	}
@@ -98,23 +95,12 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 
 	// Check ForkAware first
 	if cached, ok := s.cache[string(request.Key)]; ok {
-		// If the block number is <= the requested block number and block hash matches, return it
+		// If the block number is <= the requested block number, return it
 		if cached.blockNumber <= request.BlockNumber {
-			// Validate block hash matches if provided
-			if len(request.BlockHash) > 0 && len(cached.blockHash) > 0 {
-				if string(request.BlockHash) == string(cached.blockHash) {
-					return &pbstore.GetResponse{
-						Response: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
-						Value:    cached.entry.Value,
-					}, nil
-				}
-			} else if len(request.BlockHash) == 0 || len(cached.blockHash) == 0 {
-				// If either hash is empty, just check block number for backward compatibility
-				return &pbstore.GetResponse{
-					Response: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
-					Value:    cached.entry.Value,
-				}, nil
-			}
+			return &pbstore.GetResponse{
+				Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
+				Value:    cached.entry.Value,
+			}, nil
 		}
 	}
 
@@ -139,40 +125,22 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 	// Check ForkAware first for each key
 	for _, key := range request.Keys {
 		keyStr := string(key)
-		found := false
 		if cached, ok := s.cache[keyStr]; ok {
-			// If the block number is <= the requested block number and block hash matches, use it
+			// If the block number is <= the requested block number, use it
 			if cached.blockNumber <= request.BlockNumber {
-				// Validate block hash matches if provided
-				if len(request.BlockHash) > 0 && len(cached.blockHash) > 0 {
-					if string(request.BlockHash) == string(cached.blockHash) {
-						response.Entries = append(response.Entries, &pbstore.ResponseEntry{
-							Key: key,
-							Response: &pbstore.GetResponse{
-								Response: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
-								Value:    cached.entry.Value,
-							},
-						})
-						found = true
-					}
-				} else if len(request.BlockHash) == 0 || len(cached.blockHash) == 0 {
-					// If either hash is empty, just check block number for backward compatibility
-					response.Entries = append(response.Entries, &pbstore.ResponseEntry{
-						Key: key,
-						Response: &pbstore.GetResponse{
-							Response: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
-							Value:    cached.entry.Value,
-						},
-					})
-					found = true
-				}
+				response.Entries = append(response.Entries, &pbstore.ResponseEntry{
+					Key: key,
+					Response: &pbstore.GetResponse{
+						Response: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
+						Value:    cached.entry.Value,
+					},
+				})
+				continue
 			}
 		}
 
 		// If not found in ForkAware or block number is too high, add to keys to fetch
-		if !found {
-			keysToFetch = append(keysToFetch, key)
-		}
+		keysToFetch = append(keysToFetch, key)
 	}
 
 	// If there are keys to fetch from the wrapped foundational-store
@@ -209,45 +177,23 @@ func (s *Store) FlushUpToBlock(blockNum uint64) error {
 	// Update flushUpToBlock
 	s.flushUpToBlock = blockNum
 
-	// Collect entries to flush grouped by blockNumber and blockHash
-	type flushGroup struct {
-		entries     []*pbstore.Entry
-		blockNumber uint64
-		blockHash   []byte
-	}
-	var flushGroups []flushGroup
-	groupMap := make(map[string]*flushGroup)
-
+	// Collect entries to flush
+	var toFlush []*pbstore.Entry
 	for _, cached := range s.cache {
 		if cached.blockNumber <= blockNum {
-			// Create a key from blockNumber and blockHash
-			groupKey := fmt.Sprintf("%d-%x", cached.blockNumber, cached.blockHash)
-
-			if group, exists := groupMap[groupKey]; exists {
-				group.entries = append(group.entries, cached.entry)
-			} else {
-				newGroup := &flushGroup{
-					entries:     []*pbstore.Entry{cached.entry},
-					blockNumber: cached.blockNumber,
-					blockHash:   cached.blockHash,
-				}
-				groupMap[groupKey] = newGroup
-				flushGroups = append(flushGroups, *newGroup)
-			}
+			toFlush = append(toFlush, cached.entry)
 		}
 	}
 
-	// Flush each group separately
-	for _, group := range flushGroups {
-		if err := s.wrapped.SetAll(group.entries, group.blockNumber, group.blockHash); err != nil {
+	// Flush collected entries to the wrapped foundational-store
+	if len(toFlush) > 0 {
+		if err := s.wrapped.SetAll(toFlush, blockNum); err != nil {
 			return fmt.Errorf("failed to flush entries to wrapped foundational-store: %w", err)
 		}
-	}
 
-	// Remove flushed entries from ForkAware
-	for _, cached := range s.cache {
-		if cached.blockNumber <= blockNum {
-			delete(s.cache, string(cached.entry.Key))
+		// Remove flushed entries from ForkAware
+		for _, entry := range toFlush {
+			delete(s.cache, string(entry.Key))
 		}
 	}
 
