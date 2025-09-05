@@ -24,7 +24,7 @@ func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 	binary.BigEndian.PutUint64(blockNumBytes, blockNumber)
 
 	// Combine block number, block hash, and value
-	valueWithBlockInfo := append(blockNumBytes)
+	valueWithBlockInfo := blockNumBytes
 	valueWithBlockInfo = append(valueWithBlockInfo, entry.Value.Value...)
 
 	err := s.db.Update(func(txn *badger.Txn) error {
@@ -71,7 +71,7 @@ func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 		binary.BigEndian.PutUint64(blockNumBytes, blockNumber)
 
 		// Combine block number, block hash, and value
-		valueWithBlockInfo := append(blockNumBytes)
+		valueWithBlockInfo := blockNumBytes
 		valueWithBlockInfo = append(valueWithBlockInfo, entry.Value.Value...)
 
 		err := wb.Set(entry.Key, valueWithBlockInfo)

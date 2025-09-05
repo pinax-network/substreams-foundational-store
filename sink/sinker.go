@@ -93,20 +93,20 @@ func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrp
 		return fmt.Errorf("flushing up to block up to lib %d: %w", lib, err)
 	}
 
-	c := s.cursorHistory[cursor.LIB.ID()]
-	if c == nil {
-		c = cursor
+	libCursor := s.cursorHistory[cursor.LIB.ID()]
+	if libCursor == nil {
+		libCursor = cursor
 	}
 
 	// Always save the cursor to a file, regardless of whether there was output data
-	if err := SaveCursorToFile(c, s.cursorFilePath, s.logger); err != nil {
+	if err := SaveCursorToFile(libCursor, s.cursorFilePath, s.logger); err != nil {
 		CursorSaveErrors.Inc()
 		return fmt.Errorf("saving cursor to file %w", err)
 	}
 
-	for _, c := range s.cursorHistory {
-		if c.Block().Num() <= lib {
-			delete(s.cursorHistory, c.Block().ID())
+	for _, historyCursor := range s.cursorHistory {
+		if historyCursor.Block().Num() <= lib {
+			delete(s.cursorHistory, historyCursor.Block().ID())
 		}
 	}
 
