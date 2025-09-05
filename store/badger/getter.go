@@ -1,7 +1,6 @@
 package badger
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"sync"
@@ -81,8 +80,6 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 	blockNumber := binary.BigEndian.Uint64(storedValue[:8])
 
 	// Extract the stored block hash
-	storedBlockHash := storedValue[8 : 8+requestBlockHashLen]
-
 	// The actual value is everything after the block number and hash
 	actualValue := storedValue[8+requestBlockHashLen:]
 
@@ -93,12 +90,10 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 	}
 
 	// Validate block hash matches
-	if len(request.BlockHash) > 0 && len(storedBlockHash) > 0 {
-		if !bytes.Equal(request.BlockHash, storedBlockHash) {
-			return &pbstore.GetResponse{
-				Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
-			}, nil
-		}
+	if len(request.BlockHash) > 0 {
+		return &pbstore.GetResponse{
+			Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
+		}, nil
 	}
 
 	return &pbstore.GetResponse{

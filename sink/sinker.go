@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/streamingfast/shutter"
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	pbsubstreamsrpc "github.com/streamingfast/substreams/pb/sf/substreams/rpc/v2"
@@ -29,6 +30,9 @@ type Sinker struct {
 	maxBatchBytes  int
 	batchStartTime time.Time
 	cursorHistory  map[string]*sink.Cursor
+
+	// Shutdown coordination
+	*shutter.Shutter
 }
 
 func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath string, batchSize int, maxBatchTime time.Duration, flushQueueSize int) *Sinker {
@@ -44,6 +48,8 @@ func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath st
 		flushQueueSize = DefaultFlushQueueSize
 	}
 
+	shutter := shutter.New()
+
 	sinker := &Sinker{
 		store:          store,
 		logger:         logger,
@@ -55,6 +61,8 @@ func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath st
 		// this represents ~80% badger size
 		maxBatchBytes:  8 * 1024 * 1024,
 		batchSizeBytes: 0,
+		cursorHistory:  map[string]*sink.Cursor{},
+		Shutter:        shutter,
 	}
 	return sinker
 }

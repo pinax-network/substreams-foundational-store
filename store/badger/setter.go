@@ -11,7 +11,7 @@ import (
 )
 
 // Set stores a single entry in Badger
-func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64, blockHash []byte) error {
+func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 	start := time.Now()
 	defer func() {
 		sink.StoreSetAllDuration.ObserveDuration(time.Since(start))
@@ -24,7 +24,7 @@ func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64, blockHash []byte) 
 	binary.BigEndian.PutUint64(blockNumBytes, blockNumber)
 
 	// Combine block number, block hash, and value
-	valueWithBlockInfo := append(blockNumBytes, blockHash...)
+	valueWithBlockInfo := append(blockNumBytes)
 	valueWithBlockInfo = append(valueWithBlockInfo, entry.Value.Value...)
 
 	err := s.db.Update(func(txn *badger.Txn) error {
@@ -44,7 +44,7 @@ func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64, blockHash []byte) 
 }
 
 // SetAll stores multiple entries in Badger
-func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64, blockHash []byte) error {
+func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 	start := time.Now()
 	defer func() {
 		sink.StoreSetAllDuration.ObserveDuration(time.Since(start))
@@ -71,7 +71,7 @@ func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64, blockHash [
 		binary.BigEndian.PutUint64(blockNumBytes, blockNumber)
 
 		// Combine block number, block hash, and value
-		valueWithBlockInfo := append(blockNumBytes, blockHash...)
+		valueWithBlockInfo := append(blockNumBytes)
 		valueWithBlockInfo = append(valueWithBlockInfo, entry.Value.Value...)
 
 		err := wb.Set(entry.Key, valueWithBlockInfo)

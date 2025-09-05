@@ -12,19 +12,18 @@ const createEntriesTable = `
 create table if not exists %s.entries
 (
     block_number bigint    not null,
-    block_hash   bytea     not null,
     key          bytea     not null,
     value        bytea,
     create_time  timestamp not null,
     constraint entries_pk
-        primary key (block_number, block_hash, key)
+        primary key (block_number, key)
 );
 
 create index if not exists entries_key_index
     on %s.entries (key);
 
 create index if not exists entries_block_index
-    on %s.entries (block_number, block_hash);
+    on %s.entries (block_number);
 `
 
 func runDatabaseScript(ctx context.Context, db *sqlx.DB, schemaName string) error {
