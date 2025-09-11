@@ -27,10 +27,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.foundational-foundational-store.yaml)")
 
 	// Add commands
-	rootCmd.AddCommand(AccountListCmd)
 	rootCmd.AddCommand(GetCmd)
 	rootCmd.AddCommand(GetAllCmd)
-	rootCmd.AddCommand(LookupCmd)
 	rootCmd.AddCommand(ServerCmd)
 }
 
