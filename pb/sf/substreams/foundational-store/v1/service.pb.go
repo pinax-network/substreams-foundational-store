@@ -22,14 +22,14 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Indicates the result of a get operation
 type ResponseCode int32
 
 const (
-	ResponseCode_RESPONSE_CODE_UNSPECIFIED                 ResponseCode = 0
-	ResponseCode_RESPONSE_CODE_FOUND                       ResponseCode = 1
-	ResponseCode_RESPONSE_CODE_NOT_FOUND                   ResponseCode = 2
-	ResponseCode_RESPONSE_CODE_NOT_FOUND_FINALIZE          ResponseCode = 4
-	ResponseCode_RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED ResponseCode = 5
+	ResponseCode_RESPONSE_CODE_UNSPECIFIED        ResponseCode = 0
+	ResponseCode_RESPONSE_CODE_FOUND              ResponseCode = 1
+	ResponseCode_RESPONSE_CODE_NOT_FOUND          ResponseCode = 2
+	ResponseCode_RESPONSE_CODE_NOT_FOUND_FINALIZE ResponseCode = 4
 )
 
 // Enum value maps for ResponseCode.
@@ -39,14 +39,12 @@ var (
 		1: "RESPONSE_CODE_FOUND",
 		2: "RESPONSE_CODE_NOT_FOUND",
 		4: "RESPONSE_CODE_NOT_FOUND_FINALIZE",
-		5: "RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED",
 	}
 	ResponseCode_value = map[string]int32{
-		"RESPONSE_CODE_UNSPECIFIED":                 0,
-		"RESPONSE_CODE_FOUND":                       1,
-		"RESPONSE_CODE_NOT_FOUND":                   2,
-		"RESPONSE_CODE_NOT_FOUND_FINALIZE":          4,
-		"RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED": 5,
+		"RESPONSE_CODE_UNSPECIFIED":        0,
+		"RESPONSE_CODE_FOUND":              1,
+		"RESPONSE_CODE_NOT_FOUND":          2,
+		"RESPONSE_CODE_NOT_FOUND_FINALIZE": 4,
 	}
 )
 
@@ -77,6 +75,7 @@ func (ResponseCode) EnumDescriptor() ([]byte, []int) {
 	return file_sf_substreams_foundational_store_v1_service_proto_rawDescGZIP(), []int{0}
 }
 
+// Specifies which value to retrieve
 type GetRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BlockNumber   uint64                 `protobuf:"varint,1,opt,name=block_number,json=blockNumber,proto3" json:"block_number,omitempty"`
@@ -145,10 +144,12 @@ func (x *GetRequest) GetKey() []byte {
 	return nil
 }
 
+// Contains the retrieved value and status
 type GetResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Response      ResponseCode           `protobuf:"varint,4,opt,name=response,proto3,enum=sf.substreams.foundational_store.v1.ResponseCode" json:"response,omitempty"`
 	Value         *anypb.Any             `protobuf:"bytes,5,opt,name=value,proto3" json:"value,omitempty"`
+	BlockReached  bool                   `protobuf:"varint,6,opt,name=block_reached,json=blockReached,proto3" json:"block_reached,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -197,6 +198,14 @@ func (x *GetResponse) GetValue() *anypb.Any {
 	return nil
 }
 
+func (x *GetResponse) GetBlockReached() bool {
+	if x != nil {
+		return x.BlockReached
+	}
+	return false
+}
+
+// Specifies multiple values to retrieve
 type GetAllRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BlockNumber   uint64                 `protobuf:"varint,1,opt,name=block_number,json=blockNumber,proto3" json:"block_number,omitempty"`
@@ -265,6 +274,7 @@ func (x *GetAllRequest) GetKeys() [][]byte {
 	return nil
 }
 
+// Pairs a key with its response
 type ResponseEntry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           []byte                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -317,9 +327,11 @@ func (x *ResponseEntry) GetResponse() *GetResponse {
 	return nil
 }
 
+// Contains all retrieved entries
 type GetAllResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Entries       []*ResponseEntry       `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	BlockReached  bool                   `protobuf:"varint,6,opt,name=block_reached,json=blockReached,proto3" json:"block_reached,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -361,6 +373,14 @@ func (x *GetAllResponse) GetEntries() []*ResponseEntry {
 	return nil
 }
 
+func (x *GetAllResponse) GetBlockReached() bool {
+	if x != nil {
+		return x.BlockReached
+	}
+	return false
+}
+
+// Represents a key-value pair in the store
 type Entry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           []byte                 `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
@@ -413,6 +433,7 @@ func (x *Entry) GetValue() *anypb.Any {
 	return nil
 }
 
+// Contains multiple key-value pairs
 type Entries struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Entries       []*Entry               `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
@@ -468,10 +489,11 @@ const file_sf_substreams_foundational_store_v1_service_proto_rawDesc = "" +
 	"\n" +
 	"block_hash\x18\x02 \x01(\fR\tblockHash\x12!\n" +
 	"\fomit_deleted\x18\x03 \x01(\bR\vomitDeleted\x12\x10\n" +
-	"\x03key\x18\x04 \x01(\fR\x03key\"\x88\x01\n" +
+	"\x03key\x18\x04 \x01(\fR\x03key\"\xad\x01\n" +
 	"\vGetResponse\x12M\n" +
 	"\bresponse\x18\x04 \x01(\x0e21.sf.substreams.foundational_store.v1.ResponseCodeR\bresponse\x12*\n" +
-	"\x05value\x18\x05 \x01(\v2\x14.google.protobuf.AnyR\x05value\"\x88\x01\n" +
+	"\x05value\x18\x05 \x01(\v2\x14.google.protobuf.AnyR\x05value\x12#\n" +
+	"\rblock_reached\x18\x06 \x01(\bR\fblockReached\"\x88\x01\n" +
 	"\rGetAllRequest\x12!\n" +
 	"\fblock_number\x18\x01 \x01(\x04R\vblockNumber\x12\x1d\n" +
 	"\n" +
@@ -480,20 +502,20 @@ const file_sf_substreams_foundational_store_v1_service_proto_rawDesc = "" +
 	"\x04keys\x18\x04 \x03(\fR\x04keys\"o\n" +
 	"\rResponseEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\fR\x03key\x12L\n" +
-	"\bresponse\x18\x02 \x01(\v20.sf.substreams.foundational_store.v1.GetResponseR\bresponse\"^\n" +
+	"\bresponse\x18\x02 \x01(\v20.sf.substreams.foundational_store.v1.GetResponseR\bresponse\"\x83\x01\n" +
 	"\x0eGetAllResponse\x12L\n" +
-	"\aentries\x18\x01 \x03(\v22.sf.substreams.foundational_store.v1.ResponseEntryR\aentries\"E\n" +
+	"\aentries\x18\x01 \x03(\v22.sf.substreams.foundational_store.v1.ResponseEntryR\aentries\x12#\n" +
+	"\rblock_reached\x18\x06 \x01(\bR\fblockReached\"E\n" +
 	"\x05Entry\x12\x10\n" +
 	"\x03key\x18\x02 \x01(\fR\x03key\x12*\n" +
 	"\x05value\x18\x04 \x01(\v2\x14.google.protobuf.AnyR\x05value\"O\n" +
 	"\aEntries\x12D\n" +
-	"\aentries\x18\x01 \x03(\v2*.sf.substreams.foundational_store.v1.EntryR\aentries*\xb8\x01\n" +
+	"\aentries\x18\x01 \x03(\v2*.sf.substreams.foundational_store.v1.EntryR\aentries*\x89\x01\n" +
 	"\fResponseCode\x12\x1d\n" +
 	"\x19RESPONSE_CODE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13RESPONSE_CODE_FOUND\x10\x01\x12\x1b\n" +
 	"\x17RESPONSE_CODE_NOT_FOUND\x10\x02\x12$\n" +
-	" RESPONSE_CODE_NOT_FOUND_FINALIZE\x10\x04\x12-\n" +
-	")RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED\x10\x052\xe4\x01\n" +
+	" RESPONSE_CODE_NOT_FOUND_FINALIZE\x10\x042\xe4\x01\n" +
 	"\x05Store\x12h\n" +
 	"\x03Get\x12/.sf.substreams.foundational_store.v1.GetRequest\x1a0.sf.substreams.foundational_store.v1.GetResponse\x12q\n" +
 	"\x06GetAll\x122.sf.substreams.foundational_store.v1.GetAllRequest\x1a3.sf.substreams.foundational_store.v1.GetAllResponseB\xd6\x02\n" +

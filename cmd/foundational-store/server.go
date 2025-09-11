@@ -128,7 +128,7 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	defer dbStatsTicker.Stop()
 
 	sinker := sink.NewSinker(storeImpl, zlog, cursorFilePath, batchSize, maxBatchTime, flushQueueSize)
-	server := server.NewStoreServer(storeImpl)
+	server := server.NewStoreServer(storeImpl, sinker.HeadBlock)
 
 	app.SuperviseAndStartUsing(sinker.Shutter, func() {
 		substreamsClient.Run(cmd.Context(), cursor, sinker)

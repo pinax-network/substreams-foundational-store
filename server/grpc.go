@@ -19,21 +19,31 @@ import (
 type StoreServer struct {
 	*shutter.Shutter
 	pbstore.UnimplementedStoreServer
-	store      store.Store
-	grpcServer dgrpcServer.Server
+	store            store.Store
+	grpcServer       dgrpcServer.Server
+	headBlockFetcher FetchHeadBlock
 }
 
+type FetchHeadBlock func() uint64
+
 // NewStoreServer creates a new StoreServer with the given foundational-store
-func NewStoreServer(store store.Store) *StoreServer {
+func NewStoreServer(store store.Store, headBlockFetcher FetchHeadBlock) *StoreServer {
 	return &StoreServer{
-		Shutter:    shutter.New(),
-		store:      store,
-		grpcServer: nil,
+		Shutter:          shutter.New(),
+		store:            store,
+		grpcServer:       nil,
+		headBlockFetcher: headBlockFetcher,
 	}
 }
 
 // Get implements the Get method of the StoreKV service
 func (s *StoreServer) Get(ctx context.Context, req *pbstore.GetRequest) (*pbstore.GetResponse, error) {
+	headBlock := s.headBlockFetcher()
+	if headBlock < req.BlockNumber {
+		return &pbstore.GetResponse{
+			BlockReached: false,
+		}, nil
+	}
 	start := time.Now()
 	defer func() {
 		sink.GRPCGetDuration.ObserveDuration(time.Since(start))
@@ -42,20 +52,38 @@ func (s *StoreServer) Get(ctx context.Context, req *pbstore.GetRequest) (*pbstor
 
 	r, err := s.store.Get(req)
 	if err != nil {
-		return nil, fmt.Errorf("getting from store: %w", err)
+		return nil, fmt.Errorf("getting key from store: %w", err)
 	}
+
+	r.BlockReached = true
 	return r, nil
 }
 
 // GetAll implements the GetAll method of the StoreKV service
 func (s *StoreServer) GetAll(ctx context.Context, req *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {
+	headBlock := s.headBlockFetcher()
+	if headBlock < req.BlockNumber {
+		return &pbstore.GetAllResponse{
+			BlockReached: false,
+		}, nil
+	}
 	start := time.Now()
 	defer func() {
 		sink.GRPCGetAllDuration.ObserveDuration(time.Since(start))
 		sink.GRPCGetAllCount.Inc()
 	}()
 
-	return s.store.GetAll(req)
+	r, err := s.store.GetAll(req)
+	if err != nil {
+		return nil, fmt.Errorf("getting all keys from store: %w", err)
+	}
+
+	// Set BlockReached = true for both the top-level response and each individual entry
+	r.BlockReached = true
+	for _, entry := range r.Entries {
+		entry.Response.BlockReached = true
+	}
+	return r, nil
 }
 
 func (s *StoreServer) Run(addr string, logger *zap.Logger, opts ...grpc.ServerOption) {

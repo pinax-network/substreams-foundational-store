@@ -33,6 +33,8 @@ type Sinker struct {
 
 	// Shutdown coordination
 	*shutter.Shutter
+
+	headBlock uint64
 }
 
 func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath string, batchSize int, maxBatchTime time.Duration, flushQueueSize int) *Sinker {
@@ -113,11 +115,13 @@ func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrp
 	blockNum := data.GetClock().Number
 	RecordBlockProcessing(entriesCount, blockNum)
 
+	s.headBlock = blockNum
 	return nil
 }
 
 func (s *Sinker) HandleBlockUndoSignal(ctx context.Context, undoSignal *pbsubstreamsrpc.BlockUndoSignal, cursor *sink.Cursor) error {
 	blockNum := undoSignal.LastValidBlock.Number
+	s.headBlock = blockNum
 
 	evictStart := time.Now()
 	if err := s.store.EvictUpToBlock(blockNum); err != nil {
@@ -136,4 +140,8 @@ func (s *Sinker) HandleBlockUndoSignal(ctx context.Context, undoSignal *pbsubstr
 		zap.Uint64("block_number", blockNum))
 
 	return nil
+}
+
+func (s *Sinker) HeadBlock() uint64 {
+	return s.headBlock
 }

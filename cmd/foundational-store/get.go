@@ -96,7 +96,7 @@ This command connects to a gRPC server and retrieves a value for the specified k
 
 		var response *pbStore.GetResponse
 		maxRetries := 10
-		retryDelay := 1 * time.Second
+		// retryDelay := 1 * time.Second
 
 		for attempt := 0; attempt <= maxRetries; attempt++ {
 			resp, err := client.Get(ctx, request)
@@ -105,17 +105,6 @@ This command connects to a gRPC server and retrieves a value for the specified k
 			}
 
 			response = resp
-
-			// Check if we need to retry
-			if response.Response == pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED {
-				if attempt < maxRetries {
-					fmt.Printf("Block not reached yet, retrying in %v (attempt %d/%d)\n", retryDelay, attempt+1, maxRetries+1)
-					time.Sleep(retryDelay)
-					continue
-				} else {
-					fmt.Printf("Max retries reached, block still not available\n")
-				}
-			}
 
 			// Exit retry loop for other response codes
 			break
@@ -134,8 +123,6 @@ This command connects to a gRPC server and retrieves a value for the specified k
 			fmt.Println("Value not found")
 		case pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND_FINALIZE:
 			fmt.Println("Value not found (finalized)")
-		case pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED:
-			fmt.Println("Block not reached (after retries)")
 		default:
 			fmt.Printf("Unknown response code: %s\n", response.Response)
 		}
