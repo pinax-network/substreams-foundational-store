@@ -1,23 +1,39 @@
 # Substreams Foundational Store
 
-A high-performance, multi-backend key-value storage system designed for [Substreams](https://github.com/streamingfast/substreams) data ingestion and serving. The foundational store provides a unified interface to persist and query time-series blockchain data with fork-awareness and efficient batch processing.
+A high-performance, multi-backend key-value storage system designed for [Substreams](https://github.com/streamingfast/substreams) ingestion and serving within the StreamingFast ecosystem. The foundational store provides a unified interface to persist and query time-series blockchain data with fork-awareness and efficient batch processing.
+
+## StreamingFast Ecosystem Integration
+
+The foundational store operates as a critical component in the StreamingFast data processing pipeline:
+
+- **Tier1 (Substreams Frontend)**: Client-facing gRPC service that handles user requests, manages authentication, and orchestrates work distribution to Tier2 execution engines with foundational store endpoint routing
+- **Tier2 (Substreams Execution Engine)**: Computational backend service that executes Substreams WASM modules in parallel across blockchain data segments, handling module execution and state management
+- **Foundational Store**: Persistent storage layer serving multiple Substreams modules simultaneously
+
+### Deployment Patterns
+
+- **Many-to-Many Architecture**: Multiple Substreams modules can target the same foundational store
+- **Multi-Store Deployments**: Multiple foundational stores can run simultaneously, each serving multiple endpoints
+- **Flexible Routing**: Tier1 routes requests via configuration
+- **Module Examples**: Custom Substreams modules for any blockchain data processing use case
 
 ## Architecture
 
 The foundational store consists of three main components:
 
 - **Sink**: Ingests streaming data from Substreams, handles batching, flushing, and fork reorganizations
-- **Store**: Provides a unified interface for multiple storage backends (Badger, PostgreSQL)
-- **Server**: Exposes a gRPC API for data retrieval with high-performance querying
+- **Store**: Provides a unified interface for multiple storage backends (Badger, PostgreSQL) with ForkAware caching layer
+- **Server**: Exposes a gRPC API for data retrieval with high-performance querying and block-aware responses
 
 ### Key Features
 
-- **Fork-aware storage**: Handles blockchain reorganizations by maintaining versioned data and automatic rollback capabilities
-- **Multiple backends**: Support for embedded Badger database and PostgreSQL for different scale requirements
-- **Batch processing**: Efficient bulk insertion with configurable batch sizes and time-based flushing
-- **Async flushing**: Non-blocking write operations with configurable queue depth for optimal throughput
-- **gRPC API**: High-performance data serving with Get/GetAll operations
-- **Metrics**: Built-in Prometheus metrics for monitoring performance and health
+- **Fork-aware storage**: Handles blockchain reorganizations through ForkAware wrapper with in-memory cache and automatic rollback capabilities
+- **Multiple backends**: Support for embedded Badger database and PostgreSQL with unified Store interface
+- **Block-level versioning**: Every entry tagged with block number for precise historical queries and LIB-based finality
+- **Streaming ingestion**: Continuous processing of Substreams output with cursor-based resumption
+- **High-performance serving**: gRPC API with Get/GetAll operations and block-reached validation
+- **Production-ready**: Built-in Prometheus metrics, health checks, and operational tooling
+- **Scalable deployment**: Supports multi-instance deployments with flexible endpoint routing
 
 ## Quick Start
 
@@ -36,20 +52,23 @@ Start a server with Badger backend:
 ```bash
 ./foundational-store server \
   --dsn "badger:///path/to/data" \
-  --type-url "type.googleapis.com/your.message.Type" \
-  --manifest-path "path/to/substreams.yaml" \
+  --type-url "your.module.Type" \
+  --manifest-path "../your-substreams-module/substreams.yaml" \
   --output-module-name "your_output_module" \
-  --endpoint "mainnet.eth.streamingfast.io:443"
+  --endpoint "your-blockchain.streamingfast.io:443" \
+  --start-block 1000000 \
+  --batch-size 1000
 ```
 
 Start a server with PostgreSQL backend:
 ```bash
 ./foundational-store server \
-  --dsn "postgres://user:pass@localhost:5432/dbname" \
-  --type-url "type.googleapis.com/your.message.Type" \
-  --manifest-path "path/to/substreams.yaml" \
+  --dsn "postgres://user:pass@localhost:5432/database" \
+  --type-url "your.module.Type" \
+  --manifest-path "../your-substreams-module/substreams.yaml" \
   --output-module-name "your_output_module" \
-  --endpoint "mainnet.eth.streamingfast.io:443"
+  --endpoint "your-blockchain.streamingfast.io:443" \
+  --prometheus-addr "localhost:9103"
 ```
 
 ## Storage Backends
@@ -176,12 +195,21 @@ message GetAllRequest {
 
 ## Fork Handling
 
-The foundational store maintains fork-awareness through:
+The foundational store implements sophisticated fork-awareness through a layered architecture:
 
-1. **Versioned Storage**: Each entry is tagged with block number and hash
-2. **Automatic Rollback**: Undo signals trigger data eviction up to reorganization point  
-3. **LIB Tracking**: Uses Last Irreversible Block for finality decisions
-4. **Cursor Management**: Persistent state for resuming from correct position
+### ForkAware Store Layer
+
+1. **In-Memory Cache**: Maintains recent entries in memory with block-level versioning
+2. **Automatic Eviction**: `EvictUpToBlock()` removes data >= reorganization point during undo signals
+3. **LIB-Based Flushing**: `FlushUpToBlock()` persists finalized entries (≤ Last Irreversible Block) to backend
+4. **Read Strategy**: Checks cache first, falls back to persistent backend for historical data
+
+### Block Processing Flow
+
+1. **HandleBlockScopedData**: Processes streaming data, updates cache, flushes finalized blocks
+2. **HandleBlockUndoSignal**: Triggers eviction on fork detection, maintains data consistency
+3. **Cursor Management**: Persistent state tracking with LIB-based cursor history cleanup
+4. **Head Block Tracking**: Real-time block progression for client synchronization validation
 
 ## Performance Tuning
 
@@ -193,7 +221,7 @@ Optimize for your workload:
 # High throughput, larger batches
 --batch-size 5000 --max-batch-time 60s --flush-queue-size 5
 
-# Low latency, smaller batches  
+# Low latency, smaller batches
 --batch-size 500 --max-batch-time 10s --flush-queue-size 2
 ```
 
