@@ -28,7 +28,6 @@ func init() {
 
 	// Add commands
 	rootCmd.AddCommand(GetCmd)
-	rootCmd.AddCommand(GetAllCmd)
 	rootCmd.AddCommand(ServerCmd)
 }
 
