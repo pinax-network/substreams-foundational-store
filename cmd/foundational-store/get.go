@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jhump/protoreflect/dynamic"
 	"github.com/mr-tron/base58"
+	"github.com/protocolbuffers/protoscope"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	pbStore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
@@ -127,12 +127,8 @@ This command connects to a gRPC server and retrieves a value for the specified k
 		switch response.Response {
 		case pbStore.ResponseCode_RESPONSE_CODE_FOUND:
 			fmt.Printf("Type URL: %s\n", response.Value.TypeUrl)
-			msg, err := dynamic.AsDynamicMessage(response.Value)
-			if err != nil {
-				fmt.Printf("Error converting Any to Message: %v\n", err)
-			} else {
-				fmt.Printf("Value: %s\n", msg.String())
-			}
+			protoscopeOutput := protoscope.Write(response.Value.Value, protoscope.WriterOptions{})
+			fmt.Printf("Value: %s\n", protoscopeOutput)
 			fmt.Printf("Value size: %d bytes\n", len(response.Value.Value))
 		case pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND:
 			fmt.Println("Value not found")
