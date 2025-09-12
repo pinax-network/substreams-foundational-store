@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/dgraph-io/badger/v3"
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
@@ -14,6 +15,14 @@ import (
 
 // Get retrieves a single entry from Badger
 func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
+	// Track total execution time
+	executionStart := time.Now()
+	defer sink.DatabaseExecutionDuration.ObserveDuration(time.Since(executionStart))
+
+	// Track key requests - single key per Get call
+	sink.DatabaseKeysRequestedTotal.Inc()
+	sink.DatabaseCallCount.Inc()
+
 	defer func() {
 		lsm, vlog := s.db.Size()
 		totalSize := uint64(lsm + vlog)
@@ -28,9 +37,15 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 	var storedValue []byte
 	var found bool
 
+	// Track Badger-specific operation time
+	badgerStart := time.Now()
 	err := s.db.View(func(txn *badger.Txn) error {
 		// Directly look up the key
+		getStart := time.Now()
 		item, err := txn.Get(request.Key)
+		sink.BadgerGetOperationDuration.ObserveDuration(time.Since(getStart))
+		sink.BadgerGetOperationCount.Inc()
+
 		if err != nil {
 			if err == badger.ErrKeyNotFound {
 				// Key not found, return nil error to indicate not found
@@ -54,6 +69,8 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 
 		return nil
 	})
+	sink.BadgerTransactionDuration.ObserveDuration(time.Since(badgerStart))
+	sink.BadgerTransactionCount.Inc()
 
 	if err != nil {
 		sink.DatabaseGetErrors.Inc()
@@ -61,12 +78,15 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 	}
 
 	if !found {
+		// Track no keys found for this call
 		sink.DatabaseGetMisses.Inc()
 		return &pbstore.GetResponse{
 			Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
 		}, nil
 	}
 
+	// Track found keys - single key found
+	sink.DatabaseKeysFoundTotal.Inc()
 	sink.DatabaseGetHits.Inc()
 
 	// Extract the block number and the actual value
@@ -101,12 +121,22 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 
 // GetAll retrieves multiple entries from Badger using goroutines for parallelism
 func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {
+	// Track total execution time
+	executionStart := time.Now()
+	defer sink.DatabaseExecutionDuration.ObserveDuration(time.Since(executionStart))
+
+	// Track key requests - number of keys in this GetAll call
+	sink.DatabaseKeysRequestedTotal.AddInt(len(request.Keys))
+	sink.DatabaseCallCount.Inc()
+
 	defer sink.DatabaseKeysProcessed.AddInt(len(request.Keys))
 
 	// Create a slice to foundational-store the entries
 	var entries []*pbstore.ResponseEntry
+	var keysFoundCount int
 
 	// Create a transaction
+	badgerStart := time.Now()
 	err := s.db.View(func(txn *badger.Txn) error {
 		// Use a channel to distribute keys to workers
 		keyChan := make(chan []byte, len(request.Keys))
@@ -124,7 +154,7 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 		// Use a channel to collect errors
 		errChan := make(chan error, len(request.Keys))
 
-		// Use a mutex to protect the entries slice
+		// Use a mutex to protect the entries slice and key count
 		var mutex sync.Mutex
 
 		// Use the configured number of workers
@@ -146,7 +176,10 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 					var value []byte
 
 					// Directly look up the key
+					getStart := time.Now()
 					item, err := txn.Get(key)
+					sink.BadgerGetOperationDuration.ObserveDuration(time.Since(getStart))
+					sink.BadgerGetOperationCount.Inc()
 					if err != nil {
 						if err == badger.ErrKeyNotFound {
 							// Key not found, add a NOT_FOUND response
@@ -205,6 +238,7 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 					// as the setter does not store block hash information
 
 					mutex.Lock()
+					keysFoundCount++
 					entries = append(entries,
 						&pbstore.ResponseEntry{
 							Key: key,
@@ -232,11 +266,13 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 			return nil
 		}
 	})
+	sink.BadgerTransactionDuration.ObserveDuration(time.Since(badgerStart))
+	sink.BadgerTransactionCount.Inc()
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get values from Badger: %w", err)
 	}
-
+	sink.DatabaseKeysFoundTotal.AddInt(keysFoundCount)
 	return &pbstore.GetAllResponse{
 		Entries: entries,
 	}, nil

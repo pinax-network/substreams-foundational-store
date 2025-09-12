@@ -38,15 +38,32 @@ var GRPCGetAllCount = Metrics.NewCounter("foundational_store_grpc_getall_total",
 
 // Database operation metrics
 var DatabaseKeysProcessed = Metrics.NewCounter("foundational_store_db_keys_processed_total", "Total number of keys processed by database")
+var DatabaseKeysRequestedTotal = Metrics.NewCounter("foundational_store_db_keys_requested_total", "Total number of keys requested from database")
+var DatabaseKeysFoundTotal = Metrics.NewCounter("foundational_store_db_keys_found_total", "Total number of keys found in database")
+var DatabaseCallCount = Metrics.NewCounter("foundational_store_db_calls_total", "Total number of database calls")
 var DatabaseGetHits = Metrics.NewCounter("foundational_store_db_get_hits_total", "Number of successful database get operations")
 var DatabaseGetMisses = Metrics.NewCounter("foundational_store_db_get_misses_total", "Number of database get operations that returned no data")
 var DatabaseGetErrors = Metrics.NewCounter("foundational_store_db_get_errors_total", "Number of database get operation errors")
 var DatabaseSetOperations = Metrics.NewCounter("foundational_store_db_set_operations_total", "Total number of database set operations")
 var DatabaseSetErrors = Metrics.NewCounter("foundational_store_db_set_errors_total", "Number of database set operation errors")
+var DatabaseExecutionDuration = Metrics.NewHistogram("foundational_store_db_execution_duration_seconds", "Total execution time for database operations")
+var BadgerOperationDuration = Metrics.NewHistogram("foundational_store_badger_operation_duration_seconds", "Time spent in Badger-specific operations")
 
 // Badger specific metrics
 var BadgerLSMSize = Metrics.NewGauge("foundational_store_badger_lsm_size_bytes", "Size of Badger LSM tree in bytes")
 var BadgerVLogSize = Metrics.NewGauge("foundational_store_badger_vlog_size_bytes", "Size of Badger value log in bytes")
+
+// Granular Badger operation timing metrics
+var BadgerGetOperationDuration = Metrics.NewHistogram("foundational_store_badger_get_operation_duration_seconds", "Time spent in individual Badger Get operations")
+var BadgerSetOperationDuration = Metrics.NewHistogram("foundational_store_badger_set_operation_duration_seconds", "Time spent in individual Badger Set operations")
+var BadgerBatchWriteDuration = Metrics.NewHistogram("foundational_store_badger_batch_write_duration_seconds", "Time spent in Badger batch write operations")
+var BadgerTransactionDuration = Metrics.NewHistogram("foundational_store_badger_transaction_duration_seconds", "Time spent in Badger transaction operations")
+
+// Counters for Badger operation counts
+var BadgerGetOperationCount = Metrics.NewCounter("foundational_store_badger_get_operations_total", "Total number of individual Badger Get operations")
+var BadgerSetOperationCount = Metrics.NewCounter("foundational_store_badger_set_operations_total", "Total number of individual Badger Set operations")
+var BadgerBatchWriteCount = Metrics.NewCounter("foundational_store_badger_batch_writes_total", "Total number of Badger batch write operations")
+var BadgerTransactionCount = Metrics.NewCounter("foundational_store_badger_transactions_total", "Total number of Badger transaction operations")
 var BadgerPendingWrites = Metrics.NewGauge("foundational_store_badger_pending_writes", "Number of pending writes in Badger")
 var BadgerMemTableSize = Metrics.NewGauge("foundational_store_badger_memtable_size_bytes", "Size of Badger memtables in bytes")
 
@@ -101,6 +118,10 @@ func RecordBlockProcessing(entriesCount int, blockNum uint64) {
 
 func LogDatabaseStats(logger *zap.Logger) {
 	keysProcessed := uint64(DatabaseKeysProcessed.Get())
+	totalCalls := uint64(DatabaseCallCount.Get())
+	totalKeysRequested := uint64(DatabaseKeysRequestedTotal.Get())
+	totalKeysFound := uint64(DatabaseKeysFoundTotal.Get())
+	
 	getHits := uint64(DatabaseGetHits.Get())
 	getMisses := uint64(DatabaseGetMisses.Get())
 	getErrors := uint64(DatabaseGetErrors.Get())
@@ -114,6 +135,12 @@ func LogDatabaseStats(logger *zap.Logger) {
 	lsmSize := uint64(BadgerLSMSize.Get())
 	vlogSize := uint64(BadgerVLogSize.Get())
 
+	// Granular Badger operation counts
+	badgerGetOps := uint64(BadgerGetOperationCount.Get())
+	badgerSetOps := uint64(BadgerSetOperationCount.Get())
+	badgerBatchWrites := uint64(BadgerBatchWriteCount.Get())
+	badgerTransactions := uint64(BadgerTransactionCount.Get())
+
 	flushQueueDepth := uint64(FlushQueueDepth.Get())
 	flushQueueFullEvents := uint64(FlushQueueFull.Get())
 	asyncFlushOps := uint64(AsyncFlushOperations.Get())
@@ -125,8 +152,22 @@ func LogDatabaseStats(logger *zap.Logger) {
 		hitRate = float64(getHits) / float64(totalGets) * 100
 	}
 
+	// Calculate averages per call
+	avgKeysRequested := float64(0)
+	if totalCalls > 0 {
+		avgKeysRequested = float64(totalKeysRequested) / float64(totalCalls)
+	}
+
+	avgKeysFound := float64(0)
+	if totalCalls > 0 {
+		avgKeysFound = float64(totalKeysFound) / float64(totalCalls)
+	}
+
 	logger.Info("database stats",
 		zap.Uint64("keys_processed_total", keysProcessed),
+		zap.Uint64("total_database_calls", totalCalls),
+		zap.Float64("avg_keys_requested_per_call", avgKeysRequested),
+		zap.Float64("avg_keys_found_per_call", avgKeysFound),
 		zap.Uint64("get_hits", getHits),
 		zap.Uint64("get_misses", getMisses),
 		zap.Float64("cache_hit_rate_percent", hitRate),
@@ -138,6 +179,10 @@ func LogDatabaseStats(logger *zap.Logger) {
 		zap.Uint64("badger_total_size_bytes", badgerSize),
 		zap.Uint64("badger_lsm_size_bytes", lsmSize),
 		zap.Uint64("badger_vlog_size_bytes", vlogSize),
+		zap.Uint64("badger_get_operations_total", badgerGetOps),
+		zap.Uint64("badger_set_operations_total", badgerSetOps),
+		zap.Uint64("badger_batch_writes_total", badgerBatchWrites),
+		zap.Uint64("badger_transactions_total", badgerTransactions),
 		zap.Uint64("flush_queue_depth", flushQueueDepth),
 		zap.Uint64("flush_queue_full_events", flushQueueFullEvents),
 		zap.Uint64("async_flush_operations", asyncFlushOps),
