@@ -2,6 +2,7 @@ package badger
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"sync"
 
@@ -100,9 +101,7 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 
 // GetAll retrieves multiple entries from Badger using goroutines for parallelism
 func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {
-	defer func() {
-		sink.DatabaseKeysProcessed.AddInt(len(request.Keys))
-	}()
+	defer sink.DatabaseKeysProcessed.AddInt(len(request.Keys))
 
 	// Create a slice to foundational-store the entries
 	var entries []*pbstore.ResponseEntry
@@ -111,8 +110,14 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 	err := s.db.View(func(txn *badger.Txn) error {
 		// Use a channel to distribute keys to workers
 		keyChan := make(chan []byte, len(request.Keys))
+		seenKeys := make(map[string]bool)
 		for _, key := range request.Keys {
+			if seenKeys[string(key)] {
+				continue
+			}
+			sKey := hex.EncodeToString(key)
 			keyChan <- key
+			seenKeys[sKey] = true
 		}
 		close(keyChan)
 
@@ -232,20 +237,7 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 		return nil, fmt.Errorf("failed to get values from Badger: %w", err)
 	}
 
-	// Ensure we only have one entry per key
-	uniqueEntries := make(map[string]*pbstore.ResponseEntry)
-	for _, entry := range entries {
-		key := string(entry.Key)
-		uniqueEntries[key] = entry
-	}
-
-	// Convert the map back to a slice
-	finalEntries := make([]*pbstore.ResponseEntry, 0, len(uniqueEntries))
-	for _, entry := range uniqueEntries {
-		finalEntries = append(finalEntries, entry)
-	}
-
 	return &pbstore.GetAllResponse{
-		Entries: finalEntries,
+		Entries: entries,
 	}, nil
 }
