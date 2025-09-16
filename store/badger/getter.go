@@ -10,7 +10,6 @@ import (
 	"github.com/dgraph-io/badger/v3"
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 	"github.com/streamingfast/substreams-foundational-store/sink"
-	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -274,13 +273,6 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 		return nil, fmt.Errorf("failed to get values from Badger: %w", err)
 	}
 	sink.DatabaseKeysFoundTotal.AddInt(keysFoundCount)
-
-	s.logger.Info("request stats",
-		zap.Uint64("block_number", request.BlockNumber),
-		zap.Int("requested_keys", len(request.Keys)),
-		zap.Int("found_keys", len(entries)),
-		zap.Bool("keep", false),
-	)
 
 	return &pbstore.GetAllResponse{
 		Entries: entries,

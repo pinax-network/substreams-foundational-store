@@ -22,17 +22,19 @@ type StoreServer struct {
 	store            store.Store
 	grpcServer       dgrpcServer.Server
 	headBlockFetcher FetchHeadBlock
+	logger           *zap.Logger
 }
 
 type FetchHeadBlock func() uint64
 
 // NewStoreServer creates a new StoreServer with the given foundational-store
-func NewStoreServer(store store.Store, headBlockFetcher FetchHeadBlock) *StoreServer {
+func NewStoreServer(store store.Store, headBlockFetcher FetchHeadBlock, logger *zap.Logger) *StoreServer {
 	return &StoreServer{
 		Shutter:          shutter.New(),
 		store:            store,
 		grpcServer:       nil,
 		headBlockFetcher: headBlockFetcher,
+		logger:           logger,
 	}
 }
 
@@ -61,6 +63,8 @@ func (s *StoreServer) Get(ctx context.Context, req *pbstore.GetRequest) (*pbstor
 
 // GetAll implements the GetAll method of the StoreKV service
 func (s *StoreServer) GetAll(ctx context.Context, req *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {
+
+	executionStart := time.Now()
 	headBlock := s.headBlockFetcher()
 	if headBlock < req.BlockNumber {
 		return &pbstore.GetAllResponse{
@@ -83,12 +87,20 @@ func (s *StoreServer) GetAll(ctx context.Context, req *pbstore.GetAllRequest) (*
 	for _, entry := range r.Entries {
 		entry.Response.BlockReached = true
 	}
+
+	s.logger.Info("request stats",
+		zap.Uint64("block_number", req.BlockNumber),
+		zap.Int("requested_keys", len(req.Keys)),
+		zap.Int("found_keys", len(r.Entries)),
+		zap.Duration("execution_time", time.Since(executionStart)),
+		zap.Bool("keep", false),
+	)
 	return r, nil
 }
 
-func (s *StoreServer) Run(addr string, logger *zap.Logger, opts ...grpc.ServerOption) {
+func (s *StoreServer) Run(addr string, opts ...grpc.ServerOption) {
 	// Create the dgrpc server with reduced per-call logging
-	grpcLogger := logger.Named("grpc").WithOptions(zap.IncreaseLevel(zap.WarnLevel))
+	grpcLogger := s.logger.Named("grpc").WithOptions(zap.IncreaseLevel(zap.WarnLevel))
 	s.grpcServer = factory.ServerFromOptions(
 		dgrpcServer.WithLogger(grpcLogger),
 		dgrpcServer.WithPlainTextServer(),
