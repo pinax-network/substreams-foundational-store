@@ -39,6 +39,7 @@ var GRPCGetAllCount = Metrics.NewCounter("foundational_store_grpc_getall_total",
 // Database operation metrics
 var DatabaseKeysProcessed = Metrics.NewCounter("foundational_store_db_keys_processed_total", "Total number of keys processed by database")
 var DatabaseKeysRequestedTotal = Metrics.NewCounter("foundational_store_db_keys_requested_total", "Total number of keys requested from database")
+
 var DatabaseKeysFoundTotal = Metrics.NewCounter("foundational_store_db_keys_found_total", "Total number of keys found in database")
 var DatabaseCallCount = Metrics.NewCounter("foundational_store_db_calls_total", "Total number of database calls")
 var DatabaseGetHits = Metrics.NewCounter("foundational_store_db_get_hits_total", "Number of successful database get operations")
@@ -121,7 +122,7 @@ func LogDatabaseStats(logger *zap.Logger) {
 	totalCalls := uint64(DatabaseCallCount.Get())
 	totalKeysRequested := uint64(DatabaseKeysRequestedTotal.Get())
 	totalKeysFound := uint64(DatabaseKeysFoundTotal.Get())
-	
+
 	getHits := uint64(DatabaseGetHits.Get())
 	getMisses := uint64(DatabaseGetMisses.Get())
 	getErrors := uint64(DatabaseGetErrors.Get())
