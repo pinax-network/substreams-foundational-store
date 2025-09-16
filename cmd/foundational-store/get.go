@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/mr-tron/base58"
@@ -22,7 +23,9 @@ func decodeBytes(data, encoding string) ([]byte, error) {
 	case "base58":
 		return base58.Decode(data)
 	case "hex":
-		return hex.DecodeString(data)
+		// Strip "0x" prefix if present
+		hexData := strings.TrimPrefix(data, "0x")
+		return hex.DecodeString(hexData)
 	case "base64":
 		return base64.StdEncoding.DecodeString(data)
 	default:
@@ -94,37 +97,26 @@ This command connects to a gRPC server and retrieves a value for the specified k
 		fmt.Printf("Sending Get request for key: %s\n", getKey)
 		start := time.Now()
 
-		var response *pbStore.GetResponse
-		maxRetries := 10
-		// retryDelay := 1 * time.Second
-
-		for attempt := 0; attempt <= maxRetries; attempt++ {
-			resp, err := client.Get(ctx, request)
-			if err != nil {
-				return fmt.Errorf("failed to get value: %w", err)
-			}
-
-			response = resp
-
-			// Exit retry loop for other response codes
-			break
+		resp, err := client.Get(ctx, request)
+		if err != nil {
+			return fmt.Errorf("failed to get value: %w", err)
 		}
 
 		fmt.Printf("Query time: %s\n", time.Since(start))
 
 		// Display the response
-		switch response.Response {
+		switch resp.Response {
 		case pbStore.ResponseCode_RESPONSE_CODE_FOUND:
-			fmt.Printf("Type URL: %s\n", response.Value.TypeUrl)
-			protoscopeOutput := protoscope.Write(response.Value.Value, protoscope.WriterOptions{})
+			fmt.Printf("Type URL: %s\n", resp.Value.TypeUrl)
+			protoscopeOutput := protoscope.Write(resp.Value.Value, protoscope.WriterOptions{})
 			fmt.Printf("Value: %s\n", protoscopeOutput)
-			fmt.Printf("Value size: %d bytes\n", len(response.Value.Value))
+			fmt.Printf("Value size: %d bytes\n", len(resp.Value.Value))
 		case pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND:
 			fmt.Println("Value not found")
 		case pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND_FINALIZE:
 			fmt.Println("Value not found (finalized)")
 		default:
-			fmt.Printf("Unknown response code: %s\n", response.Response)
+			fmt.Printf("Unknown response code: %s\n", resp.Response)
 		}
 
 		return nil
