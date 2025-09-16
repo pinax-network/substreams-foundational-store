@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
-	"time"
 
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 	"github.com/streamingfast/substreams-foundational-store/store"
@@ -104,7 +103,7 @@ func TestCursorSaveAndLoad(t *testing.T) {
 	cursorFilePath := filepath.Join(tempDir, "test.cursor")
 
 	mockStore := NewSimpleMockStore()
-	handler := NewSinker(mockStore, logger, cursorFilePath, 10, time.Second, 10)
+	handler := NewSinker(mockStore, logger, cursorFilePath)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -146,7 +145,7 @@ func TestHandleBlockScopedData(t *testing.T) {
 	tempDir := t.TempDir()
 	cursorFilePath := filepath.Join(tempDir, "test.cursor")
 
-	handler := NewSinker(mockStore, logger, cursorFilePath, 10, time.Second, 10)
+	handler := NewSinker(mockStore, logger, cursorFilePath)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -233,7 +232,7 @@ func TestHandleBlockUndoSignal(t *testing.T) {
 	tempDir := t.TempDir()
 	cursorFilePath := filepath.Join(tempDir, "undo_test.cursor")
 
-	handler := NewSinker(mockStore, logger, cursorFilePath, 5, time.Second, 10)
+	handler := NewSinker(mockStore, logger, cursorFilePath)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()

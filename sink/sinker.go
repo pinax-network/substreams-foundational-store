@@ -13,23 +13,12 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	DefaultFlushQueueSize = 3
-)
-
 type Sinker struct {
 	store          store.ForkawareStore
 	logger         *zap.Logger
 	cursorFilePath string
 
-	// Batching fields
-	batchBuffer    []*pbstore.Entry
-	batchSize      int
-	batchSizeBytes int
-	maxBatchTime   time.Duration
-	maxBatchBytes  int
-	batchStartTime time.Time
-	cursorHistory  map[string]*sink.Cursor
+	cursorHistory map[string]*sink.Cursor
 
 	// Shutdown coordination
 	*shutter.Shutter
@@ -37,18 +26,8 @@ type Sinker struct {
 	headBlock uint64
 }
 
-func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath string, batchSize int, maxBatchTime time.Duration, flushQueueSize int) *Sinker {
+func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath string) *Sinker {
 	logger = logger.Named("foundational-store-sinker")
-
-	if batchSize <= 0 {
-		batchSize = 1000
-	}
-	if maxBatchTime <= 0 {
-		maxBatchTime = 30 * time.Second
-	}
-	if flushQueueSize <= 0 {
-		flushQueueSize = DefaultFlushQueueSize
-	}
 
 	shutter := shutter.New()
 
@@ -56,13 +35,6 @@ func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath st
 		store:          store,
 		logger:         logger,
 		cursorFilePath: cursorFilePath,
-		batchBuffer:    make([]*pbstore.Entry, 0, batchSize),
-		batchSize:      batchSize,
-		maxBatchTime:   maxBatchTime,
-
-		// this represents ~80% badger size
-		maxBatchBytes:  8 * 1024 * 1024,
-		batchSizeBytes: 0,
 		cursorHistory:  map[string]*sink.Cursor{},
 		Shutter:        shutter,
 	}

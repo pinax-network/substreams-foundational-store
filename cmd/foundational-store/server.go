@@ -45,9 +45,6 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	manifestPath, _ := cmd.Flags().GetString("manifest-path")
 	outputModuleName, _ := cmd.Flags().GetString("output-module-name")
 	cursorFilePath, _ := cmd.Flags().GetString("cursor-file-path")
-	batchSize, _ := cmd.Flags().GetInt("batch-size")
-	maxBatchTime, _ := cmd.Flags().GetDuration("max-batch-time")
-	flushQueueSize, _ := cmd.Flags().GetInt("flush-queue-size")
 
 	if serverDSN == "" {
 		return fmt.Errorf("dsn is required")
@@ -129,7 +126,7 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	// }()
 	defer dbStatsTicker.Stop()
 
-	sinker := sink.NewSinker(storeImpl, zlog, cursorFilePath, batchSize, maxBatchTime, flushQueueSize)
+	sinker := sink.NewSinker(storeImpl, zlog, cursorFilePath)
 	server := server.NewStoreServer(storeImpl, sinker.HeadBlock, zlog)
 
 	app.SuperviseAndStartUsing(sinker.Shutter, func() {
@@ -177,9 +174,6 @@ func init() {
 	viper.BindPFlag("substreams.manifest_path", ServerCmd.Flags().Lookup("manifest-path"))
 	viper.BindPFlag("substreams.output_module_name", ServerCmd.Flags().Lookup("output-module-name"))
 	viper.BindPFlag("server.cursor_file_path", ServerCmd.Flags().Lookup("cursor-file-path"))
-	viper.BindPFlag("server.batch_size", ServerCmd.Flags().Lookup("batch-size"))
-	viper.BindPFlag("server.max_batch_time", ServerCmd.Flags().Lookup("max-batch-time"))
-	viper.BindPFlag("server.flush_queue_size", ServerCmd.Flags().Lookup("flush-queue-size"))
 
 	viper.BindPFlag("endpoint", ServerCmd.Flags().Lookup("endpoint"))
 	viper.BindPFlag("start-block", ServerCmd.Flags().Lookup("start-block"))
