@@ -34,7 +34,7 @@ message GetRequest {
 
 // Contains the retrieved value and status
 message GetResponse {
-  ResponseCode response = 1;
+  ResponseCode response_code = 1;
   // The stored value (only present when response = FOUND)
   google.protobuf.Any value = 2;
   bool block_reached = 3;
