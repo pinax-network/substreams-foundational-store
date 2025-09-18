@@ -69,10 +69,7 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 
 	switch dsn.Driver() {
 	case "badger":
-		badgerStore, err := badger.NewStore(dsn, serverTypeUrl,
-			badger.WithNumWorkers(serverWorkers),
-			badger.WithLogger(zlog),
-		)
+		badgerStore, err := badger.NewStore(dsn, serverTypeUrl, serverWorkers, zlog)
 		if err != nil {
 			return fmt.Errorf("failed to create Badger foundational-store: %w", err)
 		}

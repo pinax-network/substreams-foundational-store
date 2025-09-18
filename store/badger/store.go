@@ -18,25 +18,12 @@ type Store struct {
 	logger     *zap.Logger
 }
 
-// StoreOption is a function that configures a Store
-type StoreOption func(*Store)
-
-// WithNumWorkers sets the number of workers for parallel operations
-func WithNumWorkers(numWorkers int) StoreOption {
-	return func(s *Store) {
-		s.numWorkers = numWorkers
-	}
-}
-
-// WithLogger sets the logger for the store
-func WithLogger(logger *zap.Logger) StoreOption {
-	return func(s *Store) {
-		s.logger = logger
-	}
-}
-
 // NewStore creates a new Badger foundational-store
-func NewStore(dsn *store.DSN, typeUrl string, opts ...StoreOption) (*Store, error) {
+func NewStore(dsn *store.DSN, typeUrl string, numWorkers int, logger *zap.Logger) (*Store, error) {
+	// Provide default logger if nil
+	if logger == nil {
+		logger = zap.NewNop()
+	}
 	// Extract Badger-specific parameters
 	// For Badger, we'll use the Database field to hold the path to the Badger DB directory
 	dbPath := dsn.Database
@@ -54,17 +41,12 @@ func NewStore(dsn *store.DSN, typeUrl string, opts ...StoreOption) (*Store, erro
 		return nil, fmt.Errorf("failed to open Badger DB: %w", err)
 	}
 
-	// Create foundational-store with default values
+	// Create foundational-store with provided values
 	store := &Store{
 		db:         db,
 		typeUrl:    typeUrl,
-		numWorkers: 10, // Default to 10 workers
-		logger:     zap.NewNop(),
-	}
-
-	// Apply options
-	for _, opt := range opts {
-		opt(store)
+		numWorkers: numWorkers,
+		logger:     logger,
 	}
 
 	store.logger.Info("badger foundational-store initialized",

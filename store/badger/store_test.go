@@ -33,7 +33,7 @@ func setupTestStore(t *testing.T) *testStore {
 
 	// Create a new badger foundational-store
 	typeURL := "type.googleapis.com/test.TestAccountOwner"
-	badgerStore, err := NewStore(dsn, typeURL)
+	badgerStore, err := NewStore(dsn, typeURL, 10, nil)
 	require.NoError(t, err)
 
 	cleanup := func() {
