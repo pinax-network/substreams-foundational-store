@@ -18,8 +18,16 @@ service Store {
 
 // Specifies which value to retrieve at a specific block
 message GetRequest {
+  // Block number for data retrieval
+  // Required for gRPC calls, specifies the exact block height for querying
+  // Must be left blank (0) for Substreams WASM intrinsics, runtime provides block context
   uint64 block_number = 1;
+
+  // Block hash for data retrieval
+  // Required for gRPC calls, ensures block identity and fork-awareness
+  // Must be left blank (empty) for Substreams WASM intrinsics, runtime provides block context
   bytes block_hash = 2;
+
   bool omit_deleted = 3;
   bytes key = 4;
 }
@@ -34,8 +42,16 @@ message GetResponse {
 
 // Specifies multiple values to retrieve at a specific block
 message GetAllRequest {
+  // Block number for data retrieval
+  // Required for gRPC calls, specifies the exact block height for querying
+  // Must be left blank (0) for Substreams WASM intrinsics, runtime provides block context
   uint64 block_number = 1;
+
+  // Block hash for data retrieval
+  // Required for gRPC calls, ensures block identity and fork-awareness
+  // Must be left blank (empty) for Substreams WASM intrinsics, runtime provides block context
   bytes block_hash = 2;
+
   bool omit_deleted = 3;
   repeated bytes keys = 4;
 }
