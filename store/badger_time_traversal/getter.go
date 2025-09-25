@@ -62,56 +62,62 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 	// Track Badger-specific operation time
 	badgerStart := time.Now()
 	err := s.db.View(func(txn *badger.Txn) error {
-		// Create iterator options for reverse scanning
-		opts := badger.DefaultIteratorOptions
-		opts.Reverse = true // Scan in reverse order to get highest block numbers first
-		opts.PrefetchSize = 100
+		// Create iterator options for efficient forward scanning
+		badgerOptions := badger.DefaultIteratorOptions
+		badgerOptions.PrefetchValues = true
+		badgerOptions.PrefetchSize = 100
 
-		it := txn.NewIterator(opts)
-		defer it.Close()
+		// Define iteration bounds for efficient scanning
+		// Start from the beginning of this key's versions (block 0)
+		start := makeTimeTraversalKey(request.Key, 0)
+		// End just after the requested key's last possible version (requested block + 1)
+		exclusiveEnd := makeTimeTraversalKey(request.Key, request.BlockNumber+1)
 
-		// Start from the key with requested block number instead of max block for better performance
-		// This avoids iterating through potentially many irrelevant higher block numbers
-		requestBlockKey := makeTimeTraversalKey(request.Key, request.BlockNumber)
-		it.Seek(requestBlockKey)
+		bit := txn.NewIterator(badgerOptions)
+		defer bit.Close()
 
-		// Iterate backwards through all versions of this key
-		for it.Rewind(); it.Valid(); it.Next() {
-			item := it.Item()
+		var err error
+		var bestBlockNumber uint64 = 0
+		var bestFound bool
+
+		// Scan forward through all versions of this key up to the requested block
+		for bit.Seek(start); bit.Valid() && bytes.Compare(bit.Item().Key(), exclusiveEnd) == -1; bit.Next() {
+			item := bit.Item()
 			key := item.Key()
 
 			// Extract original key and block number from composite key
 			originalKey, blockNumber := extractBlockNumberFromKey(key)
 
-			// Check if this is a version of our requested key
+			// Verify this is the correct key (should always be true given our bounds)
 			if !bytes.Equal(originalKey, request.Key) {
-				// If the original key doesn't match, we can skip
-				// Since we're iterating in reverse, if we've moved past our key prefix, we're done
-				if bytes.Compare(originalKey, request.Key) < 0 {
-					break
-				}
 				continue
 			}
 
 			// Check if this block number is valid for our request
 			if blockNumber <= request.BlockNumber {
-				// This is the highest block number <= requested block number
-				getStart := time.Now()
-				err := item.Value(func(val []byte) error {
-					// Make a copy of the value as it's only valid within this transaction
-					foundValue = append([]byte{}, val...)
-					found = true
-					return nil
-				})
-				sink.BadgerGetOperationDuration.ObserveDuration(time.Since(getStart))
-				sink.BadgerGetOperationCount.Inc()
+				// Keep track of the highest valid block number found
+				if !bestFound || blockNumber > bestBlockNumber {
+					bestBlockNumber = blockNumber
+					bestFound = true
 
-				if err != nil {
-					return err
+					getStart := time.Now()
+					err = item.Value(func(val []byte) error {
+						// Make a copy of the value as it's only valid within this transaction
+						foundValue = append([]byte{}, val...)
+						return nil
+					})
+					sink.BadgerGetOperationDuration.ObserveDuration(time.Since(getStart))
+					sink.BadgerGetOperationCount.Inc()
+
+					if err != nil {
+						return err
+					}
 				}
-				// Found the best match, break out of iteration
-				break
 			}
+		}
+
+		if bestFound {
+			found = true
 		}
 
 		return nil
