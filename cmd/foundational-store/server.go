@@ -15,6 +15,7 @@ import (
 	"github.com/streamingfast/substreams-foundational-store/store"
 	"github.com/streamingfast/substreams-foundational-store/store/ForkAware"
 	"github.com/streamingfast/substreams-foundational-store/store/badger"
+	"github.com/streamingfast/substreams-foundational-store/store/badger_time_traversal"
 	"github.com/streamingfast/substreams-foundational-store/store/postgres"
 	"go.uber.org/zap"
 
@@ -45,6 +46,7 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	manifestPath, _ := cmd.Flags().GetString("manifest-path")
 	outputModuleName, _ := cmd.Flags().GetString("output-module-name")
 	cursorFilePath, _ := cmd.Flags().GetString("cursor-file-path")
+	noTimeTraversal, _ := cmd.Flags().GetBool("no-time-traversal")
 
 	if serverDSN == "" {
 		return fmt.Errorf("dsn is required")
@@ -69,12 +71,23 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 
 	switch dsn.Driver() {
 	case "badger":
-		badgerStore, err := badger.NewStore(dsn, serverTypeUrl, serverWorkers, zlog)
-		if err != nil {
-			return fmt.Errorf("failed to create Badger foundational-store: %w", err)
+		if noTimeTraversal {
+			// Use original badger store implementation
+			badgerStore, err := badger.NewStore(dsn, serverTypeUrl, serverWorkers, zlog)
+			if err != nil {
+				return fmt.Errorf("failed to create Badger foundational-store: %w", err)
+			}
+			defer badgerStore.Close()
+			baseStore = badgerStore
+		} else {
+			// Use time traversal badger store implementation (default)
+			badgerTimeTraversalStore, err := badger_time_traversal.NewStore(dsn, serverTypeUrl, serverWorkers, zlog)
+			if err != nil {
+				return fmt.Errorf("failed to create Badger time traversal foundational-store: %w", err)
+			}
+			defer badgerTimeTraversalStore.Close()
+			baseStore = badgerTimeTraversalStore
 		}
-		defer badgerStore.Close()
-		baseStore = badgerStore
 	case "postgres":
 		pgStore, err := postgres.NewStore(dsn, serverTypeUrl)
 		if err != nil {
@@ -160,6 +173,7 @@ func init() {
 	ServerCmd.Flags().Int("batch-size", 1, "Number of entries to batch for insertion")
 	ServerCmd.Flags().Duration("max-batch-time", 30*time.Second, "Maximum time to wait before flushing a partial batch")
 	ServerCmd.Flags().Int("flush-queue-size", 3, "Size of the async flush queue buffer")
+	ServerCmd.Flags().Bool("no-time-traversal", false, "Disable time traversal mode and use original badger store implementation")
 
 	ServerCmd.MarkFlagRequired("dsn")
 	ServerCmd.MarkFlagRequired("type-url")
