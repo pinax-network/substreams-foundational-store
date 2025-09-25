@@ -60,21 +60,15 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 		// will be the one with the highest block number <= requested block number
 		for bit.Seek(start); bit.Valid() && bytes.Compare(bit.Item().Key(), exclusiveEnd) == -1; bit.Next() {
 			item := bit.Item()
-			key := item.Key()
-
-			// Extract original key and block number from composite key
-			_, blockNumber := extractBlockNumberFromKey(key)
-			fmt.Println("reach block number:", blockNumber, "request.BlockNumber:", request.BlockNumber)
 
 			found = true
 			foundValue, err = item.ValueCopy(nil)
+
 			if err != nil {
 				return fmt.Errorf("copying value: %w", err)
 			}
 			break
 		}
-
-		fmt.Println("done iterating", found)
 
 		return nil
 	})
