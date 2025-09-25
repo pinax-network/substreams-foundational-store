@@ -17,6 +17,7 @@ import (
 	"github.com/streamingfast/substreams-foundational-store/store/badger"
 	"github.com/streamingfast/substreams-foundational-store/store/badger_time_traversal"
 	"github.com/streamingfast/substreams-foundational-store/store/postgres"
+	"github.com/streamingfast/substreams-foundational-store/store/postgres_time_traversal"
 	"go.uber.org/zap"
 
 	subsink "github.com/streamingfast/substreams/sink"
@@ -89,11 +90,21 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 			baseStore = badgerTimeTraversalStore
 		}
 	case "postgres":
-		pgStore, err := postgres.NewStore(dsn, serverTypeUrl)
-		if err != nil {
-			return fmt.Errorf("failed to create Postgres foundational-store: %w", err)
+		if noTimeTraversal {
+			// Use original postgres store implementation
+			pgStore, err := postgres.NewStore(dsn, serverTypeUrl)
+			if err != nil {
+				return fmt.Errorf("failed to create Postgres foundational-store: %w", err)
+			}
+			baseStore = pgStore
+		} else {
+			// Use time traversal postgres store implementation (default)
+			pgTimeTraversalStore, err := postgres_time_traversal.NewStore(dsn, serverTypeUrl)
+			if err != nil {
+				return fmt.Errorf("failed to create Postgres time traversal foundational-store: %w", err)
+			}
+			baseStore = pgTimeTraversalStore
 		}
-		baseStore = pgStore
 	default:
 		return fmt.Errorf("unsupported foundational-store driver: %s", dsn.Driver())
 	}

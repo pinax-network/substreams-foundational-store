@@ -1,4 +1,4 @@
-package postgres
+package postgres_time_traversal
 
 import (
 	"fmt"
@@ -45,27 +45,27 @@ func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 		return nil
 	}
 
-	// Begin a transaction
+	// Begin a transaction for better performance and consistency
 	tx, err := s.db.Beginx()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	// Use the existing prepared statement from the foundational-store
+	// Use the existing prepared statement from the store
 	insertStmt := s.insertStatement
 	if insertStmt == nil {
 		_ = tx.Rollback()
 		return fmt.Errorf("insert statement is nil")
 	}
 
-	// Insert each entry
+	// Insert each entry with the same block number
 	for _, entry := range entries {
 		if entry == nil {
 			_ = tx.Rollback()
 			return fmt.Errorf("entry cannot be nil")
 		}
 
-		// Use the block_number from the parameters
+		// Use the block_number from the parameter
 		_, err := insertStmt.Exec(blockNumber, entry.Key, entry.Value.Value, time.Now())
 		if err != nil {
 			_ = tx.Rollback()
