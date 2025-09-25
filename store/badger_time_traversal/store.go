@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/dgraph-io/badger/v3"
-	"github.com/streamingfast/substreams-foundational-store/sink"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	"go.uber.org/zap"
 )
@@ -54,8 +53,6 @@ func NewStore(dsn *store.DSN, typeUrl string, numWorkers int, logger *zap.Logger
 	store.logger.Info("badger time traversal foundational-store initialized",
 		zap.String("path", dbPath),
 		zap.Int("workers", store.numWorkers))
-
-	sink.UpdateDiskMetrics(dbPath)
 
 	return store, nil
 }

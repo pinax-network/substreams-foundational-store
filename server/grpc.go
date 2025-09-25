@@ -9,7 +9,6 @@ import (
 	"github.com/streamingfast/dgrpc/server/factory"
 	"github.com/streamingfast/shutter"
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
-	"github.com/streamingfast/substreams-foundational-store/sink"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -46,11 +45,6 @@ func (s *StoreServer) Get(ctx context.Context, req *pbstore.GetRequest) (*pbstor
 			BlockReached: false,
 		}, nil
 	}
-	start := time.Now()
-	defer func() {
-		sink.GRPCGetDuration.ObserveDuration(time.Since(start))
-		sink.GRPCGetCount.Inc()
-	}()
 
 	r, err := s.store.Get(req)
 	if err != nil {
@@ -71,11 +65,6 @@ func (s *StoreServer) GetAll(ctx context.Context, req *pbstore.GetAllRequest) (*
 			BlockReached: false,
 		}, nil
 	}
-	start := time.Now()
-	defer func() {
-		sink.GRPCGetAllDuration.ObserveDuration(time.Since(start))
-		sink.GRPCGetAllCount.Inc()
-	}()
 
 	r, err := s.store.GetAll(req)
 	if err != nil {

@@ -5,18 +5,9 @@ import (
 	"time"
 
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
-	"github.com/streamingfast/substreams-foundational-store/sink"
 )
 
 func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
-	// Track total execution time
-	executionStart := time.Now()
-	defer func() {
-		sink.DatabaseExecutionDuration.ObserveDuration(time.Since(executionStart))
-		sink.DatabaseSetOperations.Inc()
-		sink.DatabaseKeysProcessed.Inc()
-	}()
-
 	if entry == nil {
 		return fmt.Errorf("entry cannot be nil")
 	}
@@ -25,7 +16,6 @@ func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 	// The statement expects: block_number, key, value, create_time
 	_, err := s.insertStatement.Exec(blockNumber, entry.Key, entry.Value.Value, time.Now())
 	if err != nil {
-		sink.DatabaseSetErrors.Inc()
 		return fmt.Errorf("failed to insert entry: %w", err)
 	}
 
@@ -33,14 +23,6 @@ func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 }
 
 func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
-	// Track total execution time
-	executionStart := time.Now()
-	defer func() {
-		sink.DatabaseExecutionDuration.ObserveDuration(time.Since(executionStart))
-		sink.DatabaseSetOperations.AddInt(len(entries))
-		sink.DatabaseKeysProcessed.AddInt(len(entries))
-	}()
-
 	if len(entries) == 0 {
 		return nil
 	}
@@ -69,7 +51,6 @@ func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 		_, err := insertStmt.Exec(blockNumber, entry.Key, entry.Value.Value, time.Now())
 		if err != nil {
 			_ = tx.Rollback()
-			sink.DatabaseSetErrors.AddInt(len(entries))
 			return fmt.Errorf("failed to insert entry: %w", err)
 		}
 	}
@@ -77,7 +58,6 @@ func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 	// Commit the transaction
 	err = tx.Commit()
 	if err != nil {
-		sink.DatabaseSetErrors.AddInt(len(entries))
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 

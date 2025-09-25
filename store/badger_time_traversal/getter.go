@@ -5,11 +5,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/dgraph-io/badger/v3"
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
-	"github.com/streamingfast/substreams-foundational-store/sink"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -37,30 +35,9 @@ func extractBlockNumberFromKey(compositeKey []byte) ([]byte, uint64) {
 // Get retrieves a single entry from Badger with time traversal support
 // It finds the entry with the highest block number that is <= the requested block number
 func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
-	// Track total execution time
-	executionStart := time.Now()
-	defer sink.DatabaseExecutionDuration.ObserveDuration(time.Since(executionStart))
-
-	// Track key requests - single key per Get call
-	sink.DatabaseKeysRequestedTotal.Inc()
-	sink.DatabaseCallCount.Inc()
-
-	defer func() {
-		lsm, vlog := s.db.Size()
-		totalSize := uint64(lsm + vlog)
-		if totalSize > 0 {
-			sink.BadgerStoreSize.SetUint64(totalSize)
-			sink.BadgerLSMSize.SetUint64(uint64(lsm))
-			sink.BadgerVLogSize.SetUint64(uint64(vlog))
-		}
-		sink.DatabaseKeysProcessed.Inc()
-	}()
-
 	var foundValue []byte
 	var found bool
 
-	// Track Badger-specific operation time
-	badgerStart := time.Now()
 	err := s.db.View(func(txn *badger.Txn) error {
 		// Create iterator options for efficient forward scanning
 		badgerOptions := badger.DefaultIteratorOptions
@@ -86,13 +63,9 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 			key := item.Key()
 
 			// Extract original key and block number from composite key
-			originalKey, blockNumber := extractBlockNumberFromKey(key)
+			_, blockNumber := extractBlockNumberFromKey(key)
 
-			// Verify this is the correct key (should always be true given our bounds)
-			if !bytes.Equal(originalKey, request.Key) {
-				continue
-			}
-
+			fmt.Println("scanning block number: ", blockNumber)
 			// Check if this block number is valid for our request
 			if blockNumber <= request.BlockNumber {
 				// Keep track of the highest valid block number found
@@ -100,14 +73,11 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 					bestBlockNumber = blockNumber
 					bestFound = true
 
-					getStart := time.Now()
 					err = item.Value(func(val []byte) error {
 						// Make a copy of the value as it's only valid within this transaction
 						foundValue = append([]byte{}, val...)
 						return nil
 					})
-					sink.BadgerGetOperationDuration.ObserveDuration(time.Since(getStart))
-					sink.BadgerGetOperationCount.Inc()
 
 					if err != nil {
 						return err
@@ -122,25 +92,16 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 
 		return nil
 	})
-	sink.BadgerTransactionDuration.ObserveDuration(time.Since(badgerStart))
-	sink.BadgerTransactionCount.Inc()
 
 	if err != nil {
-		sink.DatabaseGetErrors.Inc()
-		return nil, fmt.Errorf("failed to get value from Badger: %w", err)
+		return nil, fmt.Errorf("getting value from Badger: %w", err)
 	}
 
 	if !found {
-		// Track no keys found for this call
-		sink.DatabaseGetMisses.Inc()
 		return &pbstore.GetResponse{
 			Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
 		}, nil
 	}
-
-	// Track found keys - single key found
-	sink.DatabaseKeysFoundTotal.Inc()
-	sink.DatabaseGetHits.Inc()
 
 	return &pbstore.GetResponse{
 		Response: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
@@ -153,25 +114,6 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 
 // GetAll retrieves multiple entries from Badger using goroutines for parallelism with time traversal support
 func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {
-	// Track total execution time
-	executionStart := time.Now()
-	defer sink.DatabaseExecutionDuration.ObserveDuration(time.Since(executionStart))
-
-	// Track key requests
-	sink.DatabaseKeysRequestedTotal.AddInt(len(request.Keys))
-	sink.DatabaseCallCount.Inc()
-
-	defer func() {
-		lsm, vlog := s.db.Size()
-		totalSize := uint64(lsm + vlog)
-		if totalSize > 0 {
-			sink.BadgerStoreSize.SetUint64(totalSize)
-			sink.BadgerLSMSize.SetUint64(uint64(lsm))
-			sink.BadgerVLogSize.SetUint64(uint64(vlog))
-		}
-		sink.DatabaseKeysProcessed.AddInt(len(request.Keys))
-	}()
-
 	if len(request.Keys) == 0 {
 		return &pbstore.GetAllResponse{
 			Entries: []*pbstore.ResponseEntry{},
@@ -212,14 +154,6 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 
 	// Wait for all workers to complete
 	wg.Wait()
-
-	// Track found keys
-	sink.DatabaseKeysFoundTotal.AddInt(keysFoundCount)
-	if keysFoundCount > 0 {
-		sink.DatabaseGetHits.Inc()
-	} else {
-		sink.DatabaseGetMisses.Inc()
-	}
 
 	return &pbstore.GetAllResponse{
 		Entries: entries,

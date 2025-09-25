@@ -3,7 +3,6 @@ package sink
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/streamingfast/shutter"
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
@@ -43,8 +42,6 @@ func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath st
 
 func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrpc.BlockScopedData, isLive *bool, cursor *sink.Cursor) error {
 
-	var entriesCount int
-
 	s.cursorHistory[data.Clock.Id] = cursor
 
 	// Process data if present
@@ -53,8 +50,6 @@ func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrp
 		if err := data.Output.MapOutput.UnmarshalTo(entries); err != nil {
 			return fmt.Errorf("unmarshaling map output to Entry: %w", err)
 		}
-
-		entriesCount = len(entries.Entries)
 
 		if err := s.store.SetAll(entries.Entries, data.GetClock().Number); err != nil {
 			return fmt.Errorf("setting foundational-store entry: %w", err)
@@ -74,7 +69,6 @@ func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrp
 
 	// Always save the cursor to a file, regardless of whether there was output data
 	if err := SaveCursorToFile(libCursor, s.cursorFilePath, s.logger); err != nil {
-		CursorSaveErrors.Inc()
 		return fmt.Errorf("saving cursor to file %w", err)
 	}
 
@@ -85,7 +79,6 @@ func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrp
 	}
 
 	blockNum := data.GetClock().Number
-	RecordBlockProcessing(entriesCount, blockNum)
 
 	s.headBlock = blockNum
 	return nil
@@ -95,15 +88,12 @@ func (s *Sinker) HandleBlockUndoSignal(ctx context.Context, undoSignal *pbsubstr
 	blockNum := undoSignal.LastValidBlock.Number
 	s.headBlock = blockNum
 
-	evictStart := time.Now()
 	if err := s.store.EvictUpToBlock(blockNum); err != nil {
 		return fmt.Errorf("failed to evict data up to block %d: %w", blockNum, err)
 	}
-	StoreEvictDuration.ObserveDuration(time.Since(evictStart))
 
 	// Save the cursor to a file after handling the undo signal
 	if err := SaveCursorToFile(cursor, s.cursorFilePath, s.logger); err != nil {
-		CursorSaveErrors.Inc()
 		s.logger.Warn("failed to save cursor to file after undo signal", zap.Error(err))
 		// Don't return an error here, as we don't want to fail the processing
 	}

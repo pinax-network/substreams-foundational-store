@@ -3,11 +3,9 @@ package badger_time_traversal
 import (
 	"encoding/binary"
 	"fmt"
-	"time"
 
 	"github.com/dgraph-io/badger/v3"
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
-	"github.com/streamingfast/substreams-foundational-store/sink"
 )
 
 // makeTimeTraversalKey creates a composite key by appending the block number to the original key
@@ -27,13 +25,6 @@ func makeTimeTraversalKey(originalKey []byte, blockNumber uint64) []byte {
 
 // Set stores a single entry in Badger with time traversal support
 func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
-	executionStart := time.Now()
-	defer func() {
-		sink.DatabaseExecutionDuration.ObserveDuration(time.Since(executionStart))
-		sink.DatabaseSetOperations.Inc()
-		sink.DatabaseKeysProcessed.Inc()
-	}()
-
 	// Create composite key with block number
 	compositeKey := makeTimeTraversalKey(entry.Key, blockNumber)
 
@@ -41,23 +32,15 @@ func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 	// The block info is now encoded in the key itself
 	value := entry.Value.Value
 
-	badgerStart := time.Now()
 	err := s.db.Update(func(txn *badger.Txn) error {
-		setStart := time.Now()
 		err := txn.Set(compositeKey, value)
-		sink.BadgerSetOperationDuration.ObserveDuration(time.Since(setStart))
-		sink.BadgerSetOperationCount.Inc()
-
 		if err != nil {
 			return fmt.Errorf("failed to set value in Badger: %w", err)
 		}
 		return nil
 	})
-	sink.BadgerTransactionDuration.ObserveDuration(time.Since(badgerStart))
-	sink.BadgerTransactionCount.Inc()
 
 	if err != nil {
-		sink.DatabaseSetErrors.Inc()
 		return fmt.Errorf("failed to update Badger: %w", err)
 	}
 
@@ -66,26 +49,11 @@ func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 
 // SetAll stores multiple entries in Badger with time traversal support
 func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
-	executionStart := time.Now()
-	defer func() {
-		sink.DatabaseExecutionDuration.ObserveDuration(time.Since(executionStart))
-		sink.StoreSetAllDuration.ObserveDuration(time.Since(executionStart))
-		sink.EntriesProcessed.AddInt(len(entries))
-		sink.DatabaseSetOperations.AddInt(len(entries))
-		// Update Badger size metrics periodically
-		lsm, vlog := s.db.Size()
-		totalSize := uint64(lsm + vlog)
-		if totalSize > 0 {
-			sink.BadgerStoreSize.SetUint64(totalSize)
-		}
-	}()
-
 	if len(entries) == 0 {
 		return nil
 	}
 
 	// Use a batch writer for better performance with multiple entries
-	badgerStart := time.Now()
 	wb := s.db.NewWriteBatch()
 	defer wb.Cancel()
 
@@ -96,31 +64,16 @@ func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 		// Store the actual value (without prepending block info)
 		value := entry.Value.Value
 
-		setStart := time.Now()
 		err := wb.Set(compositeKey, value)
-		sink.BadgerSetOperationDuration.ObserveDuration(time.Since(setStart))
-		sink.BadgerSetOperationCount.Inc()
-
 		if err != nil {
 			return fmt.Errorf("failed to add entry to batch: %w", err)
 		}
 	}
 
-	flushStart := time.Now()
 	err := wb.Flush()
-	batchWriteDuration := time.Since(flushStart)
-	sink.BadgerBatchWriteDuration.ObserveDuration(batchWriteDuration)
-	sink.BadgerBatchWriteCount.Inc()
-
 	if err != nil {
-		sink.BadgerFlushErrors.Inc()
-		sink.DatabaseSetErrors.AddInt(len(entries))
 		return fmt.Errorf("failed to flush batch to Badger: %w", err)
 	}
-	sink.BadgerFlushDuration.ObserveDuration(batchWriteDuration)
-	sink.BadgerFlushCount.Inc()
-	sink.BadgerTransactionDuration.ObserveDuration(time.Since(badgerStart))
-	sink.BadgerTransactionCount.Inc()
 
 	return nil
 }
