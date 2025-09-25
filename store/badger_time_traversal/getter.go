@@ -41,7 +41,7 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 	err := s.db.View(func(txn *badger.Txn) error {
 		// Create iterator options for efficient forward scanning
 		badgerOptions := badger.DefaultIteratorOptions
-		badgerOptions.PrefetchValues = true
+		badgerOptions.PrefetchValues = false
 		badgerOptions.PrefetchSize = 100
 
 		// Define iteration bounds for efficient scanning
@@ -54,8 +54,6 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 		defer bit.Close()
 
 		var err error
-		var bestBlockNumber uint64 = 0
-		var bestFound bool
 
 		// Scan forward through all versions of this key up to the requested block
 		for bit.Seek(start); bit.Valid() && bytes.Compare(bit.Item().Key(), exclusiveEnd) == -1; bit.Next() {
@@ -68,26 +66,12 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 			fmt.Println("scanning block number: ", blockNumber)
 			// Check if this block number is valid for our request
 			if blockNumber <= request.BlockNumber {
-				// Keep track of the highest valid block number found
-				if !bestFound || blockNumber > bestBlockNumber {
-					bestBlockNumber = blockNumber
-					bestFound = true
-
-					err = item.Value(func(val []byte) error {
-						// Make a copy of the value as it's only valid within this transaction
-						foundValue = append([]byte{}, val...)
-						return nil
-					})
-
-					if err != nil {
-						return err
-					}
+				found = true
+				foundValue, err = item.ValueCopy(nil)
+				if err != nil {
+					return fmt.Errorf("copying value: %w", err)
 				}
 			}
-		}
-
-		if bestFound {
-			found = true
 		}
 
 		return nil
