@@ -70,10 +70,10 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 		it := txn.NewIterator(opts)
 		defer it.Close()
 
-		// Start from the key with maximum possible block number
-		// Create prefix with the original key + max possible block number
-		maxBlockKey := makeTimeTraversalKey(request.Key, ^uint64(0)) // Max uint64
-		it.Seek(maxBlockKey)
+		// Start from the key with requested block number instead of max block for better performance
+		// This avoids iterating through potentially many irrelevant higher block numbers
+		requestBlockKey := makeTimeTraversalKey(request.Key, request.BlockNumber)
+		it.Seek(requestBlockKey)
 
 		// Iterate backwards through all versions of this key
 		for it.Rewind(); it.Valid(); it.Next() {
