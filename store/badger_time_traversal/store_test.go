@@ -2,6 +2,7 @@ package badger_time_traversal
 
 import (
 	"encoding/binary"
+	"math"
 	"os"
 	"testing"
 
@@ -116,9 +117,10 @@ func TestMakeTimeTraversalKey(t *testing.T) {
 			// Check original key portion
 			assert.Equal(t, tc.originalKey, compositeKey[:len(tc.originalKey)])
 
-			// Check block number portion
-			extractedBlockNumber := binary.BigEndian.Uint64(compositeKey[len(tc.originalKey):])
-			assert.Equal(t, tc.blockNumber, extractedBlockNumber)
+			// Check block number portion (should be reversed)
+			reversedBlockNumber := binary.BigEndian.Uint64(compositeKey[len(tc.originalKey):])
+			expectedReversedBlockNumber := math.MaxUint64 - tc.blockNumber
+			assert.Equal(t, expectedReversedBlockNumber, reversedBlockNumber)
 		})
 	}
 }

@@ -3,13 +3,15 @@ package badger_time_traversal
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 
 	"github.com/dgraph-io/badger/v3"
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
 )
 
-// makeTimeTraversalKey creates a composite key by appending the block number to the original key
-// Format: original_key + block_number (8 bytes, big-endian)
+// makeTimeTraversalKey creates a composite key by appending the reversed block number to the original key
+// Format: original_key + (math.MaxUint64 - block_number) (8 bytes, big-endian)
+// This reverses the ordering so newer blocks come first in lexicographic order
 func makeTimeTraversalKey(originalKey []byte, blockNumber uint64) []byte {
 	// Create a new key with original key + 8 bytes for block number
 	compositeKey := make([]byte, len(originalKey)+8)
@@ -17,8 +19,10 @@ func makeTimeTraversalKey(originalKey []byte, blockNumber uint64) []byte {
 	// Copy original key
 	copy(compositeKey, originalKey)
 
-	// Append block number as 8 bytes (big-endian)
-	binary.BigEndian.PutUint64(compositeKey[len(originalKey):], blockNumber)
+	// Append reversed block number as 8 bytes (big-endian)
+	// This makes newer blocks (higher block numbers) sort first
+	reversedBlockNumber := math.MaxUint64 - blockNumber
+	binary.BigEndian.PutUint64(compositeKey[len(originalKey):], reversedBlockNumber)
 
 	return compositeKey
 }

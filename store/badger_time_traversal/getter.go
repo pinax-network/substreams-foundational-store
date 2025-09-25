@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"sync"
 
 	"github.com/dgraph-io/badger/v3"
@@ -19,7 +20,7 @@ type workItem struct {
 }
 
 // extractBlockNumberFromKey extracts the block number from a composite key
-// Returns the original key and block number
+// Returns the original key and block number (reversed from the stored value)
 func extractBlockNumberFromKey(compositeKey []byte) ([]byte, uint64) {
 	if len(compositeKey) < 8 {
 		return compositeKey, 0
@@ -27,7 +28,10 @@ func extractBlockNumberFromKey(compositeKey []byte) ([]byte, uint64) {
 
 	originalKeyLen := len(compositeKey) - 8
 	originalKey := compositeKey[:originalKeyLen]
-	blockNumber := binary.BigEndian.Uint64(compositeKey[originalKeyLen:])
+	reversedBlockNumber := binary.BigEndian.Uint64(compositeKey[originalKeyLen:])
+
+	// Reverse the block number back to original value
+	blockNumber := math.MaxUint64 - reversedBlockNumber
 
 	return originalKey, blockNumber
 }
@@ -44,35 +48,33 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 		badgerOptions.PrefetchValues = false
 		badgerOptions.PrefetchSize = 100
 
-		// Define iteration bounds for efficient scanning
-		// Start from the beginning of this key's versions (block 0)
-		start := makeTimeTraversalKey(request.Key, 0)
-		// End just after the requested key's last possible version (requested block + 1)
-		exclusiveEnd := makeTimeTraversalKey(request.Key, request.BlockNumber+1)
+		start := makeTimeTraversalKey(request.Key, request.BlockNumber+1)
+		exclusiveEnd := append(makeTimeTraversalKey(request.Key, 0), 0)
 
 		bit := txn.NewIterator(badgerOptions)
 		defer bit.Close()
 
 		var err error
 
-		// Scan forward through all versions of this key up to the requested block
+		// Since block numbers are reversed, we scan forward and the first valid entry
+		// will be the one with the highest block number <= requested block number
 		for bit.Seek(start); bit.Valid() && bytes.Compare(bit.Item().Key(), exclusiveEnd) == -1; bit.Next() {
 			item := bit.Item()
 			key := item.Key()
 
 			// Extract original key and block number from composite key
 			_, blockNumber := extractBlockNumberFromKey(key)
+			fmt.Println("reach block number:", blockNumber, "request.BlockNumber:", request.BlockNumber)
 
-			fmt.Println("scanning block number: ", blockNumber)
-			// Check if this block number is valid for our request
-			if blockNumber <= request.BlockNumber {
-				found = true
-				foundValue, err = item.ValueCopy(nil)
-				if err != nil {
-					return fmt.Errorf("copying value: %w", err)
-				}
+			found = true
+			foundValue, err = item.ValueCopy(nil)
+			if err != nil {
+				return fmt.Errorf("copying value: %w", err)
 			}
+			break
 		}
+
+		fmt.Println("done iterating", found)
 
 		return nil
 	})

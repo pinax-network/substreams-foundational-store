@@ -7,3 +7,4 @@
 /build
 /dist
 /state.cursor
+/test_compile.sh
