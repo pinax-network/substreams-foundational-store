@@ -48,7 +48,7 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 		badgerOptions.PrefetchValues = false
 		badgerOptions.PrefetchSize = 100
 
-		start := makeTimeTraversalKey(request.Key, request.BlockNumber+1)
+		start := makeTimeTraversalKey(request.Key, request.BlockNumber)
 		exclusiveEnd := append(makeTimeTraversalKey(request.Key, 0), 0)
 
 		bit := txn.NewIterator(badgerOptions)
