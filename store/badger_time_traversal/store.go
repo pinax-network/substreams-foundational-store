@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/dgraph-io/badger/v3"
+	"github.com/dgraph-io/badger/v3/options"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	"go.uber.org/zap"
 )
@@ -34,10 +35,20 @@ func NewStore(dsn *store.DSN, typeUrl string, numWorkers int, logger *zap.Logger
 		return nil, fmt.Errorf("failed to create directory for Badger DB: %w", err)
 	}
 
+	opts := badger.DefaultOptions(dbPath).
+		WithBlockCacheSize(512 << 20). // 512MB
+		WithIndexCacheSize(0).
+		WithBloomFalsePositive(0.001).
+		WithValueThreshold(128 << 10). // 128KB
+		WithCompression(options.None).
+		WithNumMemtables(5).
+		WithValueLogFileSize(256 << 20).
+		WithMemTableSize(512 << 20).
+		WithNumGoroutines(32)
+
 	// Open the Badger database
-	badgerOpts := badger.DefaultOptions(dbPath)
-	badgerOpts.Logger = nil
-	db, err := badger.Open(badgerOpts)
+	opts.Logger = nil
+	db, err := badger.Open(opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open Badger DB: %w", err)
 	}
