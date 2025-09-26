@@ -104,6 +104,11 @@ This command connects to a gRPC server and retrieves a value for the specified k
 
 		fmt.Printf("Query time: %s\n", time.Since(start))
 
+		if !resp.BlockReached {
+			fmt.Printf("Request block [%d] has not been reached yet.\n", request.BlockNumber)
+			return nil
+		}
+
 		// Display the response
 		switch resp.Response {
 		case pbStore.ResponseCode_RESPONSE_CODE_FOUND:
