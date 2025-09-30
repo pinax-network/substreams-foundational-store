@@ -79,12 +79,12 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 
 	if !found {
 		return &pbstore.GetResponse{
-			Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
+			Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
 		}, nil
 	}
 
 	return &pbstore.GetResponse{
-		Response: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
+		Code: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
 		Value: &anypb.Any{
 			TypeUrl: s.typeUrl,
 			Value:   foundValue,
@@ -157,7 +157,7 @@ func (s *Store) getAllWorker(workChan <-chan workItem, entries []*pbstore.Respon
 			responseEntry = &pbstore.ResponseEntry{
 				Key: work.key,
 				Response: &pbstore.GetResponse{
-					Response: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
+					Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
 				},
 			}
 		} else {
@@ -168,7 +168,7 @@ func (s *Store) getAllWorker(workChan <-chan workItem, entries []*pbstore.Respon
 			}
 
 			// Count found keys
-			if resp.Response == pbstore.ResponseCode_RESPONSE_CODE_FOUND {
+			if resp.Code == pbstore.ResponseCode_RESPONSE_CODE_FOUND {
 				mutex.Lock()
 				*keysFoundCount++
 				mutex.Unlock()

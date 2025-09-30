@@ -87,7 +87,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to get entry at block 150: %v", err)
 	}
-	if resp1.Response != pbstore.ResponseCode_RESPONSE_CODE_FOUND {
+	if resp1.Code != pbstore.ResponseCode_RESPONSE_CODE_FOUND {
 		log.Fatalf("Expected entry to be found at block 150")
 	}
 	if string(resp1.Value.Value) != string(testValue1) {
@@ -104,7 +104,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to get entry at block 250: %v", err)
 	}
-	if resp2.Response != pbstore.ResponseCode_RESPONSE_CODE_FOUND {
+	if resp2.Code != pbstore.ResponseCode_RESPONSE_CODE_FOUND {
 		log.Fatalf("Expected entry to be found at block 250")
 	}
 	if string(resp2.Value.Value) != string(testValue2) {
@@ -121,7 +121,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to get entry at block 350: %v", err)
 	}
-	if resp3.Response != pbstore.ResponseCode_RESPONSE_CODE_FOUND {
+	if resp3.Code != pbstore.ResponseCode_RESPONSE_CODE_FOUND {
 		log.Fatalf("Expected entry to be found at block 350")
 	}
 	if string(resp3.Value.Value) != string(testValue3) {
@@ -138,7 +138,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to query at block 50: %v", err)
 	}
-	if resp4.Response != pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND {
+	if resp4.Code != pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND {
 		log.Fatalf("Expected no entry to be found at block 50")
 	}
 	fmt.Println("   ✓ Block 50 query correctly returned NOT_FOUND")

@@ -188,7 +188,7 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 			require.NoError(t, err)
 
 			if tc.expectFound {
-				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, getResponse.Response)
+				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, getResponse.Code)
 
 				// Unmarshal the retrieved value into an AccountOwner
 				retrievedAccountOwner := &pbtest.TestAccountOwner{}
@@ -199,7 +199,7 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 				assert.Equal(t, accountOwner.Mint, retrievedAccountOwner.Mint)
 				assert.Equal(t, accountOwner.Owner, retrievedAccountOwner.Owner)
 			} else {
-				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, getResponse.Response)
+				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, getResponse.Code)
 			}
 		})
 	}
@@ -293,7 +293,7 @@ func TestTimeTraversalWithMultipleVersions(t *testing.T) {
 			require.NoError(t, err)
 
 			if tc.expectFound {
-				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, getResponse.Response)
+				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, getResponse.Code)
 
 				retrievedAccountOwner := &pbtest.TestAccountOwner{}
 				err = getResponse.Value.UnmarshalTo(retrievedAccountOwner)
@@ -301,7 +301,7 @@ func TestTimeTraversalWithMultipleVersions(t *testing.T) {
 
 				assert.Equal(t, []byte(tc.expectedOwner), retrievedAccountOwner.Owner)
 			} else {
-				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, getResponse.Response)
+				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, getResponse.Code)
 			}
 		})
 	}
@@ -354,7 +354,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 
 	// Verify each entry
 	for i, responseEntry := range getAllResponse.Entries {
-		assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Response)
+		assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Code)
 		assert.Equal(t, entries[i].Key, responseEntry.Key)
 
 		retrievedAccountOwner := &pbtest.TestAccountOwner{}
@@ -416,13 +416,13 @@ func TestSetAllAndGetAllWithDifferentBlocks(t *testing.T) {
 	}
 
 	// key1 should be found (stored at 100, requesting at 150)
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseMap[string(key1)].Response.Response)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseMap[string(key1)].Response.Code)
 
 	// key2 should not be found (stored at 200, requesting at 150)
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, responseMap[string(key2)].Response.Response)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, responseMap[string(key2)].Response.Code)
 
 	// key3 should not be found (stored at 300, requesting at 150)
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, responseMap[string(key3)].Response.Response)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, responseMap[string(key3)].Response.Code)
 }
 
 func TestEmptySetAll(t *testing.T) {
@@ -450,5 +450,5 @@ func TestGetNonExistentKey(t *testing.T) {
 	getResponse, err := ts.store.Get(getRequest)
 	require.NoError(t, err)
 
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, getResponse.Response)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, getResponse.Code)
 }

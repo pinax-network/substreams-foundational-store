@@ -148,7 +148,7 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 	require.NotNil(t, response)
 
 	// Verify the response
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, response.Response)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, response.Code)
 	assert.Equal(t, ts.typeURL, response.Value.TypeUrl)
 
 	// Unmarshal and verify the stored data
@@ -214,9 +214,9 @@ func TestTimeTraversalWithMultipleVersions(t *testing.T) {
 			require.NotNil(t, response)
 
 			if !tc.shouldFind {
-				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Response)
+				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Code)
 			} else {
-				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, response.Response)
+				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, response.Code)
 
 				var retrievedAccountOwner pbtest.TestAccountOwner
 				err = proto.Unmarshal(response.Value.Value, &retrievedAccountOwner)
@@ -270,7 +270,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 	// Verify all entries
 	for i, responseEntry := range response.Entries {
 		assert.Equal(t, keys[i], responseEntry.Key)
-		assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Response)
+		assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Code)
 
 		var retrievedAccountOwner pbtest.TestAccountOwner
 		err = proto.Unmarshal(responseEntry.Response.Value.Value, &retrievedAccountOwner)
@@ -344,7 +344,7 @@ func TestSetAllAndGetAllWithDifferentBlocks(t *testing.T) {
 
 			for i, responseEntry := range response.Entries {
 				assert.Equal(t, keys[i], responseEntry.Key)
-				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Response)
+				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Code)
 
 				var retrievedAccountOwner pbtest.TestAccountOwner
 				err = proto.Unmarshal(responseEntry.Response.Value.Value, &retrievedAccountOwner)
@@ -441,7 +441,7 @@ func TestGetNonExistentKey(t *testing.T) {
 	response, err := ts.store.Get(getRequest)
 	require.NoError(t, err)
 	require.NotNil(t, response)
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Response)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Code)
 }
 
 func TestGetAllWithMixedExistence(t *testing.T) {
@@ -477,7 +477,7 @@ func TestGetAllWithMixedExistence(t *testing.T) {
 	require.Equal(t, len(keys), len(response.Entries))
 
 	// Verify mixed results
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, response.Entries[0].Response.Response)
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Entries[1].Response.Response)
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Entries[2].Response.Response)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, response.Entries[0].Response.Code)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Entries[1].Response.Code)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Entries[2].Response.Code)
 }

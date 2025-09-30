@@ -147,7 +147,7 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 	require.NotNil(t, response)
 
 	// Verify the response
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, response.Response)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, response.Code)
 	assert.Equal(t, ts.typeURL, response.Value.TypeUrl)
 
 	// Unmarshal and verify the stored data
@@ -173,7 +173,7 @@ func TestGetNonExistentKey(t *testing.T) {
 	require.NotNil(t, response)
 
 	// Verify the response indicates not found
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Response)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Code)
 }
 
 func TestSetAllAndGetAll(t *testing.T) {
@@ -218,7 +218,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 	// Verify all entries were found
 	for i, responseEntry := range response.Entries {
 		assert.Equal(t, keys[i], responseEntry.Key)
-		assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Response)
+		assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Code)
 		assert.Equal(t, ts.typeURL, responseEntry.Response.Value.TypeUrl)
 
 		// Unmarshal and verify the stored data
@@ -260,12 +260,12 @@ func TestGetAllWithMixedExistence(t *testing.T) {
 
 	// Verify first entry was found
 	assert.Equal(t, key1, response.Entries[0].Key)
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, response.Entries[0].Response.Response)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, response.Entries[0].Response.Code)
 	assert.Equal(t, ts.typeURL, response.Entries[0].Response.Value.TypeUrl)
 
 	// Verify second entry was not found
 	assert.Equal(t, key2, response.Entries[1].Key)
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Entries[1].Response.Response)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Entries[1].Response.Code)
 }
 
 func TestSetWithNilEntry(t *testing.T) {
@@ -401,7 +401,7 @@ func TestMultipleOperations(t *testing.T) {
 
 		response, err := ts.store.Get(getRequest)
 		require.NoError(t, err)
-		assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, response.Response)
+		assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, response.Code)
 	}
 
 	// Test GetAll with all keys
@@ -417,6 +417,6 @@ func TestMultipleOperations(t *testing.T) {
 
 	// Verify all entries were found
 	for _, responseEntry := range response.Entries {
-		assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Response)
+		assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Code)
 	}
 }
