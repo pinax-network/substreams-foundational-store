@@ -79,6 +79,7 @@ func (s *StoreServer) GetAll(ctx context.Context, req *pbstore.GetAllRequest) (*
 
 	s.logger.Info("request stats",
 		zap.Uint64("block_number", req.BlockNumber),
+		zap.Uint64("head_block", headBlock),
 		zap.Int("requested_keys", len(req.Keys)),
 		zap.Int("found_keys", len(r.Entries)),
 		zap.Duration("execution_time", time.Since(executionStart)),
