@@ -481,3 +481,75 @@ func TestGetAllWithMixedExistence(t *testing.T) {
 	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Entries[1].Response.Code)
 	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Entries[2].Response.Code)
 }
+
+// GetFirst tests for postgres_time_traversal
+func TestGetFirstReturnsOldestVersionForKey_PostgresTimeTraversal(t *testing.T) {
+	ts := setupTestStore(t)
+	defer ts.cleanup()
+
+	key := []byte("k1")
+	versions := []struct {
+		block uint64
+		owner string
+	}{
+		{100, "v1"},
+		{200, "v2"},
+		{300, "v3"},
+	}
+	for _, v := range versions {
+		entry, err := createEntry(v.block, key, createAccountOwner(v.owner), ts.typeURL)
+		require.NoError(t, err)
+		require.NoError(t, ts.store.Set(entry, v.block))
+	}
+	// Add another key to ensure selection stays on k1
+	other, err := createEntry(150, []byte("k2"), createAccountOwner("other"), ts.typeURL)
+	require.NoError(t, err)
+	require.NoError(t, ts.store.Set(other, 150))
+
+	resp, err := ts.store.GetFirst(&pbstore.GetFirstRequest{Key: []byte("k1")})
+	require.NoError(t, err)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, resp.Code)
+	got := &pbtest.TestAccountOwner{}
+	require.NoError(t, resp.Value.UnmarshalTo(got))
+	assert.Equal(t, []byte("v1"), got.Owner)
+}
+
+func TestGetFirstOrderingAndNotFound_PostgresTimeTraversal(t *testing.T) {
+	ts := setupTestStore(t)
+	defer ts.cleanup()
+
+	pairs := []struct {
+		k string
+		v string
+	}{
+		{"a1", "v1"},
+		{"a2", "v2"},
+		{"b1", "v3"},
+	}
+	for _, p := range pairs {
+		entry, err := createEntry(100, []byte(p.k), createAccountOwner(p.v), ts.typeURL)
+		require.NoError(t, err)
+		require.NoError(t, ts.store.Set(entry, 100))
+	}
+
+	// Exact match should return that key's value (oldest since only one)
+	resp, err := ts.store.GetFirst(&pbstore.GetFirstRequest{Key: []byte("a2")})
+	require.NoError(t, err)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, resp.Code)
+	got := &pbtest.TestAccountOwner{}
+	require.NoError(t, resp.Value.UnmarshalTo(got))
+	assert.Equal(t, []byte("v2"), got.Owner)
+
+	// Between a2 and b1 -> return b1
+	resp, err = ts.store.GetFirst(&pbstore.GetFirstRequest{Key: []byte("a3")})
+	require.NoError(t, err)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, resp.Code)
+	got = &pbtest.TestAccountOwner{}
+	require.NoError(t, resp.Value.UnmarshalTo(got))
+	assert.Equal(t, []byte("v3"), got.Owner)
+
+	// After last -> not found
+	resp, err = ts.store.GetFirst(&pbstore.GetFirstRequest{Key: []byte("z9")})
+	require.NoError(t, err)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, resp.Code)
+}

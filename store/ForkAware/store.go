@@ -1,6 +1,7 @@
 package ForkAware
 
 import (
+	"bytes"
 	"fmt"
 	"sync"
 
@@ -96,8 +97,8 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 		// If the block number is <= the requested block number, return it
 		if cached.blockNumber <= request.BlockNumber {
 			return &pbstore.GetResponse{
-				Code: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
-				Value:    cached.entry.Value,
+				Code:  pbstore.ResponseCode_RESPONSE_CODE_FOUND,
+				Value: cached.entry.Value,
 			}, nil
 		}
 	}
@@ -129,8 +130,8 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 				response.Entries = append(response.Entries, &pbstore.ResponseEntry{
 					Key: key,
 					Response: &pbstore.GetResponse{
-						Code: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
-						Value:    cached.entry.Value,
+						Code:  pbstore.ResponseCode_RESPONSE_CODE_FOUND,
+						Value: cached.entry.Value,
 					},
 				})
 				continue
@@ -146,7 +147,6 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 		wrappedRequest := &pbstore.GetAllRequest{
 			BlockNumber: request.BlockNumber,
 			BlockHash:   request.BlockHash,
-			OmitDeleted: request.OmitDeleted,
 			Keys:        keysToFetch,
 		}
 
@@ -160,6 +160,50 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 	}
 
 	return response, nil
+}
+
+// GetFirst retrieves the first key >= requested key by comparing ForkAware cache and wrapped store.
+// If both have a candidate, prefer the wrapped store's result assuming it represents the oldest version persisted.
+func (s *Store) GetFirst(request *pbstore.GetFirstRequest) (*pbstore.GetResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	// Find best candidate in cache (first key >= requested in lexicographic order)
+	var bestKey []byte
+	var bestEntry *pbstore.Entry
+	for k, c := range s.cache {
+		kb := []byte(k)
+		if len(bestKey) == 0 {
+			if bytes.Compare(kb, request.Key) >= 0 {
+				bestKey = append([]byte{}, kb...)
+				bestEntry = c.entry
+			}
+			continue
+		}
+		if bytes.Compare(kb, request.Key) >= 0 && bytes.Compare(kb, bestKey) == -1 {
+			bestKey = append([]byte{}, kb...)
+			bestEntry = c.entry
+		}
+	}
+
+	// Always query wrapped store to compare results
+	wrappedResp, err := s.wrapped.GetFirst(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed wrapped GetFirst: %w", err)
+	}
+
+	// If wrapped found something, prefer it as the authoritative oldest version
+	if wrappedResp != nil && wrappedResp.Code == pbstore.ResponseCode_RESPONSE_CODE_FOUND {
+		return wrappedResp, nil
+	}
+
+	// Otherwise, if cache has a candidate, return it
+	if bestEntry != nil {
+		return &pbstore.GetResponse{Code: pbstore.ResponseCode_RESPONSE_CODE_FOUND, Value: bestEntry.Value}, nil
+	}
+
+	// Nothing found in either
+	return &pbstore.GetResponse{Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND}, nil
 }
 
 // FlushUpToBlock flushes all entries with block numbers <= blockNum to the wrapped foundational-store.

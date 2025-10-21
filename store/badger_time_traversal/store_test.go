@@ -452,3 +452,40 @@ func TestGetNonExistentKey(t *testing.T) {
 
 	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, getResponse.Code)
 }
+
+func TestGetFirstReturnsOldestVersionForKey(t *testing.T) {
+	// Setup test store
+	ts := setupTestStore(t)
+	defer ts.cleanup()
+
+	key := []byte("k1")
+	versions := []struct {
+		block uint64
+		owner string
+	}{
+		{100, "v1"},
+		{200, "v2"},
+		{300, "v3"},
+	}
+
+	for _, v := range versions {
+		msg := createAccountOwner(v.owner)
+		entry, err := createEntry(v.block, key, msg, ts.typeURL)
+		require.NoError(t, err)
+		require.NoError(t, ts.store.Set(entry, v.block))
+	}
+
+	// Add another key to ensure iterator ordering across different keys still works
+	other := createAccountOwner("other")
+	otherEntry, err := createEntry(150, []byte("k2"), other, ts.typeURL)
+	require.NoError(t, err)
+	require.NoError(t, ts.store.Set(otherEntry, 150))
+
+	resp, err := ts.store.GetFirst(&pbstore.GetFirstRequest{Key: []byte("k1")})
+	require.NoError(t, err)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, resp.Code)
+	got := &pbtest.TestAccountOwner{}
+	require.NoError(t, resp.Value.UnmarshalTo(got))
+	// Oldest version (lowest block) must be returned for the key
+	assert.Equal(t, []byte("v1"), got.Owner)
+}

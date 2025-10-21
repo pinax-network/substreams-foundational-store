@@ -44,7 +44,6 @@ This command connects to a gRPC server and retrieves a value for the specified k
 		getKey, _ := cmd.Flags().GetString("key")
 		getServer, _ := cmd.Flags().GetString("server")
 		getBlockNumber, _ := cmd.Flags().GetUint64("block-number")
-		getOmitDeleted, _ := cmd.Flags().GetBool("omit-deleted")
 		getEncoding, _ := cmd.Flags().GetString("encoding")
 
 		if getKey == "" {
@@ -86,7 +85,6 @@ This command connects to a gRPC server and retrieves a value for the specified k
 		request := &pbStore.GetRequest{
 			BlockNumber: getBlockNumber,
 			BlockHash:   blockHashBytes,
-			OmitDeleted: getOmitDeleted,
 			Key:         keyBytes,
 		}
 
@@ -133,7 +131,6 @@ func init() {
 	GetCmd.Flags().String("key", "", "Key to lookup")
 	GetCmd.Flags().Uint64("block-number", 0, "Block number for the query")
 	GetCmd.Flags().String("block-hash", "", "Block hash for the query")
-	GetCmd.Flags().Bool("omit-deleted", false, "Whether to omit deleted values")
 	GetCmd.Flags().String("encoding", "hex", "Encoding type for key and block-hash (base58, hex, base64)")
 
 	GetCmd.MarkFlagRequired("key")
@@ -143,6 +140,5 @@ func init() {
 	viper.BindPFlag("get.key", GetCmd.Flags().Lookup("key"))
 	viper.BindPFlag("get.block_number", GetCmd.Flags().Lookup("block-number"))
 	viper.BindPFlag("get.block_hash", GetCmd.Flags().Lookup("block-hash"))
-	viper.BindPFlag("get.omit_deleted", GetCmd.Flags().Lookup("omit-deleted"))
 	viper.BindPFlag("get.encoding", GetCmd.Flags().Lookup("encoding"))
 }

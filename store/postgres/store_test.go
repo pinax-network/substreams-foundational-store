@@ -420,3 +420,38 @@ func TestMultipleOperations(t *testing.T) {
 		assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Code)
 	}
 }
+
+// GetFirst tests for postgres (non-time-traversal)
+func TestGetFirstOrderingAndNotFound_Postgres(t *testing.T) {
+	ts := setupTestStore(t)
+	defer ts.cleanup()
+
+	// Insert several keys
+	keys := [][]byte{[]byte("a1"), []byte("a2"), []byte("b1")}
+	for i, k := range keys {
+		entry, err := createEntry(100, k, createAccountOwner(fmt.Sprintf("v%d", i+1)), ts.typeURL)
+		require.NoError(t, err)
+		require.NoError(t, ts.store.Set(entry, 100))
+	}
+
+	// Exact match
+	resp, err := ts.store.GetFirst(&pbstore.GetFirstRequest{Key: []byte("a2")})
+	require.NoError(t, err)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, resp.Code)
+	got := &pbtest.TestAccountOwner{}
+	require.NoError(t, resp.Value.UnmarshalTo(got))
+	assert.Equal(t, []byte("v2"), got.Owner)
+
+	// Between a2 and b1 -> expect b1
+	resp, err = ts.store.GetFirst(&pbstore.GetFirstRequest{Key: []byte("a3")})
+	require.NoError(t, err)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, resp.Code)
+	got = &pbtest.TestAccountOwner{}
+	require.NoError(t, resp.Value.UnmarshalTo(got))
+	assert.Equal(t, []byte("v3"), got.Owner)
+
+	// Beyond last key -> not found
+	resp, err = ts.store.GetFirst(&pbstore.GetFirstRequest{Key: []byte("z9")})
+	require.NoError(t, err)
+	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, resp.Code)
+}

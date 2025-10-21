@@ -16,6 +16,7 @@ type Store struct {
 	insertStatement    *sqlx.Stmt
 	selectStatement    *sqlx.Stmt
 	selectAnyStatement *sqlx.Stmt
+	selectFirstStmt    *sqlx.Stmt
 }
 
 func NewStore(dsn *store.DSN, typeUrl string) (*Store, error) {
@@ -68,6 +69,14 @@ func (s *Store) prepareStatements() error {
 		return fmt.Errorf("failed to prepare statement for select any %q: %w", selectAny, err)
 	}
 	s.selectAnyStatement = selectAnyStatement
+
+	// Prepare GetFirst statement: first key >= $1
+	selectFirst := fmt.Sprintf(`SELECT * FROM %s.entries WHERE key >= $1 ORDER BY key ASC LIMIT 1;`, s.schemaName)
+	selectFirstStmt, err := s.db.Preparex(selectFirst)
+	if err != nil {
+		return fmt.Errorf("failed to prepare statement for select first %q: %w", selectFirst, err)
+	}
+	s.selectFirstStmt = selectFirstStmt
 
 	return nil
 }

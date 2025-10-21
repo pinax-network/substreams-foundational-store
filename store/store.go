@@ -9,6 +9,7 @@ type Store interface {
 	SetAll(entries []*pbstore.Entry, blockNumber uint64) error
 	Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error)
 	GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error)
+	GetFirst(request *pbstore.GetFirstRequest) (*pbstore.GetResponse, error)
 }
 
 type ForkawareStore interface {

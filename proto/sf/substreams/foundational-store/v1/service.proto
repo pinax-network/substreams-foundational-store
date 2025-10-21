@@ -14,6 +14,8 @@ service Store {
   rpc Get(GetRequest) returns (GetResponse);
   // GetAll retrieves multiple values by keys at a specific block number
   rpc GetAll(GetAllRequest) returns (GetAllResponse);
+
+  rpc GetFirst(GetFirstRequest) returns (GetResponse);
 }
 
 // Specifies which value to retrieve at a specific block
@@ -27,8 +29,13 @@ message GetRequest {
   // Required for gRPC calls, ensures block identity and fork-awareness
   // Must be left blank (empty) for Substreams WASM intrinsics, runtime provides block context
   bytes block_hash = 2;
+//  bool omit_deleted = 3;
+  bytes key = 4;
+}
 
-  bool omit_deleted = 3;
+message GetFirstRequest {
+  uint64 block_number = 1;
+  bytes block_hash = 2;
   bytes key = 4;
 }
 
@@ -52,7 +59,7 @@ message GetAllRequest {
   // Must be left blank (empty) for Substreams WASM intrinsics, runtime provides block context
   bytes block_hash = 2;
 
-  bool omit_deleted = 3;
+//  bool omit_deleted = 3;
   repeated bytes keys = 4;
 }
 

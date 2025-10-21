@@ -66,6 +66,10 @@ func (m *SimpleMockStore) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAl
 	return &pbstore.GetAllResponse{Entries: []*pbstore.ResponseEntry{}}, nil
 }
 
+func (m *SimpleMockStore) GetFirst(request *pbstore.GetFirstRequest) (*pbstore.GetResponse, error) {
+	return &pbstore.GetResponse{Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND}, nil
+}
+
 func (m *SimpleMockStore) FlushUpToBlock(blockNum uint64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

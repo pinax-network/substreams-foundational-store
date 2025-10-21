@@ -18,6 +18,7 @@ type Store struct {
 	selectAnyStatement        *sqlx.Stmt
 	selectKeyOnlyStatement    *sqlx.Stmt
 	selectAllKeyOnlyStatement *sqlx.Stmt
+	selectFirstStmt           *sqlx.Stmt
 }
 
 func NewStore(dsn *store.DSN, typeUrl string) (*Store, error) {
@@ -103,6 +104,18 @@ func (s *Store) prepareStatements() error {
 		return fmt.Errorf("failed to prepare statement for select all key only %q: %w", selectAllKeyOnly, err)
 	}
 	s.selectAllKeyOnlyStatement = selectAllKeyOnlyStatement
+
+	// Prepare GetFirst: first key >= $1 with oldest block for that key
+	selectFirst := fmt.Sprintf(`
+		select * from %s.entries 
+		where key >= $1 
+		order by key asc, block_number asc 
+		limit 1;`, s.schemaName)
+	selectFirstStmt, err := s.db.Preparex(selectFirst)
+	if err != nil {
+		return fmt.Errorf("failed to prepare statement for select first %q: %w", selectFirst, err)
+	}
+	s.selectFirstStmt = selectFirstStmt
 
 	return nil
 }

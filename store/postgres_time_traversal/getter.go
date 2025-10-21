@@ -101,6 +101,22 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 	}, nil
 }
 
+// GetFirst retrieves the first entry (by key >= requested) with its latest value
+func (s *Store) GetFirst(request *pbstore.GetFirstRequest) (*pbstore.GetResponse, error) {
+	entry := &Entry{}
+	err := s.selectFirstStmt.Get(entry, request.Key)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return &pbstore.GetResponse{Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND}, nil
+		}
+		return nil, err
+	}
+	return &pbstore.GetResponse{
+		Code:  pbstore.ResponseCode_RESPONSE_CODE_FOUND,
+		Value: &anypb.Any{TypeUrl: s.typeUrl, Value: entry.Value},
+	}, nil
+}
+
 // GetKeyOnly retrieves only the key (no value) for time traversal
 // This is useful when you only need to check if a key exists at a given block
 func (s *Store) GetKeyOnly(key []byte, blockNumber uint64) (*KeyOnlyEntry, error) {

@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/streamingfast/cli"
 	"github.com/streamingfast/logging"
-	"github.com/streamingfast/substreams-foundational-store/server"
+	"github.com/streamingfast/substreams-foundational-store/grpc"
 	"github.com/streamingfast/substreams-foundational-store/sink"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	"github.com/streamingfast/substreams-foundational-store/store/ForkAware"
@@ -148,7 +148,7 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	defer dbStatsTicker.Stop()
 
 	sinker := sink.NewSinker(storeImpl, zlog, cursorFilePath)
-	server := server.NewStoreServer(storeImpl, sinker.HeadBlock, zlog)
+	server := grpc.NewStoreServer(storeImpl, sinker.HeadBlock, zlog)
 
 	app.SuperviseAndStartUsing(sinker.Shutter, func() {
 		substreamsClient.Run(cmd.Context(), cursor, sinker)

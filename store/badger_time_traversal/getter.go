@@ -181,3 +181,64 @@ func (s *Store) getAllWorker(workChan <-chan workItem, entries []*pbstore.Respon
 		mutex.Unlock()
 	}
 }
+
+// GetFirst returns the value for the first key >= the requested key in lexicographic order.
+// For time-traversal storage, this returns the oldest value for that key (lowest block number).
+func (s *Store) GetFirst(request *pbstore.GetFirstRequest) (*pbstore.GetResponse, error) {
+	var foundValue []byte
+	var found bool
+
+	err := s.db.View(func(txn *badger.Txn) error {
+		//// First, find the first composite key >= requested key (any base key >= requested)
+		//fwd := txn.NewIterator(badger.DefaultIteratorOptions)
+		//defer fwd.Close()
+		//fwd.Seek(request.Key)
+		//if !fwd.Valid() {
+		//	return nil
+		//}
+		//item := fwd.Item()
+		//k := item.Key()
+		//base := k[:len(k)-8]
+		base := request.Key
+
+		// Now fetch the oldest version for that base key by reverse-iterating the base range
+		begin := make([]byte, len(base)+8)
+		copy(begin, base) // base + 0x00..00
+		end := make([]byte, len(base)+8+1)
+		copy(end, base)
+		for i := len(base); i < len(base)+8; i++ {
+			end[i] = 0xFF
+		}
+		end[len(base)+8] = 0x00 // exclusive upper bound
+
+		opts := badger.DefaultIteratorOptions
+		opts.Reverse = true
+		opts.PrefetchValues = false
+		rev := txn.NewIterator(opts)
+		defer rev.Close()
+		rev.Seek(end)
+		if rev.Valid() {
+			it2 := rev.Item()
+			k2 := it2.Key()
+			if bytes.Compare(k2, begin) >= 0 && bytes.Compare(k2, end) == -1 {
+				v, e := it2.ValueCopy(nil)
+				if e != nil {
+					return e
+				}
+				foundValue = v
+				found = true
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("badger_time_traversal GetFirst: %w", err)
+	}
+	if !found {
+		return &pbstore.GetResponse{Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND}, nil
+	}
+	return &pbstore.GetResponse{
+		Code:  pbstore.ResponseCode_RESPONSE_CODE_FOUND,
+		Value: &anypb.Any{TypeUrl: s.typeUrl, Value: foundValue},
+	}, nil
+}

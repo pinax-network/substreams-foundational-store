@@ -1,4 +1,4 @@
-package server
+package grpc
 
 import (
 	"context"
@@ -15,11 +15,11 @@ import (
 )
 
 // StoreServer implements the StoreKV gRPC service
-type StoreServer struct {
+type GrpcServer struct {
 	*shutter.Shutter
 	pbstore.UnimplementedStoreServer
 	store            store.Store
-	grpcServer       dgrpcServer.Server
+	dgrpcServer      dgrpcServer.Server
 	headBlockFetcher FetchHeadBlock
 	logger           *zap.Logger
 }
@@ -27,18 +27,18 @@ type StoreServer struct {
 type FetchHeadBlock func() uint64
 
 // NewStoreServer creates a new StoreServer with the given foundational-store
-func NewStoreServer(store store.Store, headBlockFetcher FetchHeadBlock, logger *zap.Logger) *StoreServer {
-	return &StoreServer{
+func NewStoreServer(store store.Store, headBlockFetcher FetchHeadBlock, logger *zap.Logger) *GrpcServer {
+	return &GrpcServer{
 		Shutter:          shutter.New(),
 		store:            store,
-		grpcServer:       nil,
+		dgrpcServer:      nil,
 		headBlockFetcher: headBlockFetcher,
 		logger:           logger,
 	}
 }
 
 // Get implements the Get method of the StoreKV service
-func (s *StoreServer) Get(ctx context.Context, req *pbstore.GetRequest) (*pbstore.GetResponse, error) {
+func (s *GrpcServer) Get(ctx context.Context, req *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 	headBlock := s.headBlockFetcher()
 	if headBlock < req.BlockNumber {
 		return &pbstore.GetResponse{
@@ -55,8 +55,25 @@ func (s *StoreServer) Get(ctx context.Context, req *pbstore.GetRequest) (*pbstor
 	return r, nil
 }
 
+// GetFirst implements the GetFirst method of the Store service
+func (s *GrpcServer) GetFirst(ctx context.Context, req *pbstore.GetFirstRequest) (*pbstore.GetResponse, error) {
+	headBlock := s.headBlockFetcher()
+	if headBlock < req.BlockNumber {
+		return &pbstore.GetResponse{
+			BlockReached: false,
+		}, nil
+	}
+
+	r, err := s.store.GetFirst(req)
+	if err != nil {
+		return nil, fmt.Errorf("getting first key from store: %w", err)
+	}
+	// No block gating for GetFirst as request has no block fields
+	return r, nil
+}
+
 // GetAll implements the GetAll method of the StoreKV service
-func (s *StoreServer) GetAll(ctx context.Context, req *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {
+func (s *GrpcServer) GetAll(ctx context.Context, req *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {
 
 	executionStart := time.Now()
 	headBlock := s.headBlockFetcher()
@@ -88,10 +105,10 @@ func (s *StoreServer) GetAll(ctx context.Context, req *pbstore.GetAllRequest) (*
 	return r, nil
 }
 
-func (s *StoreServer) Run(addr string, opts ...grpc.ServerOption) {
+func (s *GrpcServer) Run(addr string, opts ...grpc.ServerOption) {
 	// Create the dgrpc server with reduced per-call logging
 	grpcLogger := s.logger.Named("grpc").WithOptions(zap.IncreaseLevel(zap.WarnLevel))
-	s.grpcServer = factory.ServerFromOptions(
+	s.dgrpcServer = factory.ServerFromOptions(
 		dgrpcServer.WithLogger(grpcLogger),
 		dgrpcServer.WithPlainTextServer(),
 		dgrpcServer.WithGRPCServerOptions(opts...),
@@ -101,11 +118,11 @@ func (s *StoreServer) Run(addr string, opts ...grpc.ServerOption) {
 		dgrpcServer.WithHealthCheck(dgrpcServer.HealthCheckOverGRPC|dgrpcServer.HealthCheckOverHTTP, healthCheck),
 	)
 
-	s.grpcServer.OnTerminated(func(err error) {
+	s.dgrpcServer.OnTerminated(func(err error) {
 		s.Shutter.Shutdown(err)
 	})
 
-	s.grpcServer.Launch(addr)
+	s.dgrpcServer.Launch(addr)
 }
 
 func healthCheck(ctx context.Context) (isReady bool, out interface{}, err error) {
@@ -122,8 +139,8 @@ func healthCheck(ctx context.Context) (isReady bool, out interface{}, err error)
 	return true, nil, nil
 }
 
-func (s *StoreServer) Shutdown(err error) {
-	if server := s.grpcServer; server != nil {
+func (s *GrpcServer) Shutdown(err error) {
+	if server := s.dgrpcServer; server != nil {
 		server.Shutdown(15 * time.Second)
 	}
 

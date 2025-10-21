@@ -92,3 +92,19 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 		Entries: out,
 	}, nil
 }
+
+// GetFirst retrieves the first entry with key >= requested key in lexicographic order
+func (s *Store) GetFirst(request *pbstore.GetFirstRequest) (*pbstore.GetResponse, error) {
+	entry := &Entry{}
+	err := s.selectFirstStmt.Get(entry, request.Key)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return &pbstore.GetResponse{Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND}, nil
+		}
+		return nil, err
+	}
+	return &pbstore.GetResponse{
+		Code:  pbstore.ResponseCode_RESPONSE_CODE_FOUND,
+		Value: &anypb.Any{TypeUrl: s.typeUrl, Value: entry.Value},
+	}, nil
+}

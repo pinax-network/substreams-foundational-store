@@ -225,3 +225,11 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 		Entries: entries,
 	}, nil
 }
+
+// GetFirst returns the first entry with key >= requested key (lexicographic order)
+func (s *Store) GetFirst(request *pbstore.GetFirstRequest) (*pbstore.GetResponse, error) {
+	return s.Get(&pbstore.GetRequest{
+		Key:         request.Key,
+		BlockNumber: request.BlockNumber,
+	})
+}

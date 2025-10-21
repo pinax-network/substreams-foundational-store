@@ -52,8 +52,8 @@ func (m *mockStore) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, erro
 		}, nil
 	}
 	return &pbstore.GetResponse{
-		Code: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
-		Value:    cached.entry.Value,
+		Code:  pbstore.ResponseCode_RESPONSE_CODE_FOUND,
+		Value: cached.entry.Value,
 	}, nil
 }
 
@@ -74,13 +74,38 @@ func (m *mockStore) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllRespo
 			response.Entries = append(response.Entries, &pbstore.ResponseEntry{
 				Key: key,
 				Response: &pbstore.GetResponse{
-					Code: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
-					Value:    cached.entry.Value,
+					Code:  pbstore.ResponseCode_RESPONSE_CODE_FOUND,
+					Value: cached.entry.Value,
 				},
 			})
 		}
 	}
 	return response, nil
+}
+
+func (m *mockStore) GetFirst(request *pbstore.GetFirstRequest) (*pbstore.GetResponse, error) {
+	// Simple mock: first try exact match; otherwise simulate lexicographic next key >= requested
+	if cached, ok := m.entries[string(request.Key)]; ok {
+		return &pbstore.GetResponse{Code: pbstore.ResponseCode_RESPONSE_CODE_FOUND, Value: cached.entry.Value}, nil
+	}
+	// find smallest key >= requested
+	var bestKey string
+	for k := range m.entries {
+		if bestKey == "" {
+			if string([]byte(k)) >= string(request.Key) {
+				bestKey = k
+			}
+			continue
+		}
+		if k >= string(request.Key) && k < bestKey {
+			bestKey = k
+		}
+	}
+	if bestKey != "" {
+		ce := m.entries[bestKey]
+		return &pbstore.GetResponse{Code: pbstore.ResponseCode_RESPONSE_CODE_FOUND, Value: ce.entry.Value}, nil
+	}
+	return &pbstore.GetResponse{Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND}, nil
 }
 
 func TestCacheStore(t *testing.T) {
@@ -177,5 +202,53 @@ func TestCacheStore(t *testing.T) {
 	}
 	if string(resp3.Value.Value) != "value3" {
 		t.Errorf("Expected original value for entry3, got %s", string(resp3.Value.Value))
+	}
+}
+
+func TestForkAwareGetFirst_PrefersWrappedOverCache(t *testing.T) {
+	ms := newMockStore()
+	fa := NewStore(ms)
+
+	// Put a value in cache for key "a"
+	cacheEntry := &pbstore.Entry{Key: []byte("a"), Value: &anypb.Any{TypeUrl: "t", Value: []byte("cache")}}
+	if err := fa.Set(cacheEntry, 200); err != nil {
+		t.Fatalf("set cache: %v", err)
+	}
+
+	// Put an older value in wrapped for the same key
+	wrappedEntry := &pbstore.Entry{Key: []byte("a"), Value: &anypb.Any{TypeUrl: "t", Value: []byte("wrapped-old")}}
+	_ = ms.Set(wrappedEntry, 100)
+
+	resp, err := fa.GetFirst(&pbstore.GetFirstRequest{Key: []byte("a")})
+	if err != nil {
+		t.Fatalf("GetFirst: %v", err)
+	}
+	if resp.Code != pbstore.ResponseCode_RESPONSE_CODE_FOUND {
+		t.Fatalf("expected FOUND, got %v", resp.Code)
+	}
+	if got := string(resp.Value.Value); got != "wrapped-old" {
+		t.Fatalf("expected wrapped value, got %q", got)
+	}
+}
+
+func TestForkAwareGetFirst_FallbackToCacheWhenWrappedNotFound(t *testing.T) {
+	ms := newMockStore()
+	fa := NewStore(ms)
+
+	// Only cache contains candidate >= key
+	cacheEntry := &pbstore.Entry{Key: []byte("b"), Value: &anypb.Any{TypeUrl: "t", Value: []byte("cache-b")}}
+	if err := fa.Set(cacheEntry, 123); err != nil {
+		t.Fatalf("set cache: %v", err)
+	}
+
+	resp, err := fa.GetFirst(&pbstore.GetFirstRequest{Key: []byte("a")})
+	if err != nil {
+		t.Fatalf("GetFirst: %v", err)
+	}
+	if resp.Code != pbstore.ResponseCode_RESPONSE_CODE_FOUND {
+		t.Fatalf("expected FOUND, got %v", resp.Code)
+	}
+	if got := string(resp.Value.Value); got != "cache-b" {
+		t.Fatalf("expected cache value, got %q", got)
 	}
 }
