@@ -5,7 +5,7 @@ import "sf/substreams/foundational-store/model/v1/model.proto";
 
 package sf.substreams.foundational_store.service.v1;
 
-option go_package = "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1/;pbservice";
+option go_package = "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1;pbservice";
 
 // Store service provides access to foundational store data with fork-aware,
 // block-versioned key-value operations. Designed for high-performance serving

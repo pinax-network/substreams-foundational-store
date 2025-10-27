@@ -4,7 +4,7 @@ import "google/protobuf/any.proto";
 
 package sf.substreams.foundational_store.model.v1;
 
-option go_package = "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1/;pbmodel";
+option go_package = "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1;pbmodel";
 
 //by both consumer and sinker Substreams
 message Entry {
