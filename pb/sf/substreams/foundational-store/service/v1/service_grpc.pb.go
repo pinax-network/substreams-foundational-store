@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             (unknown)
-// source: sf/substreams/foundational-store/v1/service.proto
+// source: sf/substreams/foundational-store/service/v1/service.proto
 
-package foundational_storev1
+package v1
 
 import (
 	context "context"
@@ -39,7 +39,7 @@ func NewStoreClient(cc grpc.ClientConnInterface) StoreClient {
 
 func (c *storeClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error) {
 	out := new(GetResponse)
-	err := c.cc.Invoke(ctx, "/sf.substreams.foundational_store.v1.Store/Get", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/sf.substreams.foundational_store.v1.service.Store/Get", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func (c *storeClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.Call
 
 func (c *storeClient) GetAll(ctx context.Context, in *GetAllRequest, opts ...grpc.CallOption) (*GetAllResponse, error) {
 	out := new(GetAllResponse)
-	err := c.cc.Invoke(ctx, "/sf.substreams.foundational_store.v1.Store/GetAll", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/sf.substreams.foundational_store.v1.service.Store/GetAll", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (c *storeClient) GetAll(ctx context.Context, in *GetAllRequest, opts ...grp
 
 func (c *storeClient) GetFirst(ctx context.Context, in *GetFirstRequest, opts ...grpc.CallOption) (*GetResponse, error) {
 	out := new(GetResponse)
-	err := c.cc.Invoke(ctx, "/sf.substreams.foundational_store.v1.Store/GetFirst", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/sf.substreams.foundational_store.v1.service.Store/GetFirst", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func _Store_Get_Handler(srv interface{}, ctx context.Context, dec func(interface
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/sf.substreams.foundational_store.v1.Store/Get",
+		FullMethod: "/sf.substreams.foundational_store.v1.service.Store/Get",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StoreServer).Get(ctx, req.(*GetRequest))
@@ -130,7 +130,7 @@ func _Store_GetAll_Handler(srv interface{}, ctx context.Context, dec func(interf
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/sf.substreams.foundational_store.v1.Store/GetAll",
+		FullMethod: "/sf.substreams.foundational_store.v1.service.Store/GetAll",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StoreServer).GetAll(ctx, req.(*GetAllRequest))
@@ -148,7 +148,7 @@ func _Store_GetFirst_Handler(srv interface{}, ctx context.Context, dec func(inte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/sf.substreams.foundational_store.v1.Store/GetFirst",
+		FullMethod: "/sf.substreams.foundational_store.v1.service.Store/GetFirst",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StoreServer).GetFirst(ctx, req.(*GetFirstRequest))
@@ -160,7 +160,7 @@ func _Store_GetFirst_Handler(srv interface{}, ctx context.Context, dec func(inte
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Store_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "sf.substreams.foundational_store.v1.Store",
+	ServiceName: "sf.substreams.foundational_store.v1.service.Store",
 	HandlerType: (*StoreServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -177,5 +177,5 @@ var Store_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "sf/substreams/foundational-store/v1/service.proto",
+	Metadata: "sf/substreams/foundational-store/service/v1/service.proto",
 }
