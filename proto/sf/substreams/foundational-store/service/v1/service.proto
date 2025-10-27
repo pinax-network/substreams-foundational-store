@@ -3,9 +3,9 @@ syntax = "proto3";
 import "google/protobuf/any.proto";
 import "sf/substreams/foundational-store/model/v1/model.proto";
 
-package sf.substreams.foundational_store.v1.service;
+package sf.substreams.foundational_store.service.v1;
 
-option go_package = "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1/service/v1/service/;pbservice";
+option go_package = "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1/;pbservice";
 
 // Store service provides access to foundational store data with fork-aware,
 // block-versioned key-value operations. Designed for high-performance serving
@@ -43,7 +43,8 @@ message GetFirstRequest {
 // Contains the retrieved value and status
 message GetResponse {
   bool block_reached = 1;
-  model.QueriedEntry entry = 2;
+
+  model.v1.QueriedEntry entry = 2;
 }
 
 // Specifies multiple values to retrieve at a specific block
@@ -66,5 +67,5 @@ message GetAllResponse {
   // Whether the requested block has been processed by the store (applies to all entries)
   bool block_reached = 1;
 
-  model.QueriedEntries entries = 2;
+  model.v1.QueriedEntries entries = 2;
 }
