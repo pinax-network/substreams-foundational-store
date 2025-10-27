@@ -6,6 +6,14 @@ package sf.substreams.foundational_store.model.v1;
 
 option go_package = "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1;pbmodel";
 
+message Key {
+  bytes bytes = 1;
+}
+
+message Keys {
+  repeated Key keys = 1;
+}
+
 //by both consumer and sinker Substreams
 message Entry {
   reserved 1; //backward compatibility
