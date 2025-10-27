@@ -6,7 +6,8 @@ import (
 	"testing"
 
 	pbtest "github.com/streamingfast/substreams-foundational-store/internal/pb/test"
-	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1"
+	pbservice "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1"
 	storelib "github.com/streamingfast/substreams-foundational-store/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -100,7 +101,7 @@ func createAccountOwner(ownerAddress string) *pbtest.TestAccountOwner {
 }
 
 // createEntry creates a store Entry with the given block number, key, and AccountOwner
-func createEntry(blockNumber uint64, key []byte, accountOwner *pbtest.TestAccountOwner, typeURL string) (*pbstore.Entry, error) {
+func createEntry(blockNumber uint64, key []byte, accountOwner *pbtest.TestAccountOwner, typeURL string) (*pbmodel.Entry, error) {
 	// Marshal the AccountOwner proto message
 	data, err := proto.Marshal(accountOwner)
 	if err != nil {
@@ -114,7 +115,7 @@ func createEntry(blockNumber uint64, key []byte, accountOwner *pbtest.TestAccoun
 	}
 
 	// Create an Entry to store
-	return &pbstore.Entry{
+	return &pbmodel.Entry{
 		Key:   key,
 		Value: anyValue,
 	}, nil
@@ -138,7 +139,7 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 	require.NoError(t, err)
 
 	// Retrieve the entry
-	getRequest := &pbstore.GetRequest{
+	getRequest := &pbservice.GetRequest{
 		Key: key,
 	}
 
@@ -147,12 +148,12 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 	require.NotNil(t, response)
 
 	// Verify the response
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, response.Code)
-	assert.Equal(t, ts.typeURL, response.Value.TypeUrl)
+	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, response.Entry.Code)
+	assert.Equal(t, ts.typeURL, response.Entry.Entry.Value.TypeUrl)
 
 	// Unmarshal and verify the stored data
 	var retrievedAccountOwner pbtest.TestAccountOwner
-	err = proto.Unmarshal(response.Value.Value, &retrievedAccountOwner)
+	err = proto.Unmarshal(response.Entry.Entry.Value.Value, &retrievedAccountOwner)
 	require.NoError(t, err)
 
 	assert.Equal(t, accountOwner.Mint, retrievedAccountOwner.Mint)
@@ -164,7 +165,7 @@ func TestGetNonExistentKey(t *testing.T) {
 	defer ts.cleanup()
 
 	// Try to retrieve a non-existent key
-	getRequest := &pbstore.GetRequest{
+	getRequest := &pbservice.GetRequest{
 		Key: []byte("non-existent-key"),
 	}
 
@@ -173,7 +174,7 @@ func TestGetNonExistentKey(t *testing.T) {
 	require.NotNil(t, response)
 
 	// Verify the response indicates not found
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Code)
+	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Entry.Code)
 }
 
 func TestSetAllAndGetAll(t *testing.T) {
@@ -183,7 +184,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 	blockNumber := uint64(200)
 
 	// Create multiple entries
-	entries := make([]*pbstore.Entry, 3)
+	entries := make([]*pbmodel.Entry, 3)
 	keys := [][]byte{
 		[]byte("account-1"),
 		[]byte("account-2"),
@@ -206,24 +207,24 @@ func TestSetAllAndGetAll(t *testing.T) {
 	require.NoError(t, err)
 
 	// Retrieve all entries
-	getAllRequest := &pbstore.GetAllRequest{
+	getAllRequest := &pbservice.GetAllRequest{
 		Keys: keys,
 	}
 
 	response, err := ts.store.GetAll(getAllRequest)
 	require.NoError(t, err)
 	require.NotNil(t, response)
-	require.Len(t, response.Entries, 3)
+	require.Len(t, response.Entries.Entries, 3)
 
 	// Verify all entries were found
-	for i, responseEntry := range response.Entries {
-		assert.Equal(t, keys[i], responseEntry.Key)
-		assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Code)
-		assert.Equal(t, ts.typeURL, responseEntry.Response.Value.TypeUrl)
+	for i, queriedEntry := range response.Entries.Entries {
+		assert.Equal(t, keys[i], queriedEntry.Entry.Key)
+		assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, queriedEntry.Code)
+		assert.Equal(t, ts.typeURL, queriedEntry.Entry.Value.TypeUrl)
 
 		// Unmarshal and verify the stored data
 		var retrievedAccountOwner pbtest.TestAccountOwner
-		err = proto.Unmarshal(responseEntry.Response.Value.Value, &retrievedAccountOwner)
+		err = proto.Unmarshal(queriedEntry.Entry.Value.Value, &retrievedAccountOwner)
 		require.NoError(t, err)
 
 		assert.Equal(t, owners[i].Mint, retrievedAccountOwner.Mint)
@@ -249,7 +250,7 @@ func TestGetAllWithMixedExistence(t *testing.T) {
 	require.NoError(t, err)
 
 	// Try to get both existing and non-existing keys
-	getAllRequest := &pbstore.GetAllRequest{
+	getAllRequest := &pbservice.GetAllRequest{
 		Keys: [][]byte{key1, key2},
 	}
 
@@ -259,13 +260,13 @@ func TestGetAllWithMixedExistence(t *testing.T) {
 	require.Len(t, response.Entries, 2)
 
 	// Verify first entry was found
-	assert.Equal(t, key1, response.Entries[0].Key)
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, response.Entries[0].Response.Code)
-	assert.Equal(t, ts.typeURL, response.Entries[0].Response.Value.TypeUrl)
+	assert.Equal(t, key1, response.Entries.Entries[0].Entry.Key)
+	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, response.Entries.Entries[0].Code)
+	assert.Equal(t, ts.typeURL, response.Entries.Entries[0].Entry.Value.TypeUrl)
 
 	// Verify second entry was not found
-	assert.Equal(t, key2, response.Entries[1].Key)
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Entries[1].Response.Code)
+	assert.Equal(t, key2, response.Entries.Entries[1].Entry.Key)
+	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Entries.Entries[1].Code)
 }
 
 func TestSetWithNilEntry(t *testing.T) {
@@ -290,7 +291,7 @@ func TestSetAllWithNilEntry(t *testing.T) {
 	validEntry, err := createEntry(blockNumber, key, accountOwner, ts.typeURL)
 	require.NoError(t, err)
 
-	entries := []*pbstore.Entry{validEntry, nil}
+	entries := []*pbmodel.Entry{validEntry, nil}
 
 	// Try to store entries with nil entry
 	err = ts.store.SetAll(entries, blockNumber)
@@ -303,7 +304,7 @@ func TestEmptySetAll(t *testing.T) {
 	defer ts.cleanup()
 
 	// Test SetAll with empty entries slice
-	err := ts.store.SetAll([]*pbstore.Entry{}, 100)
+	err := ts.store.SetAll([]*pbmodel.Entry{}, 100)
 	require.NoError(t, err)
 }
 
@@ -312,7 +313,7 @@ func TestGetAllWithEmptyKeys(t *testing.T) {
 	defer ts.cleanup()
 
 	// Test GetAll with empty keys slice
-	response, err := ts.store.GetAll(&pbstore.GetAllRequest{
+	response, err := ts.store.GetAll(&pbservice.GetAllRequest{
 		Keys: [][]byte{},
 	})
 	require.NoError(t, err)
@@ -397,11 +398,11 @@ func TestMultipleOperations(t *testing.T) {
 	// Verify all entries can be retrieved
 	for i := 0; i < 5; i++ {
 		key := []byte(fmt.Sprintf("account-%d", i))
-		getRequest := &pbstore.GetRequest{Key: key}
+		getRequest := &pbservice.GetRequest{Key: key}
 
 		response, err := ts.store.Get(getRequest)
 		require.NoError(t, err)
-		assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, response.Code)
+		assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, response.Entry.Code)
 	}
 
 	// Test GetAll with all keys
@@ -410,14 +411,14 @@ func TestMultipleOperations(t *testing.T) {
 		allKeys[i] = []byte(fmt.Sprintf("account-%d", i))
 	}
 
-	getAllRequest := &pbstore.GetAllRequest{Keys: allKeys}
+	getAllRequest := &pbservice.GetAllRequest{Keys: allKeys}
 	response, err := ts.store.GetAll(getAllRequest)
 	require.NoError(t, err)
-	assert.Len(t, response.Entries, 5)
+	assert.Len(t, response.Entries.Entries, 5)
 
 	// Verify all entries were found
-	for _, responseEntry := range response.Entries {
-		assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Code)
+	for _, queriedEntry := range response.Entries.Entries {
+		assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, queriedEntry.Code)
 	}
 }
 
@@ -435,23 +436,23 @@ func TestGetFirstOrderingAndNotFound_Postgres(t *testing.T) {
 	}
 
 	// Exact match
-	resp, err := ts.store.GetFirst(&pbstore.GetFirstRequest{Key: []byte("a2")})
+	resp, err := ts.store.GetFirst(&pbservice.GetFirstRequest{Key: []byte("a2")})
 	require.NoError(t, err)
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, resp.Code)
+	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, resp.Entry.Code)
 	got := &pbtest.TestAccountOwner{}
-	require.NoError(t, resp.Value.UnmarshalTo(got))
+	require.NoError(t, resp.Entry.Entry.Value.UnmarshalTo(got))
 	assert.Equal(t, []byte("v2"), got.Owner)
 
 	// Between a2 and b1 -> expect b1
-	resp, err = ts.store.GetFirst(&pbstore.GetFirstRequest{Key: []byte("a3")})
+	resp, err = ts.store.GetFirst(&pbservice.GetFirstRequest{Key: []byte("a3")})
 	require.NoError(t, err)
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, resp.Code)
+	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, resp.Entry.Code)
 	got = &pbtest.TestAccountOwner{}
-	require.NoError(t, resp.Value.UnmarshalTo(got))
+	require.NoError(t, resp.Entry.Entry.Value.UnmarshalTo(got))
 	assert.Equal(t, []byte("v3"), got.Owner)
 
 	// Beyond last key -> not found
-	resp, err = ts.store.GetFirst(&pbstore.GetFirstRequest{Key: []byte("z9")})
+	resp, err = ts.store.GetFirst(&pbservice.GetFirstRequest{Key: []byte("z9")})
 	require.NoError(t, err)
-	assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, resp.Code)
+	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, resp.Entry.Code)
 }

@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	"github.com/dgraph-io/badger/v3"
-	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1"
 )
 
 // Set stores a single entry in Badger
-func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
+func (s *Store) Set(entry *pbmodel.Entry, blockNumber uint64) error {
 	// Prepend block_number and block_hash as bytes to the value
 	blockNumBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(blockNumBytes, blockNumber)
@@ -35,7 +35,7 @@ func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 }
 
 // SetAll stores multiple entries in Badger
-func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
+func (s *Store) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
 	if len(entries) == 0 {
 		return nil
 	}

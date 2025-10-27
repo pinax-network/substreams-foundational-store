@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/lib/pq"
-	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1"
+	pbservice "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -24,7 +25,7 @@ type KeyOnlyEntry struct {
 	Key         []byte `db:"key"`
 }
 
-func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
+func (s *Store) Get(request *pbservice.GetRequest) (*pbservice.GetResponse, error) {
 	// Track total execution time
 
 	entry := &Entry{}
@@ -33,23 +34,33 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// Track no keys found for this call
-			return &pbstore.GetResponse{
-				Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
+			return &pbservice.GetResponse{
+				BlockReached: true,
+				Entry: &pbmodel.QueriedEntry{
+					Code:  pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND,
+					Entry: &pbmodel.Entry{Key: request.Key},
+				},
 			}, nil
 		}
 		return nil, err
 	}
 
-	return &pbstore.GetResponse{
-		Code: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
-		Value: &anypb.Any{
-			TypeUrl: s.typeUrl,
-			Value:   entry.Value,
+	return &pbservice.GetResponse{
+		BlockReached: true,
+		Entry: &pbmodel.QueriedEntry{
+			Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND,
+			Entry: &pbmodel.Entry{
+				Key: request.Key,
+				Value: &anypb.Any{
+					TypeUrl: s.typeUrl,
+					Value:   entry.Value,
+				},
+			},
 		},
 	}, nil
 }
 
-func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {
+func (s *Store) GetAll(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
 	// Use time traversal query for multiple keys
 	rows, err := s.selectAnyStatement.Queryx(pq.Array(request.Keys), request.BlockNumber)
 	if err != nil {
@@ -67,27 +78,21 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 	}
 
 	var keysFoundCount int
-	out := []*pbstore.ResponseEntry{}
+	out := []*pbmodel.QueriedEntry{}
 	for _, key := range request.Keys {
 		entry, found := entriesMap[hex.EncodeToString(key)]
 		if !found {
-			out = append(out, &pbstore.ResponseEntry{
-				Key: key,
-				Response: &pbstore.GetResponse{
-					Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
-					Value: &anypb.Any{
-						TypeUrl: s.typeUrl,
-						Value:   nil,
-					},
-				},
+			out = append(out, &pbmodel.QueriedEntry{
+				Code:  pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND,
+				Entry: &pbmodel.Entry{Key: key},
 			})
 			continue
 		}
 		keysFoundCount++
-		out = append(out, &pbstore.ResponseEntry{
-			Key: key,
-			Response: &pbstore.GetResponse{
-				Code: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
+		out = append(out, &pbmodel.QueriedEntry{
+			Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND,
+			Entry: &pbmodel.Entry{
+				Key: key,
 				Value: &anypb.Any{
 					TypeUrl: s.typeUrl,
 					Value:   entry.Value,
@@ -96,24 +101,37 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 		})
 	}
 
-	return &pbstore.GetAllResponse{
-		Entries: out,
+	return &pbservice.GetAllResponse{
+		BlockReached: true,
+		Entries:      &pbmodel.QueriedEntries{Entries: out},
 	}, nil
 }
 
 // GetFirst retrieves the first entry (by key >= requested) with its latest value
-func (s *Store) GetFirst(request *pbstore.GetFirstRequest) (*pbstore.GetResponse, error) {
+func (s *Store) GetFirst(request *pbservice.GetFirstRequest) (*pbservice.GetResponse, error) {
 	entry := &Entry{}
 	err := s.selectFirstStmt.Get(entry, request.Key)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return &pbstore.GetResponse{Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND}, nil
+			return &pbservice.GetResponse{
+				BlockReached: true,
+				Entry:        &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, Entry: &pbmodel.Entry{Key: request.Key}},
+			}, nil
 		}
 		return nil, err
 	}
-	return &pbstore.GetResponse{
-		Code:  pbstore.ResponseCode_RESPONSE_CODE_FOUND,
-		Value: &anypb.Any{TypeUrl: s.typeUrl, Value: entry.Value},
+	return &pbservice.GetResponse{
+		BlockReached: true,
+		Entry: &pbmodel.QueriedEntry{
+			Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND,
+			Entry: &pbmodel.Entry{
+				Key: request.Key,
+				Value: &anypb.Any{
+					TypeUrl: s.typeUrl,
+					Value:   entry.Value,
+				},
+			},
+		},
 	}, nil
 }
 

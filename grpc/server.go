@@ -8,7 +8,7 @@ import (
 	dgrpcServer "github.com/streamingfast/dgrpc/server"
 	"github.com/streamingfast/dgrpc/server/factory"
 	"github.com/streamingfast/shutter"
-	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	pbservice "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -17,7 +17,7 @@ import (
 // StoreServer implements the StoreKV gRPC service
 type GrpcServer struct {
 	*shutter.Shutter
-	pbstore.UnimplementedStoreServer
+	pbservice.UnimplementedStoreServer
 	store            store.Store
 	dgrpcServer      dgrpcServer.Server
 	headBlockFetcher FetchHeadBlock
@@ -38,12 +38,10 @@ func NewStoreServer(store store.Store, headBlockFetcher FetchHeadBlock, logger *
 }
 
 // Get implements the Get method of the StoreKV service
-func (s *GrpcServer) Get(ctx context.Context, req *pbstore.GetRequest) (*pbstore.GetResponse, error) {
+func (s *GrpcServer) Get(ctx context.Context, req *pbservice.GetRequest) (*pbservice.GetResponse, error) {
 	headBlock := s.headBlockFetcher()
 	if headBlock < req.BlockNumber {
-		return &pbstore.GetResponse{
-			BlockReached: false,
-		}, nil
+		return &pbservice.GetResponse{BlockReached: false}, nil
 	}
 
 	r, err := s.store.Get(req)
@@ -56,12 +54,10 @@ func (s *GrpcServer) Get(ctx context.Context, req *pbstore.GetRequest) (*pbstore
 }
 
 // GetFirst implements the GetFirst method of the Store service
-func (s *GrpcServer) GetFirst(ctx context.Context, req *pbstore.GetFirstRequest) (*pbstore.GetResponse, error) {
+func (s *GrpcServer) GetFirst(ctx context.Context, req *pbservice.GetFirstRequest) (*pbservice.GetResponse, error) {
 	headBlock := s.headBlockFetcher()
 	if headBlock < req.BlockNumber {
-		return &pbstore.GetResponse{
-			BlockReached: false,
-		}, nil
+		return &pbservice.GetResponse{BlockReached: false}, nil
 	}
 
 	r, err := s.store.GetFirst(req)
@@ -73,14 +69,12 @@ func (s *GrpcServer) GetFirst(ctx context.Context, req *pbstore.GetFirstRequest)
 }
 
 // GetAll implements the GetAll method of the StoreKV service
-func (s *GrpcServer) GetAll(ctx context.Context, req *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {
+func (s *GrpcServer) GetAll(ctx context.Context, req *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
 
 	executionStart := time.Now()
 	headBlock := s.headBlockFetcher()
 	if headBlock < req.BlockNumber {
-		return &pbstore.GetAllResponse{
-			BlockReached: false,
-		}, nil
+		return &pbservice.GetAllResponse{BlockReached: false}, nil
 	}
 
 	r, err := s.store.GetAll(req)
@@ -88,17 +82,14 @@ func (s *GrpcServer) GetAll(ctx context.Context, req *pbstore.GetAllRequest) (*p
 		return nil, fmt.Errorf("getting all keys from store: %w", err)
 	}
 
-	// Set BlockReached = true for both the top-level response and each individual entry
+	// Set BlockReached = true for top-level response
 	r.BlockReached = true
-	for _, entry := range r.Entries {
-		entry.Response.BlockReached = true
-	}
 
 	s.logger.Info("request stats",
 		zap.Uint64("block_number", req.BlockNumber),
 		zap.Uint64("head_block", headBlock),
 		zap.Int("requested_keys", len(req.Keys)),
-		zap.Int("found_keys", len(r.Entries)),
+		zap.Int("found_keys", len(r.Entries.Entries)),
 		zap.Duration("execution_time", time.Since(executionStart)),
 		zap.Bool("keep", false),
 	)
@@ -113,7 +104,7 @@ func (s *GrpcServer) Run(addr string, opts ...grpc.ServerOption) {
 		dgrpcServer.WithPlainTextServer(),
 		dgrpcServer.WithGRPCServerOptions(opts...),
 		dgrpcServer.WithRegisterService(func(gs *grpc.Server) {
-			pbstore.RegisterStoreServer(gs, s)
+			pbservice.RegisterStoreServer(gs, s)
 		}),
 		dgrpcServer.WithHealthCheck(dgrpcServer.HealthCheckOverGRPC|dgrpcServer.HealthCheckOverHTTP, healthCheck),
 	)

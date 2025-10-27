@@ -6,7 +6,7 @@ import (
 	"math"
 
 	"github.com/dgraph-io/badger/v3"
-	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1"
 )
 
 // makeTimeTraversalKey creates a composite key by appending the reversed block number to the original key
@@ -28,7 +28,7 @@ func makeTimeTraversalKey(originalKey []byte, blockNumber uint64) []byte {
 }
 
 // Set stores a single entry in Badger with time traversal support
-func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
+func (s *Store) Set(entry *pbmodel.Entry, blockNumber uint64) error {
 	// Create composite key with block number
 	compositeKey := makeTimeTraversalKey(entry.Key, blockNumber)
 
@@ -52,7 +52,7 @@ func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 }
 
 // SetAll stores multiple entries in Badger with time traversal support
-func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
+func (s *Store) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
 	if len(entries) == 0 {
 		return nil
 	}

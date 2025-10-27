@@ -7,12 +7,13 @@ import (
 	"sync"
 
 	"github.com/dgraph-io/badger/v3"
-	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1"
+	pbservice "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // Get retrieves a single entry from Badger
-func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
+func (s *Store) Get(request *pbservice.GetRequest) (*pbservice.GetResponse, error) {
 	var storedValue []byte
 	var found bool
 
@@ -47,10 +48,10 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 		return nil, fmt.Errorf("failed to get value from Badger: %w", err)
 	}
 
+	resp := &pbservice.GetResponse{BlockReached: true}
 	if !found {
-		return &pbstore.GetResponse{
-			Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
-		}, nil
+		resp.Entry = &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, Entry: &pbmodel.Entry{Key: request.Key}}
+		return resp, nil
 	}
 
 	// Extract the block number and the actual value
@@ -66,28 +67,27 @@ func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
 	actualValue := storedValue[8:]
 
 	if request.BlockNumber < blockNumber {
-		return &pbstore.GetResponse{
-			Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
-		}, nil
+		resp.Entry = &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, Entry: &pbmodel.Entry{Key: request.Key}}
+		return resp, nil
 	}
 
 	// Note: Block hash validation is not supported in this implementation
 	// as the setter does not store block hash information
 
-	return &pbstore.GetResponse{
-		Code: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
-		Value: &anypb.Any{
-			TypeUrl: s.typeUrl,
-			Value:   actualValue,
+	resp.Entry = &pbmodel.QueriedEntry{
+		Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND,
+		Entry: &pbmodel.Entry{
+			Key:   request.Key,
+			Value: &anypb.Any{TypeUrl: s.typeUrl, Value: actualValue},
 		},
-	}, nil
+	}
+	return resp, nil
 }
 
 // GetAll retrieves multiple entries from Badger using goroutines for parallelism
-func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {
-	// Create a slice to store the entries
-	var entries []*pbstore.ResponseEntry
-	var keysFoundCount int
+func (s *Store) GetAll(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
+	// Create a slice to store the entries in order
+	entries := make([]*pbmodel.QueriedEntry, 0, len(request.Keys))
 
 	// Create a transaction
 	err := s.db.View(func(txn *badger.Txn) error {
@@ -107,7 +107,7 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 		// Use a channel to collect errors
 		errChan := make(chan error, len(request.Keys))
 
-		// Use a mutex to protect the entries slice and key count
+		// Use a mutex to protect the entries slice
 		var mutex sync.Mutex
 
 		// Use the configured number of workers
@@ -135,12 +135,7 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 							// Key not found, add a NOT_FOUND response
 							mutex.Lock()
 							entries = append(entries,
-								&pbstore.ResponseEntry{
-									Key: key,
-									Response: &pbstore.GetResponse{
-										Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
-									},
-								})
+								&pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, Entry: &pbmodel.Entry{Key: key}})
 							mutex.Unlock()
 							continue
 						}
@@ -174,12 +169,7 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 
 					if request.BlockNumber < blockNumber {
 						mutex.Lock()
-						entries = append(entries, &pbstore.ResponseEntry{
-							Key: key,
-							Response: &pbstore.GetResponse{
-								Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND,
-							},
-						})
+						entries = append(entries, &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, Entry: &pbmodel.Entry{Key: key}})
 						mutex.Unlock()
 						continue
 					}
@@ -188,18 +178,9 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 					// as the setter does not store block hash information
 
 					mutex.Lock()
-					keysFoundCount++
 					entries = append(entries,
-						&pbstore.ResponseEntry{
-							Key: key,
-							Response: &pbstore.GetResponse{
-								Code: pbstore.ResponseCode_RESPONSE_CODE_FOUND,
-								Value: &anypb.Any{
-									TypeUrl: s.typeUrl,
-									Value:   actualValue,
-								},
-							},
-						})
+						&pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND, Entry: &pbmodel.Entry{Key: key, Value: &anypb.Any{TypeUrl: s.typeUrl, Value: actualValue}}},
+					)
 					mutex.Unlock()
 				}
 			}()
@@ -221,14 +202,15 @@ func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse,
 		return nil, fmt.Errorf("failed to get values from Badger: %w", err)
 	}
 
-	return &pbstore.GetAllResponse{
-		Entries: entries,
+	return &pbservice.GetAllResponse{
+		BlockReached: true,
+		Entries:      &pbmodel.QueriedEntries{Entries: entries},
 	}, nil
 }
 
 // GetFirst returns the first entry with key >= requested key (lexicographic order)
-func (s *Store) GetFirst(request *pbstore.GetFirstRequest) (*pbstore.GetResponse, error) {
-	return s.Get(&pbstore.GetRequest{
+func (s *Store) GetFirst(request *pbservice.GetFirstRequest) (*pbservice.GetResponse, error) {
+	return s.Get(&pbservice.GetRequest{
 		Key:         request.Key,
 		BlockNumber: request.BlockNumber,
 	})

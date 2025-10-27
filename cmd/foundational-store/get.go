@@ -12,7 +12,8 @@ import (
 	"github.com/protocolbuffers/protoscope"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	pbStore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1"
+	pbservice "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -69,7 +70,7 @@ This command connects to a gRPC server and retrieves a value for the specified k
 		defer conn.Close()
 
 		// Create a client for the StoreKV service
-		client := pbStore.NewStoreClient(conn)
+		client := pbservice.NewStoreClient(conn)
 
 		// Get block hash flag value
 		getBlockHash, _ := cmd.Flags().GetString("block-hash")
@@ -82,7 +83,7 @@ This command connects to a gRPC server and retrieves a value for the specified k
 		}
 
 		// Create the GetRequest
-		request := &pbStore.GetRequest{
+		request := &pbservice.GetRequest{
 			BlockNumber: getBlockNumber,
 			BlockHash:   blockHashBytes,
 			Key:         keyBytes,
@@ -108,18 +109,18 @@ This command connects to a gRPC server and retrieves a value for the specified k
 		}
 
 		// Display the response
-		switch resp.Code {
-		case pbStore.ResponseCode_RESPONSE_CODE_FOUND:
-			fmt.Printf("Type URL: %s\n", resp.Value.TypeUrl)
-			protoscopeOutput := protoscope.Write(resp.Value.Value, protoscope.WriterOptions{})
+		switch resp.Entry.Code {
+		case pbmodel.ResponseCode_RESPONSE_CODE_FOUND:
+			fmt.Printf("Type URL: %s\n", resp.Entry.Entry.Value.TypeUrl)
+			protoscopeOutput := protoscope.Write(resp.Entry.Entry.Value.Value, protoscope.WriterOptions{})
 			fmt.Printf("Value: %s\n", protoscopeOutput)
-			fmt.Printf("Value size: %d bytes\n", len(resp.Value.Value))
-		case pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND:
+			fmt.Printf("Value size: %d bytes\n", len(resp.Entry.Entry.Value.Value))
+		case pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND:
 			fmt.Println("Value not found")
-		case pbStore.ResponseCode_RESPONSE_CODE_NOT_FOUND_FINALIZE:
+		case pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND_FINALIZE:
 			fmt.Println("Value not found (finalized)")
 		default:
-			fmt.Printf("Unknown response code: %s\n", resp.Code)
+			fmt.Printf("Unknown response code: %s\n", resp.Entry.Code)
 		}
 
 		return nil

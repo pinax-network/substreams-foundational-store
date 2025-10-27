@@ -5,7 +5,8 @@ import (
 	"testing"
 
 	pbtest "github.com/streamingfast/substreams-foundational-store/internal/pb/test"
-	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1"
+	pbservice "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1"
 	storelib "github.com/streamingfast/substreams-foundational-store/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -58,7 +59,7 @@ func createAccountOwner(ownerAddress string) *pbtest.TestAccountOwner {
 }
 
 // createEntry creates a foundational-store Entry with the given block number, key, and AccountOwner
-func createEntry(blockNumber uint64, key []byte, accountOwner *pbtest.TestAccountOwner, typeURL string) (*pbstore.Entry, error) {
+func createEntry(blockNumber uint64, key []byte, accountOwner *pbtest.TestAccountOwner, typeURL string) (*pbmodel.Entry, error) {
 	// Marshal the AccountOwner proto message
 	data, err := proto.Marshal(accountOwner)
 	if err != nil {
@@ -72,7 +73,7 @@ func createEntry(blockNumber uint64, key []byte, accountOwner *pbtest.TestAccoun
 	}
 
 	// Create an Entry to foundational-store
-	return &pbstore.Entry{
+	return &pbmodel.Entry{
 		Key:   key,
 		Value: anyValue,
 	}, nil
@@ -131,7 +132,7 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create a GetRequest to retrieve the Entry
-			getRequest := &pbstore.GetRequest{
+			getRequest := &pbservice.GetRequest{
 				BlockNumber: tc.requestBlock,
 				BlockHash:   []byte("test_block_hash"),
 				Key:         tc.key,
@@ -142,18 +143,18 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 			require.NoError(t, err)
 
 			if tc.expectFound {
-				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, getResponse.Code)
+				assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, getResponse.Entry.Code)
 
 				// Unmarshal the retrieved value into an AccountOwner
 				retrievedAccountOwner := &pbtest.TestAccountOwner{}
-				err = getResponse.Value.UnmarshalTo(retrievedAccountOwner)
+				err = getResponse.Entry.Entry.Value.UnmarshalTo(retrievedAccountOwner)
 				require.NoError(t, err)
 
 				// Verify the retrieved AccountOwner matches the original
 				assert.Equal(t, accountOwner.Mint, retrievedAccountOwner.Mint)
 				assert.Equal(t, accountOwner.Owner, retrievedAccountOwner.Owner)
 			} else {
-				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, getResponse.Code)
+				assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, getResponse.Entry.Code)
 			}
 		})
 	}
@@ -280,7 +281,7 @@ func TestGetWithBlockNumber(t *testing.T) {
 			}
 
 			// Create a GetRequest to retrieve the Entry
-			getRequest := &pbstore.GetRequest{
+			getRequest := &pbservice.GetRequest{
 				BlockNumber: tc.requestBlock,
 				BlockHash:   []byte("test_block_hash"),
 				Key:         tc.requestKey,
@@ -291,12 +292,12 @@ func TestGetWithBlockNumber(t *testing.T) {
 			require.NoError(t, err)
 
 			if tc.expectFound {
-				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, getResponse.Code,
+				assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, getResponse.Entry.Code,
 					"Should find entry with block number %d", tc.requestBlock)
 
 				// Unmarshal the retrieved value into an AccountOwner
 				retrievedAccountOwner := &pbtest.TestAccountOwner{}
-				err = getResponse.Value.UnmarshalTo(retrievedAccountOwner)
+				err = getResponse.Entry.Entry.Value.UnmarshalTo(retrievedAccountOwner)
 				require.NoError(t, err)
 
 				// Verify the retrieved AccountOwner matches the expected one
@@ -304,7 +305,7 @@ func TestGetWithBlockNumber(t *testing.T) {
 				assert.Equal(t, expectedOwner, retrievedAccountOwner.Owner,
 					"Should retrieve %s", tc.expectedOwner)
 			} else {
-				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, getResponse.Code,
+				assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, getResponse.Entry.Code,
 					"Should not find entry with block number %d", tc.requestBlock)
 			}
 		})
@@ -364,7 +365,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 			defer ts.cleanup()
 
 			// Create entries to foundational-store
-			entries := make([]*pbstore.Entry, len(tc.accounts))
+			entries := make([]*pbmodel.Entry, len(tc.accounts))
 			keys := make([][]byte, len(tc.accounts))
 			accountOwners := make([]*pbtest.TestAccountOwner, len(tc.accounts))
 
@@ -388,7 +389,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create a GetAllRequest to retrieve all entries
-			getAllRequest := &pbstore.GetAllRequest{
+			getAllRequest := &pbservice.GetAllRequest{
 				BlockNumber: tc.requestBlock,
 				BlockHash:   []byte("test_block_hash"),
 				Keys:        keys,
@@ -399,7 +400,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 			require.NoError(t, err)
 
 			// Verify the number of retrieved entries matches the number of requested keys
-			assert.Equal(t, len(keys), len(getAllResponse.Entries), "Should return responses for all keys")
+			assert.Equal(t, len(keys), len(getAllResponse.Entries.Entries), "Should return responses for all keys")
 
 			// Create a map of keys to entries for easier verification
 			entryMap := make(map[string]*pbtest.TestAccountOwner)
@@ -408,11 +409,11 @@ func TestSetAllAndGetAll(t *testing.T) {
 			}
 
 			// Create a map to foundational-store the responses by key
-			responseMap := make(map[string]*pbstore.ResponseEntry)
+			responseMap := make(map[string]*pbmodel.QueriedEntry)
 			foundCount := 0
-			for _, responseEntry := range getAllResponse.Entries {
-				responseMap[string(responseEntry.Key)] = responseEntry
-				if responseEntry.Response.Code == pbstore.ResponseCode_RESPONSE_CODE_FOUND {
+			for _, responseEntry := range getAllResponse.Entries.Entries {
+				responseMap[string(responseEntry.Entry.Key)] = responseEntry
+				if responseEntry.Code == pbmodel.ResponseCode_RESPONSE_CODE_FOUND {
 					foundCount++
 				}
 			}
@@ -425,12 +426,12 @@ func TestSetAllAndGetAll(t *testing.T) {
 				// Check if the key is expected to be found
 				expectedFound := tc.expectedKeys[string(key)]
 				if expectedFound {
-					assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Code,
+					assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Code,
 						"Should find entry with block number %d for key %s", tc.requestBlock, key)
 
 					// Unmarshal the retrieved value into an AccountOwner
 					retrievedAccountOwner := &pbtest.TestAccountOwner{}
-					err = responseEntry.Response.Value.UnmarshalTo(retrievedAccountOwner)
+					err = responseEntry.Entry.Value.UnmarshalTo(retrievedAccountOwner)
 					require.NoError(t, err)
 
 					// Get the original AccountOwner for this key
@@ -441,7 +442,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 					assert.Equal(t, originalAccountOwner.Mint, retrievedAccountOwner.Mint)
 					assert.Equal(t, originalAccountOwner.Owner, retrievedAccountOwner.Owner)
 				} else {
-					assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, responseEntry.Response.Code,
+					assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, responseEntry.Code,
 						"Should not find entry with block number %d for key %s", tc.requestBlock, key)
 				}
 			}
@@ -636,7 +637,7 @@ func TestGetAllWithBlockNumber(t *testing.T) {
 			}
 
 			// Group entries by block number
-			entriesByBlock := make(map[uint64][]*pbstore.Entry)
+			entriesByBlock := make(map[uint64][]*pbmodel.Entry)
 			for _, entryData := range tc.entries {
 				// Create an AccountOwner object
 				accountOwner := createAccountOwner(entryData.ownerValue)
@@ -655,7 +656,7 @@ func TestGetAllWithBlockNumber(t *testing.T) {
 			}
 
 			// Create a GetAllRequest to retrieve all entries
-			getAllRequest := &pbstore.GetAllRequest{
+			getAllRequest := &pbservice.GetAllRequest{
 				BlockNumber: tc.requestBlock,
 				BlockHash:   []byte("test_block_hash"),
 				Keys:        byteKeys,
@@ -664,14 +665,14 @@ func TestGetAllWithBlockNumber(t *testing.T) {
 			// Retrieve all entries using GetAll
 			getAllResponse, err := ts.store.GetAll(getAllRequest)
 			require.NoError(t, err)
-			assert.Equal(t, len(byteKeys), len(getAllResponse.Entries), "Should return responses for all keys")
+			assert.Equal(t, len(byteKeys), len(getAllResponse.Entries.Entries), "Should return responses for all keys")
 
 			// Create a map to foundational-store the responses by key
-			responseMap := make(map[string]*pbstore.ResponseEntry)
+			responseMap := make(map[string]*pbmodel.QueriedEntry)
 			foundCount := 0
-			for _, responseEntry := range getAllResponse.Entries {
-				responseMap[string(responseEntry.Key)] = responseEntry
-				if responseEntry.Response.Code == pbstore.ResponseCode_RESPONSE_CODE_FOUND {
+			for _, responseEntry := range getAllResponse.Entries.Entries {
+				responseMap[string(responseEntry.Entry.Key)] = responseEntry
+				if responseEntry.Code == pbmodel.ResponseCode_RESPONSE_CODE_FOUND {
 					foundCount++
 				}
 			}
@@ -689,18 +690,18 @@ func TestGetAllWithBlockNumber(t *testing.T) {
 				// Check if the key is expected to be found
 				expectedFound := tc.expectedKeys[string(key)]
 				if expectedFound {
-					assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Code,
+					assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Code,
 						"Should find entry with block number %d for key %s", tc.requestBlock, key)
 
 					// Unmarshal the retrieved value into an AccountOwner
 					retrievedAccountOwner := &pbtest.TestAccountOwner{}
-					err = responseEntry.Response.Value.UnmarshalTo(retrievedAccountOwner)
+					err = responseEntry.Entry.Value.UnmarshalTo(retrievedAccountOwner)
 					require.NoError(t, err)
 
 					// For this test, we don't need to verify the specific owner value
 					// as we're just testing if the keys are found or not
 				} else {
-					assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, responseEntry.Response.Code,
+					assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, responseEntry.Code,
 						"Should not find entry with block number %d for key %s", tc.requestBlock, key)
 				}
 			}
@@ -754,7 +755,7 @@ func TestSetAllAndGetAllWithNonExistentKey(t *testing.T) {
 			defer ts.cleanup()
 
 			// Create entries to foundational-store
-			entries := make([]*pbstore.Entry, len(tc.accounts))
+			entries := make([]*pbmodel.Entry, len(tc.accounts))
 			existingKeys := make([][]byte, len(tc.accounts))
 			accountOwners := make([]*pbtest.TestAccountOwner, len(tc.accounts))
 
@@ -787,7 +788,7 @@ func TestSetAllAndGetAllWithNonExistentKey(t *testing.T) {
 			allKeys := append(existingKeys, nonExistentByteKeys...)
 
 			// Create a GetAllRequest to retrieve all entries including non-existent keys
-			getAllRequest := &pbstore.GetAllRequest{
+			getAllRequest := &pbservice.GetAllRequest{
 				BlockNumber: tc.requestBlock,
 				BlockHash:   []byte("test_block_hash"),
 				Keys:        allKeys,
@@ -798,23 +799,23 @@ func TestSetAllAndGetAllWithNonExistentKey(t *testing.T) {
 			require.NoError(t, err)
 
 			// Verify the number of retrieved entries matches the number of requested keys
-			assert.Equal(t, len(allKeys), len(getAllResponse.Entries))
+			assert.Equal(t, len(allKeys), len(getAllResponse.Entries.Entries))
 
 			// Create a map of keys to response entries for easier verification
-			responseMap := make(map[string]*pbstore.ResponseEntry)
-			for _, responseEntry := range getAllResponse.Entries {
-				responseMap[string(responseEntry.Key)] = responseEntry
+			responseMap := make(map[string]*pbmodel.QueriedEntry)
+			for _, responseEntry := range getAllResponse.Entries.Entries {
+				responseMap[string(responseEntry.Entry.Key)] = responseEntry
 			}
 
 			// Verify existing keys are found
 			for i, key := range existingKeys {
 				responseEntry := responseMap[string(key)]
 				require.NotNil(t, responseEntry, "Response entry not found for key %s", key)
-				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Response.Code)
+				assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, responseEntry.Code)
 
 				// Unmarshal the retrieved value into an AccountOwner
 				retrievedAccountOwner := &pbtest.TestAccountOwner{}
-				err = responseEntry.Response.Value.UnmarshalTo(retrievedAccountOwner)
+				err = responseEntry.Entry.Value.UnmarshalTo(retrievedAccountOwner)
 				require.NoError(t, err)
 
 				// Verify the retrieved AccountOwner matches the original
@@ -826,8 +827,57 @@ func TestSetAllAndGetAllWithNonExistentKey(t *testing.T) {
 			for _, key := range nonExistentByteKeys {
 				responseEntry := responseMap[string(key)]
 				require.NotNil(t, responseEntry, "Response for non-existent key %s not found", key)
-				assert.Equal(t, pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND, responseEntry.Response.Code)
+				assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, responseEntry.Code)
 			}
 		})
 	}
+}
+
+func TestGetFirst_FoundExact(t *testing.T) {
+	// Setup test store
+	ts := setupTestStore(t)
+	defer ts.cleanup()
+
+	key := []byte("gf-key-1")
+	owner := createAccountOwner("owner-A")
+	entry, err := createEntry(100, key, owner, ts.typeURL)
+	require.NoError(t, err)
+	require.NoError(t, ts.store.Set(entry, 100))
+
+	resp, err := ts.store.GetFirst(&pbservice.GetFirstRequest{Key: key, BlockNumber: 150})
+	require.NoError(t, err)
+	require.NotNil(t, resp.Entry)
+	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, resp.Entry.Code)
+	got := &pbtest.TestAccountOwner{}
+	require.NoError(t, resp.Entry.Entry.Value.UnmarshalTo(got))
+	assert.Equal(t, owner.Owner, got.Owner)
+}
+
+func TestGetFirst_NotFound_BlockTooEarly(t *testing.T) {
+	// Setup test store
+	ts := setupTestStore(t)
+	defer ts.cleanup()
+
+	key := []byte("gf-key-2")
+	owner := createAccountOwner("owner-B")
+	entry, err := createEntry(100, key, owner, ts.typeURL)
+	require.NoError(t, err)
+	require.NoError(t, ts.store.Set(entry, 100))
+
+	// Request before the write block: should be NOT_FOUND
+	resp, err := ts.store.GetFirst(&pbservice.GetFirstRequest{Key: key, BlockNumber: 50})
+	require.NoError(t, err)
+	require.NotNil(t, resp.Entry)
+	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, resp.Entry.Code)
+}
+
+func TestGetFirst_NotFound_UnknownKey(t *testing.T) {
+	// Setup test store
+	ts := setupTestStore(t)
+	defer ts.cleanup()
+
+	resp, err := ts.store.GetFirst(&pbservice.GetFirstRequest{Key: []byte("missing"), BlockNumber: 999})
+	require.NoError(t, err)
+	require.NotNil(t, resp.Entry)
+	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, resp.Entry.Code)
 }

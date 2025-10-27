@@ -7,7 +7,8 @@ import (
 	"sync"
 	"testing"
 
-	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1"
+	pbservice "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	pbsubstreamsrpc "github.com/streamingfast/substreams/pb/sf/substreams/rpc/v2"
 	pbsubstreams "github.com/streamingfast/substreams/pb/sf/substreams/v1"
@@ -28,7 +29,7 @@ type SimpleMockStore struct {
 }
 
 type SimpleSetAllCall struct {
-	Entries     []*pbstore.Entry
+	Entries     []*pbmodel.Entry
 	BlockNumber uint64
 }
 
@@ -40,15 +41,15 @@ func NewSimpleMockStore() *SimpleMockStore {
 	}
 }
 
-func (m *SimpleMockStore) Set(entry *pbstore.Entry, blockNumber uint64) error {
-	return m.SetAll([]*pbstore.Entry{entry}, blockNumber)
+func (m *SimpleMockStore) Set(entry *pbmodel.Entry, blockNumber uint64) error {
+	return m.SetAll([]*pbmodel.Entry{entry}, blockNumber)
 }
 
-func (m *SimpleMockStore) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
+func (m *SimpleMockStore) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	entriesCopy := make([]*pbstore.Entry, len(entries))
+	entriesCopy := make([]*pbmodel.Entry, len(entries))
 	copy(entriesCopy, entries)
 
 	m.setAllCalls = append(m.setAllCalls, SimpleSetAllCall{
@@ -58,16 +59,25 @@ func (m *SimpleMockStore) SetAll(entries []*pbstore.Entry, blockNumber uint64) e
 	return nil
 }
 
-func (m *SimpleMockStore) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
-	return &pbstore.GetResponse{Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND}, nil
+func (m *SimpleMockStore) Get(request *pbservice.GetRequest) (*pbservice.GetResponse, error) {
+	return &pbservice.GetResponse{
+		BlockReached: true,
+		Entry:        &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND},
+	}, nil
 }
 
-func (m *SimpleMockStore) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {
-	return &pbstore.GetAllResponse{Entries: []*pbstore.ResponseEntry{}}, nil
+func (m *SimpleMockStore) GetAll(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
+	return &pbservice.GetAllResponse{
+		BlockReached: true,
+		Entries:      &pbmodel.QueriedEntries{},
+	}, nil
 }
 
-func (m *SimpleMockStore) GetFirst(request *pbstore.GetFirstRequest) (*pbstore.GetResponse, error) {
-	return &pbstore.GetResponse{Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND}, nil
+func (m *SimpleMockStore) GetFirst(request *pbservice.GetFirstRequest) (*pbservice.GetResponse, error) {
+	return &pbservice.GetResponse{
+		BlockReached: true,
+		Entry:        &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND},
+	}, nil
 }
 
 func (m *SimpleMockStore) FlushUpToBlock(blockNum uint64) error {
@@ -156,7 +166,7 @@ func TestHandleBlockScopedData(t *testing.T) {
 	}()
 
 	// Create test entries
-	entries := []*pbstore.Entry{
+	entries := []*pbmodel.Entry{
 		{
 			Key: []byte("test_key_1"),
 			Value: &anypb.Any{
@@ -174,7 +184,7 @@ func TestHandleBlockScopedData(t *testing.T) {
 	}
 
 	// Create entries wrapper
-	entriesWrapper := &pbstore.Entries{
+	entriesWrapper := &pbmodel.SinkEntries{
 		Entries: entries,
 	}
 

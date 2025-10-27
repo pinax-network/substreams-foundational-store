@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/streamingfast/shutter"
-	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	pbsubstreamsrpc "github.com/streamingfast/substreams/pb/sf/substreams/rpc/v2"
 	sink "github.com/streamingfast/substreams/sink"
@@ -46,7 +46,7 @@ func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrp
 
 	// Process data if present
 	if data.Output != nil && data.Output.MapOutput != nil && data.Output.MapOutput.Value != nil {
-		entries := &pbstore.Entries{}
+		entries := &pbmodel.SinkEntries{}
 		if err := data.Output.MapOutput.UnmarshalTo(entries); err != nil {
 			return fmt.Errorf("unmarshaling map output to Entry: %w", err)
 		}

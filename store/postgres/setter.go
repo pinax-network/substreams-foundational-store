@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1"
 )
 
-func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
+func (s *Store) Set(entry *pbmodel.Entry, blockNumber uint64) error {
 	if entry == nil {
 		return fmt.Errorf("entry cannot be nil")
 	}
@@ -22,7 +22,7 @@ func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 	return nil
 }
 
-func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
+func (s *Store) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
 	if len(entries) == 0 {
 		return nil
 	}

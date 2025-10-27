@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+import "google/protobuf/any.proto";
+
+package sf.substreams.foundational_store.v1.model;
+
+//by both consumer and sinker Substreams
+message Entry {
+  reserved 1; //backward compatibility
+  bytes key = 2;
+  google.protobuf.Any value = 4;
+}
+
+// Use by sinker Substreams
+message SinkEntries {
+  repeated Entry entries = 1;
+  bool if_not_exist = 2;
+}
+
+// GETTER: Use by consumer Substreams
+message QueriedEntry {
+  ResponseCode code = 1;
+  Entry entry = 2;
+}
+
+// GETTER: Use by consumer Substreams
+message QueriedEntries {
+  repeated QueriedEntry entries = 2;
+}
+
+// Indicates the result of a get operation with detailed status information
+enum ResponseCode {
+  // Default value, should not be used
+  RESPONSE_CODE_UNSPECIFIED = 0;
+  // Key exists and value was retrieved successfully
+  RESPONSE_CODE_FOUND = 1;
+  // Key does not exist at the requested block
+  RESPONSE_CODE_NOT_FOUND = 2;
+  // Key was deleted after finality (LIB) -> historical reference
+  RESPONSE_CODE_NOT_FOUND_FINALIZE = 4;
+}

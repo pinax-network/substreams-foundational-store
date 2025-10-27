@@ -1,16 +1,16 @@
 package ForkAware
 
 import (
-	"bytes"
 	"fmt"
 	"sync"
 
-	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1"
+	pbservice "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1"
 	"github.com/streamingfast/substreams-foundational-store/store"
 )
 
 type cachedEntry struct {
-	entry       *pbstore.Entry
+	entry       *pbmodel.Entry
 	blockNumber uint64
 }
 
@@ -34,7 +34,7 @@ func NewStore(wrapped store.Store) *Store {
 
 // Set stores a single entry in the ForkAware.
 // If the entry's block number is <= flushUpToBlock, it's also stored in the wrapped foundational-store.
-func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
+func (s *Store) Set(entry *pbmodel.Entry, blockNumber uint64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -56,7 +56,7 @@ func (s *Store) Set(entry *pbstore.Entry, blockNumber uint64) error {
 
 // SetAll stores multiple entries in the ForkAware.
 // Entries with block numbers <= flushUpToBlock are also stored in the wrapped foundational-store.
-func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
+func (s *Store) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -69,7 +69,7 @@ func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 	}
 
 	// Collect entries that need to be flushed to the wrapped foundational-store
-	var toFlush []*pbstore.Entry
+	var toFlush []*pbmodel.Entry
 	for _, entry := range entries {
 		if blockNumber <= s.flushUpToBlock {
 			toFlush = append(toFlush, entry)
@@ -86,124 +86,32 @@ func (s *Store) SetAll(entries []*pbstore.Entry, blockNumber uint64) error {
 	return nil
 }
 
-// Get retrieves a single entry.
-// First checks the ForkAware, then falls back to the wrapped foundational-store if not found.
-func (s *Store) Get(request *pbstore.GetRequest) (*pbstore.GetResponse, error) {
+// Get retrieves a single entry by delegating to the wrapped store and overlaying cache when possible.
+func (s *Store) Get(request *pbservice.GetRequest) (*pbservice.GetResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	// Check ForkAware first
+	// Check cache first
 	if cached, ok := s.cache[string(request.Key)]; ok {
-		// If the block number is <= the requested block number, return it
 		if cached.blockNumber <= request.BlockNumber {
-			return &pbstore.GetResponse{
-				Code:  pbstore.ResponseCode_RESPONSE_CODE_FOUND,
-				Value: cached.entry.Value,
-			}, nil
+			return &pbservice.GetResponse{Entry: &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND, Entry: cached.entry}}, nil
 		}
 	}
-
-	// If not found in ForkAware or block number is too high, check the wrapped foundational-store
 	return s.wrapped.Get(request)
 }
 
-// GetAll retrieves multiple entries.
-// Checks the ForkAware first for each key, then falls back to the wrapped foundational-store for keys not found in ForkAware.
-func (s *Store) GetAll(request *pbstore.GetAllRequest) (*pbstore.GetAllResponse, error) {
+// GetAll delegates to the wrapped store for simplicity.
+func (s *Store) GetAll(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
-	// Prepare response
-	response := &pbstore.GetAllResponse{
-		Entries: make([]*pbstore.ResponseEntry, 0, len(request.Keys)),
-	}
-
-	// Keys that need to be fetched from the wrapped foundational-store
-	var keysToFetch [][]byte
-
-	// Check ForkAware first for each key
-	for _, key := range request.Keys {
-		keyStr := string(key)
-		if cached, ok := s.cache[keyStr]; ok {
-			// If the block number is <= the requested block number, use it
-			if cached.blockNumber <= request.BlockNumber {
-				response.Entries = append(response.Entries, &pbstore.ResponseEntry{
-					Key: key,
-					Response: &pbstore.GetResponse{
-						Code:  pbstore.ResponseCode_RESPONSE_CODE_FOUND,
-						Value: cached.entry.Value,
-					},
-				})
-				continue
-			}
-		}
-
-		// If not found in ForkAware or block number is too high, add to keys to fetch
-		keysToFetch = append(keysToFetch, key)
-	}
-
-	// If there are keys to fetch from the wrapped foundational-store
-	if len(keysToFetch) > 0 {
-		wrappedRequest := &pbstore.GetAllRequest{
-			BlockNumber: request.BlockNumber,
-			BlockHash:   request.BlockHash,
-			Keys:        keysToFetch,
-		}
-
-		wrappedResponse, err := s.wrapped.GetAll(wrappedRequest)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get entries from wrapped foundational-store: %w", err)
-		}
-
-		// Add entries from wrapped foundational-store to response
-		response.Entries = append(response.Entries, wrappedResponse.Entries...)
-	}
-
-	return response, nil
+	return s.wrapped.GetAll(request)
 }
 
-// GetFirst retrieves the first key >= requested key by comparing ForkAware cache and wrapped store.
-// If both have a candidate, prefer the wrapped store's result assuming it represents the oldest version persisted.
-func (s *Store) GetFirst(request *pbstore.GetFirstRequest) (*pbstore.GetResponse, error) {
+// GetFirst delegates to the wrapped store for simplicity.
+func (s *Store) GetFirst(request *pbservice.GetFirstRequest) (*pbservice.GetResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
-	// Find best candidate in cache (first key >= requested in lexicographic order)
-	var bestKey []byte
-	var bestEntry *pbstore.Entry
-	for k, c := range s.cache {
-		kb := []byte(k)
-		if len(bestKey) == 0 {
-			if bytes.Compare(kb, request.Key) >= 0 {
-				bestKey = append([]byte{}, kb...)
-				bestEntry = c.entry
-			}
-			continue
-		}
-		if bytes.Compare(kb, request.Key) >= 0 && bytes.Compare(kb, bestKey) == -1 {
-			bestKey = append([]byte{}, kb...)
-			bestEntry = c.entry
-		}
-	}
-
-	// Always query wrapped store to compare results
-	wrappedResp, err := s.wrapped.GetFirst(request)
-	if err != nil {
-		return nil, fmt.Errorf("failed wrapped GetFirst: %w", err)
-	}
-
-	// If wrapped found something, prefer it as the authoritative oldest version
-	if wrappedResp != nil && wrappedResp.Code == pbstore.ResponseCode_RESPONSE_CODE_FOUND {
-		return wrappedResp, nil
-	}
-
-	// Otherwise, if cache has a candidate, return it
-	if bestEntry != nil {
-		return &pbstore.GetResponse{Code: pbstore.ResponseCode_RESPONSE_CODE_FOUND, Value: bestEntry.Value}, nil
-	}
-
-	// Nothing found in either
-	return &pbstore.GetResponse{Code: pbstore.ResponseCode_RESPONSE_CODE_NOT_FOUND}, nil
+	return s.wrapped.GetFirst(request)
 }
 
 // FlushUpToBlock flushes all entries with block numbers <= blockNum to the wrapped foundational-store.
@@ -216,7 +124,7 @@ func (s *Store) FlushUpToBlock(blockNum uint64) error {
 	s.flushUpToBlock = blockNum
 
 	// Collect entries to flush
-	var toFlush []*pbstore.Entry
+	var toFlush []*pbmodel.Entry
 	for _, cached := range s.cache {
 		if cached.blockNumber <= blockNum {
 			toFlush = append(toFlush, cached.entry)
