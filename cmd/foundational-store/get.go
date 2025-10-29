@@ -86,7 +86,7 @@ This command connects to a gRPC server and retrieves a value for the specified k
 		request := &pbservice.GetRequest{
 			BlockNumber: getBlockNumber,
 			BlockHash:   blockHashBytes,
-			Key:         keyBytes,
+			Key:         &pbmodel.Key{Bytes: keyBytes},
 		}
 
 		// Make the Get request

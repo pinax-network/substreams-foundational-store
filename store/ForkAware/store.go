@@ -39,7 +39,7 @@ func (s *Store) Set(entry *pbmodel.Entry, blockNumber uint64) error {
 	defer s.mu.Unlock()
 
 	// Store in ForkAware
-	s.cache[string(entry.Key)] = cachedEntry{
+	s.cache[string(entry.Key.Bytes)] = cachedEntry{
 		entry:       entry,
 		blockNumber: blockNumber,
 	}
@@ -62,7 +62,7 @@ func (s *Store) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
 
 	// Store all entries in ForkAware
 	for _, entry := range entries {
-		s.cache[string(entry.Key)] = cachedEntry{
+		s.cache[string(entry.Key.Bytes)] = cachedEntry{
 			entry:       entry,
 			blockNumber: blockNumber,
 		}
@@ -92,7 +92,7 @@ func (s *Store) Get(request *pbservice.GetRequest) (*pbservice.GetResponse, erro
 	defer s.mu.RUnlock()
 
 	// Check cache first
-	if cached, ok := s.cache[string(request.Key)]; ok {
+	if cached, ok := s.cache[string(request.Key.Bytes)]; ok {
 		if cached.blockNumber <= request.BlockNumber {
 			return &pbservice.GetResponse{Entry: &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND, Entry: cached.entry}}, nil
 		}
@@ -139,7 +139,7 @@ func (s *Store) FlushUpToBlock(blockNum uint64) error {
 
 		// Remove flushed entries from ForkAware
 		for _, entry := range toFlush {
-			delete(s.cache, string(entry.Key))
+			delete(s.cache, string(entry.Key.Bytes))
 		}
 	}
 

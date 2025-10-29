@@ -20,7 +20,7 @@ func (s *Store) Set(entry *pbmodel.Entry, blockNumber uint64) error {
 
 	err := s.db.Update(func(txn *badger.Txn) error {
 		// Use the entry.Key value with the combined value
-		err := txn.Set(entry.Key, valueWithBlockInfo)
+		err := txn.Set(entry.Key.Bytes, valueWithBlockInfo)
 		if err != nil {
 			return fmt.Errorf("failed to set value in Badger: %w", err)
 		}
@@ -53,7 +53,7 @@ func (s *Store) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
 		valueWithBlockInfo := blockNumBytes
 		valueWithBlockInfo = append(valueWithBlockInfo, entry.Value.Value...)
 
-		err := wb.Set(entry.Key, valueWithBlockInfo)
+		err := wb.Set(entry.Key.Bytes, valueWithBlockInfo)
 		if err != nil {
 			return fmt.Errorf("failed to add entry to batch: %w", err)
 		}

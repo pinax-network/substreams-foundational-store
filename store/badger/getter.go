@@ -19,7 +19,7 @@ func (s *Store) Get(request *pbservice.GetRequest) (*pbservice.GetResponse, erro
 
 	err := s.db.View(func(txn *badger.Txn) error {
 		// Directly look up the key
-		item, err := txn.Get(request.Key)
+		item, err := txn.Get(request.Key.Bytes)
 		if err != nil {
 			if err == badger.ErrKeyNotFound {
 				// Key not found, return nil error to indicate not found
@@ -92,13 +92,13 @@ func (s *Store) GetAll(request *pbservice.GetAllRequest) (*pbservice.GetAllRespo
 	// Create a transaction
 	err := s.db.View(func(txn *badger.Txn) error {
 		// Use a channel to distribute keys to workers
-		keyChan := make(chan []byte, len(request.Keys))
+		keyChan := make(chan *pbmodel.Key, len(request.Keys))
 		seenKeys := make(map[string]bool)
 		for _, key := range request.Keys {
-			if seenKeys[string(key)] {
+			if seenKeys[string(key.Bytes)] {
 				continue
 			}
-			sKey := hex.EncodeToString(key)
+			sKey := hex.EncodeToString(key.Bytes)
 			keyChan <- key
 			seenKeys[sKey] = true
 		}
@@ -129,7 +129,7 @@ func (s *Store) GetAll(request *pbservice.GetAllRequest) (*pbservice.GetAllRespo
 					var value []byte
 
 					// Directly look up the key
-					item, err := txn.Get(key)
+					item, err := txn.Get(key.Bytes)
 					if err != nil {
 						if err == badger.ErrKeyNotFound {
 							// Key not found, add a NOT_FOUND response

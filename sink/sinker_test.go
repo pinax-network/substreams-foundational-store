@@ -168,14 +168,14 @@ func TestHandleBlockScopedData(t *testing.T) {
 	// Create test entries
 	entries := []*pbmodel.Entry{
 		{
-			Key: []byte("test_key_1"),
+			Key: &pbmodel.Key{Bytes: []byte("test_key_1")},
 			Value: &anypb.Any{
 				TypeUrl: "test.Entry",
 				Value:   []byte("test_value_1"),
 			},
 		},
 		{
-			Key: []byte("test_key_2"),
+			Key: &pbmodel.Key{Bytes: []byte("test_key_2")},
 			Value: &anypb.Any{
 				TypeUrl: "test.Entry",
 				Value:   []byte("test_value_2"),

@@ -24,19 +24,19 @@ func newMockStore() *mockStore {
 }
 
 func (m *mockStore) Set(entry *pbmodel.Entry, blockNumber uint64) error {
-	m.entries[string(entry.Key)] = mockStoreCachedEntry{entry: entry, blockNumber: blockNumber}
+	m.entries[string(entry.Key.Bytes)] = mockStoreCachedEntry{entry: entry, blockNumber: blockNumber}
 	return nil
 }
 
 func (m *mockStore) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
 	for _, entry := range entries {
-		m.entries[string(entry.Key)] = mockStoreCachedEntry{entry: entry, blockNumber: blockNumber}
+		m.entries[string(entry.Key.Bytes)] = mockStoreCachedEntry{entry: entry, blockNumber: blockNumber}
 	}
 	return nil
 }
 
 func (m *mockStore) Get(request *pbservice.GetRequest) (*pbservice.GetResponse, error) {
-	cached, ok := m.entries[string(request.Key)]
+	cached, ok := m.entries[string(request.Key.Bytes)]
 	resp := &pbservice.GetResponse{}
 	if !ok || cached.blockNumber > request.BlockNumber {
 		resp.Entry = &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND}
@@ -52,7 +52,7 @@ func (m *mockStore) Get(request *pbservice.GetRequest) (*pbservice.GetResponse, 
 func (m *mockStore) GetAll(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
 	entries := make([]*pbmodel.QueriedEntry, 0, len(request.Keys))
 	for _, key := range request.Keys {
-		cached, ok := m.entries[string(key)]
+		cached, ok := m.entries[string(key.Bytes)]
 		if !ok || cached.blockNumber > request.BlockNumber {
 			entries = append(entries, &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND})
 		} else {
@@ -67,18 +67,18 @@ func (m *mockStore) GetAll(request *pbservice.GetAllRequest) (*pbservice.GetAllR
 
 func (m *mockStore) GetFirst(request *pbservice.GetFirstRequest) (*pbservice.GetResponse, error) {
 	// Simple mock: try exact match; otherwise return the lexicographic next key >= requested
-	if cached, ok := m.entries[string(request.Key)]; ok {
+	if cached, ok := m.entries[string(request.Key.Bytes)]; ok {
 		return &pbservice.GetResponse{Entry: &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND, Entry: cached.entry}}, nil
 	}
 	var bestKey string
 	for k := range m.entries {
 		if bestKey == "" {
-			if k >= string(request.Key) {
+			if k >= string(request.Key.Bytes) {
 				bestKey = k
 			}
 			continue
 		}
-		if k >= string(request.Key) && k < bestKey {
+		if k >= string(request.Key.Bytes) && k < bestKey {
 			bestKey = k
 		}
 	}
@@ -97,9 +97,9 @@ func TestCacheStore(t *testing.T) {
 	cacheStore := NewStore(mockStore)
 
 	// Create some test entries
-	entry1 := &pbmodel.Entry{Key: []byte("key1"), Value: &anypb.Any{TypeUrl: "test", Value: []byte("value1")}}
-	entry2 := &pbmodel.Entry{Key: []byte("key2"), Value: &anypb.Any{TypeUrl: "test", Value: []byte("value2")}}
-	entry3 := &pbmodel.Entry{Key: []byte("key3"), Value: &anypb.Any{TypeUrl: "test", Value: []byte("value3")}}
+	entry1 := &pbmodel.Entry{Key: &pbmodel.Key{Bytes: []byte("key1")}, Value: &anypb.Any{TypeUrl: "test", Value: []byte("value1")}}
+	entry2 := &pbmodel.Entry{Key: &pbmodel.Key{Bytes: []byte("key2")}, Value: &anypb.Any{TypeUrl: "test", Value: []byte("value2")}}
+	entry3 := &pbmodel.Entry{Key: &pbmodel.Key{Bytes: []byte("key3")}, Value: &anypb.Any{TypeUrl: "test", Value: []byte("value3")}}
 
 	// Set entries in the ForkAware store
 	if err := cacheStore.Set(entry1, 100); err != nil {
@@ -118,7 +118,7 @@ func TestCacheStore(t *testing.T) {
 	}
 
 	// Get entry1 from the ForkAware store
-	resp1, err := cacheStore.Get(&pbservice.GetRequest{BlockNumber: 150, Key: []byte("key1")})
+	resp1, err := cacheStore.Get(&pbservice.GetRequest{BlockNumber: 150, Key: &pbmodel.Key{Bytes: []byte("key1")}})
 	if err != nil {
 		t.Fatalf("Failed to get entry1: %v", err)
 	}
@@ -137,9 +137,9 @@ func TestCacheStore(t *testing.T) {
 	}
 
 	// Verify that entry1 and entry2 are no longer in the ForkAware by checking that wrapped store's value is returned
-	mockStore.entries["key1"] = mockStoreCachedEntry{blockNumber: 100, entry: &pbmodel.Entry{Key: []byte("key1"), Value: &anypb.Any{TypeUrl: "test", Value: []byte("modified1")}}}
+	mockStore.entries["key1"] = mockStoreCachedEntry{blockNumber: 100, entry: &pbmodel.Entry{Key: &pbmodel.Key{Bytes: []byte("key1")}, Value: &anypb.Any{TypeUrl: "test", Value: []byte("modified1")}}}
 
-	resp1, err = cacheStore.Get(&pbservice.GetRequest{BlockNumber: 150, Key: []byte("key1")})
+	resp1, err = cacheStore.Get(&pbservice.GetRequest{BlockNumber: 150, Key: &pbmodel.Key{Bytes: []byte("key1")}})
 	if err != nil {
 		t.Fatalf("Failed to get entry1: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestCacheStore(t *testing.T) {
 	}
 
 	// Verify that entry3 is still in the ForkAware
-	resp3, err := cacheStore.Get(&pbservice.GetRequest{BlockNumber: 350, Key: []byte("key3")})
+	resp3, err := cacheStore.Get(&pbservice.GetRequest{BlockNumber: 350, Key: &pbmodel.Key{Bytes: []byte("key3")}})
 	if err != nil {
 		t.Fatalf("Failed to get entry3: %v", err)
 	}
@@ -165,16 +165,16 @@ func TestForkAwareGetFirst_PrefersWrappedOverCache(t *testing.T) {
 	fa := NewStore(ms)
 
 	// Put a value in cache for key "a"
-	cacheEntry := &pbmodel.Entry{Key: []byte("a"), Value: &anypb.Any{TypeUrl: "t", Value: []byte("cache")}}
+	cacheEntry := &pbmodel.Entry{Key: &pbmodel.Key{Bytes: []byte("a")}, Value: &anypb.Any{TypeUrl: "t", Value: []byte("cache")}}
 	if err := fa.Set(cacheEntry, 200); err != nil {
 		t.Fatalf("set cache: %v", err)
 	}
 
 	// Put an older value in wrapped for the same key
-	wrappedEntry := &pbmodel.Entry{Key: []byte("a"), Value: &anypb.Any{TypeUrl: "t", Value: []byte("wrapped-old")}}
+	wrappedEntry := &pbmodel.Entry{Key: &pbmodel.Key{Bytes: []byte("a")}, Value: &anypb.Any{TypeUrl: "t", Value: []byte("wrapped-old")}}
 	_ = ms.Set(wrappedEntry, 100)
 
-	resp, err := fa.GetFirst(&pbservice.GetFirstRequest{Key: []byte("a")})
+	resp, err := fa.GetFirst(&pbservice.GetFirstRequest{Key: &pbmodel.Key{Bytes: []byte("a")}})
 	if err != nil {
 		t.Fatalf("GetFirst: %v", err)
 	}
@@ -191,12 +191,12 @@ func TestForkAwareGetFirst_WrappedNotFound(t *testing.T) {
 	fa := NewStore(ms)
 
 	// Only cache contains candidate >= key
-	cacheEntry := &pbmodel.Entry{Key: []byte("b"), Value: &anypb.Any{TypeUrl: "t", Value: []byte("cache-b")}}
+	cacheEntry := &pbmodel.Entry{Key: &pbmodel.Key{Bytes: []byte("b")}, Value: &anypb.Any{TypeUrl: "t", Value: []byte("cache-b")}}
 	if err := fa.Set(cacheEntry, 123); err != nil {
 		t.Fatalf("set cache: %v", err)
 	}
 
-	resp, err := fa.GetFirst(&pbservice.GetFirstRequest{Key: []byte("a")})
+	resp, err := fa.GetFirst(&pbservice.GetFirstRequest{Key: &pbmodel.Key{Bytes: []byte("a")}})
 	if err != nil {
 		t.Fatalf("GetFirst: %v", err)
 	}

@@ -60,7 +60,7 @@ func (s *Store) GetAll(request *pbservice.GetAllRequest) (*pbservice.GetAllRespo
 
 	entries := make([]*pbmodel.QueriedEntry, 0, len(request.Keys))
 	for _, key := range request.Keys {
-		entry, found := entriesMap[hex.EncodeToString(key)]
+		entry, found := entriesMap[hex.EncodeToString(key.Bytes)]
 		if !found {
 			entries = append(entries, &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, Entry: &pbmodel.Entry{Key: key}})
 			continue

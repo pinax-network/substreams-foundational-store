@@ -76,7 +76,7 @@ func createEntry(blockNumber uint64, key []byte, accountOwner *pbtest.TestAccoun
 
 	// Create an Entry to store
 	return &pbmodel.Entry{
-		Key:   key,
+		Key:   &pbmodel.Key{Bytes: key},
 		Value: anyValue,
 	}, nil
 }
@@ -181,7 +181,7 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 			getRequest := &pbservice.GetRequest{
 				BlockNumber: tc.requestBlock,
 				BlockHash:   []byte("test_block_hash"),
-				Key:         tc.key,
+				Key:         &pbmodel.Key{Bytes: tc.key},
 			}
 
 			// Retrieve the Entry
@@ -287,7 +287,7 @@ func TestTimeTraversalWithMultipleVersions(t *testing.T) {
 			getRequest := &pbservice.GetRequest{
 				BlockNumber: tc.requestBlock,
 				BlockHash:   []byte("test_block_hash"),
-				Key:         key,
+				Key:         &pbmodel.Key{Bytes: key},
 			}
 
 			getResponse, err := ts.store.Get(getRequest)
@@ -336,7 +336,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 	require.NoError(t, err)
 
 	// Retrieve all entries
-	keys := [][]byte{}
+	keys := []*pbmodel.Key{}
 	for _, entry := range entries {
 		keys = append(keys, entry.Key)
 	}
@@ -401,7 +401,7 @@ func TestSetAllAndGetAllWithDifferentBlocks(t *testing.T) {
 	getAllRequest := &pbservice.GetAllRequest{
 		BlockNumber: 150,
 		BlockHash:   []byte("test_block_hash"),
-		Keys:        [][]byte{key1, key2, key3},
+		Keys:        []*pbmodel.Key{&pbmodel.Key{Bytes: key1}, &pbmodel.Key{Bytes: key2}, &pbmodel.Key{Bytes: key3}},
 	}
 
 	getAllResponse, err := ts.store.GetAll(getAllRequest)
@@ -413,7 +413,7 @@ func TestSetAllAndGetAllWithDifferentBlocks(t *testing.T) {
 	// Find entries by key for verification
 	responseMap := make(map[string]*pbmodel.QueriedEntry)
 	for _, queriedEntry := range getAllResponse.Entries.Entries {
-		responseMap[string(queriedEntry.Entry.Key)] = queriedEntry
+		responseMap[string(queriedEntry.Entry.Key.Bytes)] = queriedEntry
 	}
 
 	// key1 should be found (stored at 100, requesting at 150)
@@ -445,7 +445,7 @@ func TestGetNonExistentKey(t *testing.T) {
 	getRequest := &pbservice.GetRequest{
 		BlockNumber: 100,
 		BlockHash:   []byte("test_block_hash"),
-		Key:         []byte("non-existent-key"),
+		Key:         &pbmodel.Key{Bytes: []byte("non-existent-key")},
 	}
 
 	getResponse, err := ts.store.Get(getRequest)
@@ -482,7 +482,7 @@ func TestGetFirstReturnsOldestVersionForKey(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, ts.store.Set(otherEntry, 150))
 
-	resp, err := ts.store.GetFirst(&pbservice.GetFirstRequest{Key: []byte("k1")})
+	resp, err := ts.store.GetFirst(&pbservice.GetFirstRequest{Key: &pbmodel.Key{Bytes: []byte("k1")}})
 	require.NoError(t, err)
 	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, resp.Entry.Code)
 	got := &pbtest.TestAccountOwner{}

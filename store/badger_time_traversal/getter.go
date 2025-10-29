@@ -17,7 +17,7 @@ import (
 // workItem represents a work item for parallel processing
 type workItem struct {
 	index int
-	key   []byte
+	key   *pbmodel.Key
 }
 
 // extractBlockNumberFromKey extracts the block number from a composite key
@@ -48,8 +48,8 @@ func (s *Store) Get(request *pbservice.GetRequest) (*pbservice.GetResponse, erro
 		badgerOptions.PrefetchValues = false
 		badgerOptions.PrefetchSize = 100
 
-		start := makeTimeTraversalKey(request.Key, request.BlockNumber)
-		exclusiveEnd := append(makeTimeTraversalKey(request.Key, 0), 0)
+		start := makeTimeTraversalKey(request.Key.Bytes, request.BlockNumber)
+		exclusiveEnd := append(makeTimeTraversalKey(request.Key.Bytes, 0), 0)
 
 		it := txn.NewIterator(badgerOptions)
 		defer it.Close()
@@ -146,7 +146,7 @@ func (s *Store) getAllWorker(workChan <-chan workItem, entries []*pbmodel.Querie
 		var queriedEntry *pbmodel.QueriedEntry
 		if err != nil {
 			// Log error and create NOT_FOUND response
-			s.logger.Error("failed to get key", zap.String("key", string(work.key)), zap.Error(err))
+			s.logger.Error("failed to get key", zap.String("key", string(work.key.Bytes)), zap.Error(err))
 			queriedEntry = &pbmodel.QueriedEntry{
 				Code:  pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND,
 				Entry: &pbmodel.Entry{Key: work.key},
@@ -177,7 +177,7 @@ func (s *Store) GetFirst(request *pbservice.GetFirstRequest) (*pbservice.GetResp
 	var found bool
 
 	err := s.db.View(func(txn *badger.Txn) error {
-		base := request.Key
+		base := request.Key.Bytes
 
 		// Now fetch the oldest version for that base key by reverse-iterating the base range
 		begin := make([]byte, len(base)+8)

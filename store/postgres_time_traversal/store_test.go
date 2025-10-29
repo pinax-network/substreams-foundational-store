@@ -116,7 +116,7 @@ func createEntry(blockNumber uint64, key []byte, accountOwner *pbtest.TestAccoun
 
 	// Create an Entry to store
 	return &pbmodel.Entry{
-		Key:   key,
+		Key:   &pbmodel.Key{Bytes: key},
 		Value: anyValue,
 	}, nil
 }
@@ -140,7 +140,7 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 
 	// Retrieve the entry
 	getRequest := &pbservice.GetRequest{
-		Key:         key,
+		Key:         &pbmodel.Key{Bytes: key},
 		BlockNumber: blockNumber,
 	}
 
@@ -206,7 +206,7 @@ func TestTimeTraversalWithMultipleVersions(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			getRequest := &pbservice.GetRequest{
-				Key:         key,
+				Key:         &pbmodel.Key{Bytes: key},
 				BlockNumber: tc.queryBlock,
 			}
 
@@ -252,7 +252,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 	require.NoError(t, err)
 
 	// Prepare keys for GetAll
-	keys := make([][]byte, len(entries))
+	keys := make([]*pbmodel.Key, len(entries))
 	for i, entry := range entries {
 		keys[i] = entry.Key
 	}
@@ -286,9 +286,9 @@ func TestSetAllAndGetAllWithDifferentBlocks(t *testing.T) {
 	defer ts.cleanup()
 
 	// Store the same keys at different block numbers with different values
-	keys := [][]byte{
-		[]byte("account-multi-1"),
-		[]byte("account-multi-2"),
+	keys := []*pbmodel.Key{
+		&pbmodel.Key{Bytes: []byte("account-multi-1")},
+		&pbmodel.Key{Bytes: []byte("account-multi-2")},
 	}
 
 	// Block 100: Initial values
@@ -297,7 +297,7 @@ func TestSetAllAndGetAllWithDifferentBlocks(t *testing.T) {
 
 	for i, owner := range owners100 {
 		accountOwner := createAccountOwner(owner)
-		entry, err := createEntry(100, keys[i], accountOwner, ts.typeURL)
+		entry, err := createEntry(100, keys[i].Bytes, accountOwner, ts.typeURL)
 		require.NoError(t, err)
 		entries100 = append(entries100, entry)
 	}
@@ -311,7 +311,7 @@ func TestSetAllAndGetAllWithDifferentBlocks(t *testing.T) {
 
 	for i, owner := range owners200 {
 		accountOwner := createAccountOwner(owner)
-		entry, err := createEntry(200, keys[i], accountOwner, ts.typeURL)
+		entry, err := createEntry(200, keys[i].Bytes, accountOwner, ts.typeURL)
 		require.NoError(t, err)
 		entries200 = append(entries200, entry)
 	}
@@ -435,7 +435,7 @@ func TestGetNonExistentKey(t *testing.T) {
 
 	// Try to get a key that doesn't exist
 	getRequest := &pbservice.GetRequest{
-		Key:         []byte("non-existent-key"),
+		Key:         &pbmodel.Key{Bytes: []byte("non-existent-key")},
 		BlockNumber: 100,
 	}
 
@@ -452,19 +452,19 @@ func TestGetAllWithMixedExistence(t *testing.T) {
 	blockNumber := uint64(800)
 
 	// Store only some of the requested keys
-	existingKey := []byte("existing-key")
+	existingKey := &pbmodel.Key{Bytes: []byte("existing-key")}
 	accountOwner := createAccountOwner("existing-owner")
-	entry, err := createEntry(blockNumber, existingKey, accountOwner, ts.typeURL)
+	entry, err := createEntry(blockNumber, existingKey.Bytes, accountOwner, ts.typeURL)
 	require.NoError(t, err)
 
 	err = ts.store.Set(entry, blockNumber)
 	require.NoError(t, err)
 
 	// Request both existing and non-existing keys
-	keys := [][]byte{
+	keys := []*pbmodel.Key{
 		existingKey,
-		[]byte("non-existing-key-1"),
-		[]byte("non-existing-key-2"),
+		&pbmodel.Key{Bytes: []byte("non-existing-key-1")},
+		&pbmodel.Key{Bytes: []byte("non-existing-key-2")},
 	}
 
 	getAllRequest := &pbservice.GetAllRequest{
@@ -507,7 +507,7 @@ func TestGetFirstReturnsOldestVersionForKey_PostgresTimeTraversal(t *testing.T) 
 	require.NoError(t, err)
 	require.NoError(t, ts.store.Set(other, 150))
 
-	resp, err := ts.store.GetFirst(&pbservice.GetFirstRequest{Key: []byte("k1")})
+	resp, err := ts.store.GetFirst(&pbservice.GetFirstRequest{Key: &pbmodel.Key{Bytes: []byte("k1")}})
 	require.NoError(t, err)
 	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, resp.Entry.Code)
 	got := &pbtest.TestAccountOwner{}
@@ -534,7 +534,7 @@ func TestGetFirstOrderingAndNotFound_PostgresTimeTraversal(t *testing.T) {
 	}
 
 	// Exact match should return that key's value (oldest since only one)
-	resp, err := ts.store.GetFirst(&pbservice.GetFirstRequest{Key: []byte("a2")})
+	resp, err := ts.store.GetFirst(&pbservice.GetFirstRequest{Key: &pbmodel.Key{Bytes: []byte("a2")}})
 	require.NoError(t, err)
 	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, resp.Entry.Code)
 	got := &pbtest.TestAccountOwner{}
@@ -542,7 +542,7 @@ func TestGetFirstOrderingAndNotFound_PostgresTimeTraversal(t *testing.T) {
 	assert.Equal(t, []byte("v2"), got.Owner)
 
 	// Between a2 and b1 -> return b1
-	resp, err = ts.store.GetFirst(&pbservice.GetFirstRequest{Key: []byte("a3")})
+	resp, err = ts.store.GetFirst(&pbservice.GetFirstRequest{Key: &pbmodel.Key{Bytes: []byte("a3")}})
 	require.NoError(t, err)
 	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, resp.Entry.Code)
 	got = &pbtest.TestAccountOwner{}
@@ -550,7 +550,7 @@ func TestGetFirstOrderingAndNotFound_PostgresTimeTraversal(t *testing.T) {
 	assert.Equal(t, []byte("v3"), got.Owner)
 
 	// After last -> not found
-	resp, err = ts.store.GetFirst(&pbservice.GetFirstRequest{Key: []byte("z9")})
+	resp, err = ts.store.GetFirst(&pbservice.GetFirstRequest{Key: &pbmodel.Key{Bytes: []byte("z9")}})
 	require.NoError(t, err)
 	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, resp.Entry.Code)
 }

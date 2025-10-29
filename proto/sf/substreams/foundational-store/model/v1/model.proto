@@ -17,7 +17,7 @@ message Keys {
 //by both consumer and sinker Substreams
 message Entry {
   reserved 1; //backward compatibility
-  bytes key = 2;
+  Key key = 2;
   google.protobuf.Any value = 4;
 }
 

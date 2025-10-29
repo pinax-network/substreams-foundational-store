@@ -80,7 +80,7 @@ func (s *Store) GetAll(request *pbservice.GetAllRequest) (*pbservice.GetAllRespo
 	var keysFoundCount int
 	out := []*pbmodel.QueriedEntry{}
 	for _, key := range request.Keys {
-		entry, found := entriesMap[hex.EncodeToString(key)]
+		entry, found := entriesMap[hex.EncodeToString(key.Bytes)]
 		if !found {
 			out = append(out, &pbmodel.QueriedEntry{
 				Code:  pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND,

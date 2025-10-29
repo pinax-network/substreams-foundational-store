@@ -30,7 +30,7 @@ func makeTimeTraversalKey(originalKey []byte, blockNumber uint64) []byte {
 // Set stores a single entry in Badger with time traversal support
 func (s *Store) Set(entry *pbmodel.Entry, blockNumber uint64) error {
 	// Create composite key with block number
-	compositeKey := makeTimeTraversalKey(entry.Key, blockNumber)
+	compositeKey := makeTimeTraversalKey(entry.Key.Bytes, blockNumber)
 
 	// Store the actual value (without prepending block info like original implementation)
 	// The block info is now encoded in the key itself
@@ -63,7 +63,7 @@ func (s *Store) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
 
 	for _, entry := range entries {
 		// Create composite key with block number
-		compositeKey := makeTimeTraversalKey(entry.Key, blockNumber)
+		compositeKey := makeTimeTraversalKey(entry.Key.Bytes, blockNumber)
 
 		// Store the actual value (without prepending block info)
 		value := entry.Value.Value
