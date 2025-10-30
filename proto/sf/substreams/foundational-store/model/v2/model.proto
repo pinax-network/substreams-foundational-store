@@ -2,9 +2,9 @@ syntax = "proto3";
 
 import "google/protobuf/any.proto";
 
-package sf.substreams.foundational_store.model.v1;
+package sf.substreams.foundational_store.model.v2;
 
-option go_package = "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1;pbmodel";
+option go_package = "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v2;pbmodel";
 
 message Key {
   bytes bytes = 1;

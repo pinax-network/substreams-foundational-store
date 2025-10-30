@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/streamingfast/shutter"
-	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v2"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	pbsubstreamsrpc "github.com/streamingfast/substreams/pb/sf/substreams/rpc/v2"
 	sink "github.com/streamingfast/substreams/sink"

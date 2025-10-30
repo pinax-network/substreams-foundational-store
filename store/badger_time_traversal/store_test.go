@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	pbtest "github.com/streamingfast/substreams-foundational-store/internal/pb/test"
-	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1"
-	pbservice "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v2"
+	pbservice "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v2"
 	storelib "github.com/streamingfast/substreams-foundational-store/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -218,7 +218,7 @@ func TestTimeTraversalWithMultipleVersions(t *testing.T) {
 		blockNumber uint64
 		ownerValue  string
 	}{
-		{100, "owner-v1"},
+		{100, "owner-v2"},
 		{200, "owner-v2"},
 		{300, "owner-v3"},
 	}
@@ -245,16 +245,16 @@ func TestTimeTraversalWithMultipleVersions(t *testing.T) {
 			expectFound:  false,
 		},
 		{
-			name:          "Retrieve at block 100 (exact match v1)",
+			name:          "Retrieve at block 100 (exact match v2)",
 			requestBlock:  100,
 			expectFound:   true,
-			expectedOwner: "owner-v1",
+			expectedOwner: "owner-v2",
 		},
 		{
-			name:          "Retrieve at block 150 (should get v1)",
+			name:          "Retrieve at block 150 (should get v2)",
 			requestBlock:  150,
 			expectFound:   true,
-			expectedOwner: "owner-v1",
+			expectedOwner: "owner-v2",
 		},
 		{
 			name:          "Retrieve at block 200 (exact match v2)",
@@ -464,7 +464,7 @@ func TestGetFirstReturnsOldestVersionForKey(t *testing.T) {
 		block uint64
 		owner string
 	}{
-		{100, "v1"},
+		{100, "v2"},
 		{200, "v2"},
 		{300, "v3"},
 	}
@@ -488,5 +488,5 @@ func TestGetFirstReturnsOldestVersionForKey(t *testing.T) {
 	got := &pbtest.TestAccountOwner{}
 	require.NoError(t, resp.Entry.Entry.Value.UnmarshalTo(got))
 	// Oldest version (lowest block) must be returned for the key
-	assert.Equal(t, []byte("v1"), got.Owner)
+	assert.Equal(t, []byte("v2"), got.Owner)
 }

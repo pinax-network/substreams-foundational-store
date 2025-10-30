@@ -176,7 +176,7 @@ func init() {
 
 	ServerCmd.Flags().String("addr", ":50051", "Address to listen on")
 	ServerCmd.Flags().String("dsn", "", "DSN for the foundational-store (e.g. badger:///path/to/db or postgres://user:pass@host:port/dbname)")
-	ServerCmd.Flags().String("type-url", "", "any.Any type URL are stripped at storage, this needs to be the domain specific type URL like 'sf.substreams.spl-initialized-account.v1.AccountOwner', used by the server to reconstruct the correct any.Any value at retrieval time")
+	ServerCmd.Flags().String("type-url", "", "any.Any type URL are stripped at storage, this needs to be the domain specific type URL like 'sf.substreams.spl-initialized-account.v2.AccountOwner', used by the server to reconstruct the correct any.Any value at retrieval time")
 	ServerCmd.Flags().Int("workers", 10, "Number of workers for parallel operations")
 	ServerCmd.Flags().String("manifest-path", "", "Path to the manifest file")
 	ServerCmd.Flags().String("output-module-name", "", "Name of the output module")

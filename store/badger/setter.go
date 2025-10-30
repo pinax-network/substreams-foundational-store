@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/dgraph-io/badger/v3"
-	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v2"
 )
 
 // Set stores a single entry in Badger

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v2"
 )
 
 func (s *Store) Set(entry *pbmodel.Entry, blockNumber uint64) error {

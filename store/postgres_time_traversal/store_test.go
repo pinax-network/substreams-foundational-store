@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	pbtest "github.com/streamingfast/substreams-foundational-store/internal/pb/test"
-	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1"
-	pbservice "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v2"
+	pbservice "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v2"
 	storelib "github.com/streamingfast/substreams-foundational-store/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -172,7 +172,7 @@ func TestTimeTraversalWithMultipleVersions(t *testing.T) {
 		blockNumber  uint64
 		ownerAddress string
 	}{
-		{100, "owner-v1"},
+		{100, "owner-v2"},
 		{200, "owner-v2"},
 		{300, "owner-v3"},
 	}
@@ -195,8 +195,8 @@ func TestTimeTraversalWithMultipleVersions(t *testing.T) {
 		shouldFind    bool
 	}{
 		{"Before first version", 50, "", false},
-		{"At first version", 100, "owner-v1", true},
-		{"Between v1 and v2", 150, "owner-v1", true},
+		{"At first version", 100, "owner-v2", true},
+		{"Between v2 and v2", 150, "owner-v2", true},
 		{"At second version", 200, "owner-v2", true},
 		{"Between v2 and v3", 250, "owner-v2", true},
 		{"At third version", 300, "owner-v3", true},
@@ -493,7 +493,7 @@ func TestGetFirstReturnsOldestVersionForKey_PostgresTimeTraversal(t *testing.T) 
 		block uint64
 		owner string
 	}{
-		{100, "v1"},
+		{100, "v2"},
 		{200, "v2"},
 		{300, "v3"},
 	}
@@ -512,7 +512,7 @@ func TestGetFirstReturnsOldestVersionForKey_PostgresTimeTraversal(t *testing.T) 
 	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, resp.Entry.Code)
 	got := &pbtest.TestAccountOwner{}
 	require.NoError(t, resp.Entry.Entry.Value.UnmarshalTo(got))
-	assert.Equal(t, []byte("v1"), got.Owner)
+	assert.Equal(t, []byte("v2"), got.Owner)
 }
 
 func TestGetFirstOrderingAndNotFound_PostgresTimeTraversal(t *testing.T) {
@@ -523,7 +523,7 @@ func TestGetFirstOrderingAndNotFound_PostgresTimeTraversal(t *testing.T) {
 		k string
 		v string
 	}{
-		{"a1", "v1"},
+		{"a1", "v2"},
 		{"a2", "v2"},
 		{"b1", "v3"},
 	}

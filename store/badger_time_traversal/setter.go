@@ -6,7 +6,7 @@ import (
 	"math"
 
 	"github.com/dgraph-io/badger/v3"
-	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v1"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v2"
 )
 
 // makeTimeTraversalKey creates a composite key by appending the reversed block number to the original key

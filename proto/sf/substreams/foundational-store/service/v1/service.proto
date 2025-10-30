@@ -1,74 +1,45 @@
 syntax = "proto3";
-
 import "google/protobuf/any.proto";
-import "sf/substreams/foundational-store/model/v1/model.proto";
-
-package sf.substreams.foundational_store.service.v1;
-
-option go_package = "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1;pbservice";
-
-// Store service provides access to foundational store data with fork-aware,
-// block-versioned key-value operations. Designed for high-performance serving
-// of Substreams output data with blockchain reorganization support.
+package sf.substreams.foundational_store.v1;
+option go_package = "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1;pbstore";
 service Store {
-  // Get retrieves a single value by key at a specific block number
   rpc Get(GetRequest) returns (GetResponse);
-  // GetAll retrieves multiple values by keys at a specific block number
   rpc GetAll(GetAllRequest) returns (GetAllResponse);
-
-  rpc GetFirst(GetFirstRequest) returns (GetResponse);
-
-  rpc GetAllFirst(GetAllRequest) returns (GetAllResponse);
-
 }
-
-// Specifies which value to retrieve at a specific block
 message GetRequest {
-  // Block number for data retrieval
-  // Required for gRPC calls, specifies the exact block height for querying
-  // Must be left blank (0) for Substreams WASM intrinsics, runtime provides block context
-  uint64 block_number = 1;
-
-  // Block hash for data retrieval
-  // Required for gRPC calls, ensures block identity and fork-awareness
-  // Must be left blank (empty) for Substreams WASM intrinsics, runtime provides block context
-  bytes block_hash = 2;
-//  bool omit_deleted = 3;
-  model.v1.Key key = 4;
-}
-
-message GetFirstRequest {
   uint64 block_number = 1;
   bytes block_hash = 2;
-  model.v1.Key key = 4;
+  bool omit_deleted = 3;
+  bytes key = 4;
 }
-
-// Contains the retrieved value and status
 message GetResponse {
-  bool block_reached = 1;
-
-  model.v1.QueriedEntry entry = 2;
+  ResponseCode response = 4;
+  google.protobuf.Any value = 5;
 }
-
-// Specifies multiple values to retrieve at a specific block
 message GetAllRequest {
-  // Block number for data retrieval
-  // Required for gRPC calls, specifies the exact block height for querying
-  // Must be left blank (0) for Substreams WASM intrinsics, runtime provides block context
   uint64 block_number = 1;
-
-  // Block hash for data retrieval
-  // Required for gRPC calls, ensures block identity and fork-awareness
-  // Must be left blank (empty) for Substreams WASM intrinsics, runtime provides block context
   bytes block_hash = 2;
-
-  repeated model.v1.Key keys = 3;
+  bool omit_deleted = 3;
+  repeated bytes keys = 4;
 }
-
-// Contains all retrieved entries with batch-level metadata
+message ResponseEntry {
+  bytes key = 1;
+  GetResponse response = 2;
+}
 message GetAllResponse {
-  // Whether the requested block has been processed by the store (applies to all entries)
-  bool block_reached = 1;
-
-  model.v1.QueriedEntries entries = 2;
+  repeated ResponseEntry entries= 1;
+}
+enum ResponseCode {
+  RESPONSE_CODE_UNSPECIFIED = 0;
+  RESPONSE_CODE_FOUND = 1;
+  RESPONSE_CODE_NOT_FOUND = 2;
+  RESPONSE_CODE_NOT_FOUND_FINALIZE = 4;
+  RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED = 5;
+}
+message Entry {
+  bytes                 key   = 2;
+  google.protobuf.Any   value = 4;
+}
+message Entries {
+  repeated Entry entries = 1;
 }

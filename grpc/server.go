@@ -8,7 +8,7 @@ import (
 	dgrpcServer "github.com/streamingfast/dgrpc/server"
 	"github.com/streamingfast/dgrpc/server/factory"
 	"github.com/streamingfast/shutter"
-	pbservice "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1"
+	pbservice "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v2"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"

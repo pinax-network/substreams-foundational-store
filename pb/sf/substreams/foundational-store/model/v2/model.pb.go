@@ -2,9 +2,9 @@
 // versions:
 // 	protoc-gen-go v1.30.0
 // 	protoc        (unknown)
-// source: sf/substreams/foundational-store/model/v1/model.proto
+// source: sf/substreams/foundational-store/model/v2/model.proto
 
-package modelv1
+package modelv2
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -62,11 +62,11 @@ func (x ResponseCode) String() string {
 }
 
 func (ResponseCode) Descriptor() protoreflect.EnumDescriptor {
-	return file_sf_substreams_foundational_store_model_v1_model_proto_enumTypes[0].Descriptor()
+	return file_sf_substreams_foundational_store_model_v2_model_proto_enumTypes[0].Descriptor()
 }
 
 func (ResponseCode) Type() protoreflect.EnumType {
-	return &file_sf_substreams_foundational_store_model_v1_model_proto_enumTypes[0]
+	return &file_sf_substreams_foundational_store_model_v2_model_proto_enumTypes[0]
 }
 
 func (x ResponseCode) Number() protoreflect.EnumNumber {
@@ -75,7 +75,7 @@ func (x ResponseCode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ResponseCode.Descriptor instead.
 func (ResponseCode) EnumDescriptor() ([]byte, []int) {
-	return file_sf_substreams_foundational_store_model_v1_model_proto_rawDescGZIP(), []int{0}
+	return file_sf_substreams_foundational_store_model_v2_model_proto_rawDescGZIP(), []int{0}
 }
 
 type Key struct {
@@ -89,7 +89,7 @@ type Key struct {
 func (x *Key) Reset() {
 	*x = Key{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[0]
+		mi := &file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -102,7 +102,7 @@ func (x *Key) String() string {
 func (*Key) ProtoMessage() {}
 
 func (x *Key) ProtoReflect() protoreflect.Message {
-	mi := &file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[0]
+	mi := &file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -115,7 +115,7 @@ func (x *Key) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Key.ProtoReflect.Descriptor instead.
 func (*Key) Descriptor() ([]byte, []int) {
-	return file_sf_substreams_foundational_store_model_v1_model_proto_rawDescGZIP(), []int{0}
+	return file_sf_substreams_foundational_store_model_v2_model_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Key) GetBytes() []byte {
@@ -136,7 +136,7 @@ type Keys struct {
 func (x *Keys) Reset() {
 	*x = Keys{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[1]
+		mi := &file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -149,7 +149,7 @@ func (x *Keys) String() string {
 func (*Keys) ProtoMessage() {}
 
 func (x *Keys) ProtoReflect() protoreflect.Message {
-	mi := &file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[1]
+	mi := &file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -162,7 +162,7 @@ func (x *Keys) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Keys.ProtoReflect.Descriptor instead.
 func (*Keys) Descriptor() ([]byte, []int) {
-	return file_sf_substreams_foundational_store_model_v1_model_proto_rawDescGZIP(), []int{1}
+	return file_sf_substreams_foundational_store_model_v2_model_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Keys) GetKeys() []*Key {
@@ -185,7 +185,7 @@ type Entry struct {
 func (x *Entry) Reset() {
 	*x = Entry{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[2]
+		mi := &file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -198,7 +198,7 @@ func (x *Entry) String() string {
 func (*Entry) ProtoMessage() {}
 
 func (x *Entry) ProtoReflect() protoreflect.Message {
-	mi := &file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[2]
+	mi := &file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -211,7 +211,7 @@ func (x *Entry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Entry.ProtoReflect.Descriptor instead.
 func (*Entry) Descriptor() ([]byte, []int) {
-	return file_sf_substreams_foundational_store_model_v1_model_proto_rawDescGZIP(), []int{2}
+	return file_sf_substreams_foundational_store_model_v2_model_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Entry) GetKey() *Key {
@@ -241,7 +241,7 @@ type SinkEntries struct {
 func (x *SinkEntries) Reset() {
 	*x = SinkEntries{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[3]
+		mi := &file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -254,7 +254,7 @@ func (x *SinkEntries) String() string {
 func (*SinkEntries) ProtoMessage() {}
 
 func (x *SinkEntries) ProtoReflect() protoreflect.Message {
-	mi := &file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[3]
+	mi := &file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -267,7 +267,7 @@ func (x *SinkEntries) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SinkEntries.ProtoReflect.Descriptor instead.
 func (*SinkEntries) Descriptor() ([]byte, []int) {
-	return file_sf_substreams_foundational_store_model_v1_model_proto_rawDescGZIP(), []int{3}
+	return file_sf_substreams_foundational_store_model_v2_model_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *SinkEntries) GetEntries() []*Entry {
@@ -290,14 +290,14 @@ type QueriedEntry struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Code  ResponseCode `protobuf:"varint,1,opt,name=code,proto3,enum=sf.substreams.foundational_store.model.v1.ResponseCode" json:"code,omitempty"`
+	Code  ResponseCode `protobuf:"varint,1,opt,name=code,proto3,enum=sf.substreams.foundational_store.model.v2.ResponseCode" json:"code,omitempty"`
 	Entry *Entry       `protobuf:"bytes,2,opt,name=entry,proto3" json:"entry,omitempty"`
 }
 
 func (x *QueriedEntry) Reset() {
 	*x = QueriedEntry{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[4]
+		mi := &file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -310,7 +310,7 @@ func (x *QueriedEntry) String() string {
 func (*QueriedEntry) ProtoMessage() {}
 
 func (x *QueriedEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[4]
+	mi := &file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -323,7 +323,7 @@ func (x *QueriedEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueriedEntry.ProtoReflect.Descriptor instead.
 func (*QueriedEntry) Descriptor() ([]byte, []int) {
-	return file_sf_substreams_foundational_store_model_v1_model_proto_rawDescGZIP(), []int{4}
+	return file_sf_substreams_foundational_store_model_v2_model_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *QueriedEntry) GetCode() ResponseCode {
@@ -352,7 +352,7 @@ type QueriedEntries struct {
 func (x *QueriedEntries) Reset() {
 	*x = QueriedEntries{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[5]
+		mi := &file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -365,7 +365,7 @@ func (x *QueriedEntries) String() string {
 func (*QueriedEntries) ProtoMessage() {}
 
 func (x *QueriedEntries) ProtoReflect() protoreflect.Message {
-	mi := &file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[5]
+	mi := &file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -378,7 +378,7 @@ func (x *QueriedEntries) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueriedEntries.ProtoReflect.Descriptor instead.
 func (*QueriedEntries) Descriptor() ([]byte, []int) {
-	return file_sf_substreams_foundational_store_model_v1_model_proto_rawDescGZIP(), []int{5}
+	return file_sf_substreams_foundational_store_model_v2_model_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *QueriedEntries) GetEntries() []*QueriedEntry {
@@ -388,28 +388,28 @@ func (x *QueriedEntries) GetEntries() []*QueriedEntry {
 	return nil
 }
 
-var File_sf_substreams_foundational_store_model_v1_model_proto protoreflect.FileDescriptor
+var File_sf_substreams_foundational_store_model_v2_model_proto protoreflect.FileDescriptor
 
-var file_sf_substreams_foundational_store_model_v1_model_proto_rawDesc = []byte{
+var file_sf_substreams_foundational_store_model_v2_model_proto_rawDesc = []byte{
 	0x0a, 0x35, 0x73, 0x66, 0x2f, 0x73, 0x75, 0x62, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x73, 0x2f,
 	0x66, 0x6f, 0x75, 0x6e, 0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x61, 0x6c, 0x2d, 0x73, 0x74, 0x6f,
-	0x72, 0x65, 0x2f, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2f, 0x76, 0x31, 0x2f, 0x6d, 0x6f, 0x64, 0x65,
+	0x72, 0x65, 0x2f, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2f, 0x76, 0x32, 0x2f, 0x6d, 0x6f, 0x64, 0x65,
 	0x6c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x29, 0x73, 0x66, 0x2e, 0x73, 0x75, 0x62, 0x73,
 	0x74, 0x72, 0x65, 0x61, 0x6d, 0x73, 0x2e, 0x66, 0x6f, 0x75, 0x6e, 0x64, 0x61, 0x74, 0x69, 0x6f,
 	0x6e, 0x61, 0x6c, 0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x2e, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e,
-	0x76, 0x31, 0x1a, 0x19, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x76, 0x32, 0x1a, 0x19, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f,
 	0x62, 0x75, 0x66, 0x2f, 0x61, 0x6e, 0x79, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x1b, 0x0a,
 	0x03, 0x4b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x62, 0x79, 0x74, 0x65, 0x73, 0x18, 0x01, 0x20,
 	0x01, 0x28, 0x0c, 0x52, 0x05, 0x62, 0x79, 0x74, 0x65, 0x73, 0x22, 0x4a, 0x0a, 0x04, 0x4b, 0x65,
 	0x79, 0x73, 0x12, 0x42, 0x0a, 0x04, 0x6b, 0x65, 0x79, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b,
 	0x32, 0x2e, 0x2e, 0x73, 0x66, 0x2e, 0x73, 0x75, 0x62, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x73,
 	0x2e, 0x66, 0x6f, 0x75, 0x6e, 0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x61, 0x6c, 0x5f, 0x73, 0x74,
-	0x6f, 0x72, 0x65, 0x2e, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x76, 0x31, 0x2e, 0x4b, 0x65, 0x79,
+	0x6f, 0x72, 0x65, 0x2e, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x76, 0x32, 0x2e, 0x4b, 0x65, 0x79,
 	0x52, 0x04, 0x6b, 0x65, 0x79, 0x73, 0x22, 0x7b, 0x0a, 0x05, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12,
 	0x40, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x2e, 0x2e, 0x73,
 	0x66, 0x2e, 0x73, 0x75, 0x62, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x73, 0x2e, 0x66, 0x6f, 0x75,
 	0x6e, 0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x61, 0x6c, 0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x2e,
-	0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x76, 0x31, 0x2e, 0x4b, 0x65, 0x79, 0x52, 0x03, 0x6b, 0x65,
+	0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x76, 0x32, 0x2e, 0x4b, 0x65, 0x79, 0x52, 0x03, 0x6b, 0x65,
 	0x79, 0x12, 0x2a, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b,
 	0x32, 0x14, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62,
 	0x75, 0x66, 0x2e, 0x41, 0x6e, 0x79, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x4a, 0x04, 0x08,
@@ -417,7 +417,7 @@ var file_sf_substreams_foundational_store_model_v1_model_proto_rawDesc = []byte{
 	0x65, 0x73, 0x12, 0x4a, 0x0a, 0x07, 0x65, 0x6e, 0x74, 0x72, 0x69, 0x65, 0x73, 0x18, 0x01, 0x20,
 	0x03, 0x28, 0x0b, 0x32, 0x30, 0x2e, 0x73, 0x66, 0x2e, 0x73, 0x75, 0x62, 0x73, 0x74, 0x72, 0x65,
 	0x61, 0x6d, 0x73, 0x2e, 0x66, 0x6f, 0x75, 0x6e, 0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x61, 0x6c,
-	0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x2e, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x76, 0x31, 0x2e,
+	0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x2e, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x76, 0x32, 0x2e,
 	0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x07, 0x65, 0x6e, 0x74, 0x72, 0x69, 0x65, 0x73, 0x12, 0x20,
 	0x0a, 0x0c, 0x69, 0x66, 0x5f, 0x6e, 0x6f, 0x74, 0x5f, 0x65, 0x78, 0x69, 0x73, 0x74, 0x18, 0x02,
 	0x20, 0x01, 0x28, 0x08, 0x52, 0x0a, 0x69, 0x66, 0x4e, 0x6f, 0x74, 0x45, 0x78, 0x69, 0x73, 0x74,
@@ -425,18 +425,18 @@ var file_sf_substreams_foundational_store_model_v1_model_proto_rawDesc = []byte{
 	0x79, 0x12, 0x4b, 0x0a, 0x04, 0x63, 0x6f, 0x64, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32,
 	0x37, 0x2e, 0x73, 0x66, 0x2e, 0x73, 0x75, 0x62, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x73, 0x2e,
 	0x66, 0x6f, 0x75, 0x6e, 0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x61, 0x6c, 0x5f, 0x73, 0x74, 0x6f,
-	0x72, 0x65, 0x2e, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x76, 0x31, 0x2e, 0x52, 0x65, 0x73, 0x70,
+	0x72, 0x65, 0x2e, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x76, 0x32, 0x2e, 0x52, 0x65, 0x73, 0x70,
 	0x6f, 0x6e, 0x73, 0x65, 0x43, 0x6f, 0x64, 0x65, 0x52, 0x04, 0x63, 0x6f, 0x64, 0x65, 0x12, 0x46,
 	0x0a, 0x05, 0x65, 0x6e, 0x74, 0x72, 0x79, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x30, 0x2e,
 	0x73, 0x66, 0x2e, 0x73, 0x75, 0x62, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x73, 0x2e, 0x66, 0x6f,
 	0x75, 0x6e, 0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x61, 0x6c, 0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65,
-	0x2e, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x76, 0x31, 0x2e, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52,
+	0x2e, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x76, 0x32, 0x2e, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52,
 	0x05, 0x65, 0x6e, 0x74, 0x72, 0x79, 0x22, 0x63, 0x0a, 0x0e, 0x51, 0x75, 0x65, 0x72, 0x69, 0x65,
 	0x64, 0x45, 0x6e, 0x74, 0x72, 0x69, 0x65, 0x73, 0x12, 0x51, 0x0a, 0x07, 0x65, 0x6e, 0x74, 0x72,
 	0x69, 0x65, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x37, 0x2e, 0x73, 0x66, 0x2e, 0x73,
 	0x75, 0x62, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x73, 0x2e, 0x66, 0x6f, 0x75, 0x6e, 0x64, 0x61,
 	0x74, 0x69, 0x6f, 0x6e, 0x61, 0x6c, 0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x2e, 0x6d, 0x6f, 0x64,
-	0x65, 0x6c, 0x2e, 0x76, 0x31, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x69, 0x65, 0x64, 0x45, 0x6e, 0x74,
+	0x65, 0x6c, 0x2e, 0x76, 0x32, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x69, 0x65, 0x64, 0x45, 0x6e, 0x74,
 	0x72, 0x79, 0x52, 0x07, 0x65, 0x6e, 0x74, 0x72, 0x69, 0x65, 0x73, 0x2a, 0x89, 0x01, 0x0a, 0x0c,
 	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x43, 0x6f, 0x64, 0x65, 0x12, 0x1d, 0x0a, 0x19,
 	0x52, 0x45, 0x53, 0x50, 0x4f, 0x4e, 0x53, 0x45, 0x5f, 0x43, 0x4f, 0x44, 0x45, 0x5f, 0x55, 0x4e,
@@ -449,61 +449,61 @@ var file_sf_substreams_foundational_store_model_v1_model_proto_rawDesc = []byte{
 	0x41, 0x4c, 0x49, 0x5a, 0x45, 0x10, 0x04, 0x42, 0xed, 0x02, 0x0a, 0x2d, 0x63, 0x6f, 0x6d, 0x2e,
 	0x73, 0x66, 0x2e, 0x73, 0x75, 0x62, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x73, 0x2e, 0x66, 0x6f,
 	0x75, 0x6e, 0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x61, 0x6c, 0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65,
-	0x2e, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x76, 0x31, 0x42, 0x0a, 0x4d, 0x6f, 0x64, 0x65, 0x6c,
+	0x2e, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x76, 0x32, 0x42, 0x0a, 0x4d, 0x6f, 0x64, 0x65, 0x6c,
 	0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50, 0x01, 0x5a, 0x6b, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e,
 	0x63, 0x6f, 0x6d, 0x2f, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x69, 0x6e, 0x67, 0x66, 0x61, 0x73,
 	0x74, 0x2f, 0x73, 0x75, 0x62, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x73, 0x2d, 0x66, 0x6f, 0x75,
 	0x6e, 0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x61, 0x6c, 0x2d, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x2f,
 	0x70, 0x62, 0x2f, 0x73, 0x66, 0x2f, 0x73, 0x75, 0x62, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x73,
 	0x2f, 0x66, 0x6f, 0x75, 0x6e, 0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x61, 0x6c, 0x2d, 0x73, 0x74,
-	0x6f, 0x72, 0x65, 0x2f, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2f, 0x76, 0x31, 0x3b, 0x6d, 0x6f, 0x64,
-	0x65, 0x6c, 0x76, 0x31, 0xa2, 0x02, 0x04, 0x53, 0x53, 0x46, 0x4d, 0xaa, 0x02, 0x28, 0x53, 0x66,
+	0x6f, 0x72, 0x65, 0x2f, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2f, 0x76, 0x32, 0x3b, 0x6d, 0x6f, 0x64,
+	0x65, 0x6c, 0x76, 0x32, 0xa2, 0x02, 0x04, 0x53, 0x53, 0x46, 0x4d, 0xaa, 0x02, 0x28, 0x53, 0x66,
 	0x2e, 0x53, 0x75, 0x62, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x73, 0x2e, 0x46, 0x6f, 0x75, 0x6e,
 	0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x61, 0x6c, 0x53, 0x74, 0x6f, 0x72, 0x65, 0x2e, 0x4d, 0x6f,
-	0x64, 0x65, 0x6c, 0x2e, 0x56, 0x31, 0xca, 0x02, 0x28, 0x53, 0x66, 0x5c, 0x53, 0x75, 0x62, 0x73,
+	0x64, 0x65, 0x6c, 0x2e, 0x56, 0x32, 0xca, 0x02, 0x28, 0x53, 0x66, 0x5c, 0x53, 0x75, 0x62, 0x73,
 	0x74, 0x72, 0x65, 0x61, 0x6d, 0x73, 0x5c, 0x46, 0x6f, 0x75, 0x6e, 0x64, 0x61, 0x74, 0x69, 0x6f,
 	0x6e, 0x61, 0x6c, 0x53, 0x74, 0x6f, 0x72, 0x65, 0x5c, 0x4d, 0x6f, 0x64, 0x65, 0x6c, 0x5c, 0x56,
-	0x31, 0xe2, 0x02, 0x34, 0x53, 0x66, 0x5c, 0x53, 0x75, 0x62, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d,
+	0x32, 0xe2, 0x02, 0x34, 0x53, 0x66, 0x5c, 0x53, 0x75, 0x62, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d,
 	0x73, 0x5c, 0x46, 0x6f, 0x75, 0x6e, 0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x61, 0x6c, 0x53, 0x74,
-	0x6f, 0x72, 0x65, 0x5c, 0x4d, 0x6f, 0x64, 0x65, 0x6c, 0x5c, 0x56, 0x31, 0x5c, 0x47, 0x50, 0x42,
+	0x6f, 0x72, 0x65, 0x5c, 0x4d, 0x6f, 0x64, 0x65, 0x6c, 0x5c, 0x56, 0x32, 0x5c, 0x47, 0x50, 0x42,
 	0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0xea, 0x02, 0x2c, 0x53, 0x66, 0x3a, 0x3a, 0x53,
 	0x75, 0x62, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x73, 0x3a, 0x3a, 0x46, 0x6f, 0x75, 0x6e, 0x64,
 	0x61, 0x74, 0x69, 0x6f, 0x6e, 0x61, 0x6c, 0x53, 0x74, 0x6f, 0x72, 0x65, 0x3a, 0x3a, 0x4d, 0x6f,
-	0x64, 0x65, 0x6c, 0x3a, 0x3a, 0x56, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x64, 0x65, 0x6c, 0x3a, 0x3a, 0x56, 0x32, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
-	file_sf_substreams_foundational_store_model_v1_model_proto_rawDescOnce sync.Once
-	file_sf_substreams_foundational_store_model_v1_model_proto_rawDescData = file_sf_substreams_foundational_store_model_v1_model_proto_rawDesc
+	file_sf_substreams_foundational_store_model_v2_model_proto_rawDescOnce sync.Once
+	file_sf_substreams_foundational_store_model_v2_model_proto_rawDescData = file_sf_substreams_foundational_store_model_v2_model_proto_rawDesc
 )
 
-func file_sf_substreams_foundational_store_model_v1_model_proto_rawDescGZIP() []byte {
-	file_sf_substreams_foundational_store_model_v1_model_proto_rawDescOnce.Do(func() {
-		file_sf_substreams_foundational_store_model_v1_model_proto_rawDescData = protoimpl.X.CompressGZIP(file_sf_substreams_foundational_store_model_v1_model_proto_rawDescData)
+func file_sf_substreams_foundational_store_model_v2_model_proto_rawDescGZIP() []byte {
+	file_sf_substreams_foundational_store_model_v2_model_proto_rawDescOnce.Do(func() {
+		file_sf_substreams_foundational_store_model_v2_model_proto_rawDescData = protoimpl.X.CompressGZIP(file_sf_substreams_foundational_store_model_v2_model_proto_rawDescData)
 	})
-	return file_sf_substreams_foundational_store_model_v1_model_proto_rawDescData
+	return file_sf_substreams_foundational_store_model_v2_model_proto_rawDescData
 }
 
-var file_sf_substreams_foundational_store_model_v1_model_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
-var file_sf_substreams_foundational_store_model_v1_model_proto_goTypes = []interface{}{
-	(ResponseCode)(0),      // 0: sf.substreams.foundational_store.model.v1.ResponseCode
-	(*Key)(nil),            // 1: sf.substreams.foundational_store.model.v1.Key
-	(*Keys)(nil),           // 2: sf.substreams.foundational_store.model.v1.Keys
-	(*Entry)(nil),          // 3: sf.substreams.foundational_store.model.v1.Entry
-	(*SinkEntries)(nil),    // 4: sf.substreams.foundational_store.model.v1.SinkEntries
-	(*QueriedEntry)(nil),   // 5: sf.substreams.foundational_store.model.v1.QueriedEntry
-	(*QueriedEntries)(nil), // 6: sf.substreams.foundational_store.model.v1.QueriedEntries
+var file_sf_substreams_foundational_store_model_v2_model_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_sf_substreams_foundational_store_model_v2_model_proto_goTypes = []interface{}{
+	(ResponseCode)(0),      // 0: sf.substreams.foundational_store.model.v2.ResponseCode
+	(*Key)(nil),            // 1: sf.substreams.foundational_store.model.v2.Key
+	(*Keys)(nil),           // 2: sf.substreams.foundational_store.model.v2.Keys
+	(*Entry)(nil),          // 3: sf.substreams.foundational_store.model.v2.Entry
+	(*SinkEntries)(nil),    // 4: sf.substreams.foundational_store.model.v2.SinkEntries
+	(*QueriedEntry)(nil),   // 5: sf.substreams.foundational_store.model.v2.QueriedEntry
+	(*QueriedEntries)(nil), // 6: sf.substreams.foundational_store.model.v2.QueriedEntries
 	(*anypb.Any)(nil),      // 7: google.protobuf.Any
 }
-var file_sf_substreams_foundational_store_model_v1_model_proto_depIdxs = []int32{
-	1, // 0: sf.substreams.foundational_store.model.v1.Keys.keys:type_name -> sf.substreams.foundational_store.model.v1.Key
-	1, // 1: sf.substreams.foundational_store.model.v1.Entry.key:type_name -> sf.substreams.foundational_store.model.v1.Key
-	7, // 2: sf.substreams.foundational_store.model.v1.Entry.value:type_name -> google.protobuf.Any
-	3, // 3: sf.substreams.foundational_store.model.v1.SinkEntries.entries:type_name -> sf.substreams.foundational_store.model.v1.Entry
-	0, // 4: sf.substreams.foundational_store.model.v1.QueriedEntry.code:type_name -> sf.substreams.foundational_store.model.v1.ResponseCode
-	3, // 5: sf.substreams.foundational_store.model.v1.QueriedEntry.entry:type_name -> sf.substreams.foundational_store.model.v1.Entry
-	5, // 6: sf.substreams.foundational_store.model.v1.QueriedEntries.entries:type_name -> sf.substreams.foundational_store.model.v1.QueriedEntry
+var file_sf_substreams_foundational_store_model_v2_model_proto_depIdxs = []int32{
+	1, // 0: sf.substreams.foundational_store.model.v2.Keys.keys:type_name -> sf.substreams.foundational_store.model.v2.Key
+	1, // 1: sf.substreams.foundational_store.model.v2.Entry.key:type_name -> sf.substreams.foundational_store.model.v2.Key
+	7, // 2: sf.substreams.foundational_store.model.v2.Entry.value:type_name -> google.protobuf.Any
+	3, // 3: sf.substreams.foundational_store.model.v2.SinkEntries.entries:type_name -> sf.substreams.foundational_store.model.v2.Entry
+	0, // 4: sf.substreams.foundational_store.model.v2.QueriedEntry.code:type_name -> sf.substreams.foundational_store.model.v2.ResponseCode
+	3, // 5: sf.substreams.foundational_store.model.v2.QueriedEntry.entry:type_name -> sf.substreams.foundational_store.model.v2.Entry
+	5, // 6: sf.substreams.foundational_store.model.v2.QueriedEntries.entries:type_name -> sf.substreams.foundational_store.model.v2.QueriedEntry
 	7, // [7:7] is the sub-list for method output_type
 	7, // [7:7] is the sub-list for method input_type
 	7, // [7:7] is the sub-list for extension type_name
@@ -511,13 +511,13 @@ var file_sf_substreams_foundational_store_model_v1_model_proto_depIdxs = []int32
 	0, // [0:7] is the sub-list for field type_name
 }
 
-func init() { file_sf_substreams_foundational_store_model_v1_model_proto_init() }
-func file_sf_substreams_foundational_store_model_v1_model_proto_init() {
-	if File_sf_substreams_foundational_store_model_v1_model_proto != nil {
+func init() { file_sf_substreams_foundational_store_model_v2_model_proto_init() }
+func file_sf_substreams_foundational_store_model_v2_model_proto_init() {
+	if File_sf_substreams_foundational_store_model_v2_model_proto != nil {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+		file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Key); i {
 			case 0:
 				return &v.state
@@ -529,7 +529,7 @@ func file_sf_substreams_foundational_store_model_v1_model_proto_init() {
 				return nil
 			}
 		}
-		file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+		file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Keys); i {
 			case 0:
 				return &v.state
@@ -541,7 +541,7 @@ func file_sf_substreams_foundational_store_model_v1_model_proto_init() {
 				return nil
 			}
 		}
-		file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+		file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Entry); i {
 			case 0:
 				return &v.state
@@ -553,7 +553,7 @@ func file_sf_substreams_foundational_store_model_v1_model_proto_init() {
 				return nil
 			}
 		}
-		file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+		file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*SinkEntries); i {
 			case 0:
 				return &v.state
@@ -565,7 +565,7 @@ func file_sf_substreams_foundational_store_model_v1_model_proto_init() {
 				return nil
 			}
 		}
-		file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+		file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*QueriedEntry); i {
 			case 0:
 				return &v.state
@@ -577,7 +577,7 @@ func file_sf_substreams_foundational_store_model_v1_model_proto_init() {
 				return nil
 			}
 		}
-		file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+		file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*QueriedEntries); i {
 			case 0:
 				return &v.state
@@ -594,19 +594,19 @@ func file_sf_substreams_foundational_store_model_v1_model_proto_init() {
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: file_sf_substreams_foundational_store_model_v1_model_proto_rawDesc,
+			RawDescriptor: file_sf_substreams_foundational_store_model_v2_model_proto_rawDesc,
 			NumEnums:      1,
 			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_sf_substreams_foundational_store_model_v1_model_proto_goTypes,
-		DependencyIndexes: file_sf_substreams_foundational_store_model_v1_model_proto_depIdxs,
-		EnumInfos:         file_sf_substreams_foundational_store_model_v1_model_proto_enumTypes,
-		MessageInfos:      file_sf_substreams_foundational_store_model_v1_model_proto_msgTypes,
+		GoTypes:           file_sf_substreams_foundational_store_model_v2_model_proto_goTypes,
+		DependencyIndexes: file_sf_substreams_foundational_store_model_v2_model_proto_depIdxs,
+		EnumInfos:         file_sf_substreams_foundational_store_model_v2_model_proto_enumTypes,
+		MessageInfos:      file_sf_substreams_foundational_store_model_v2_model_proto_msgTypes,
 	}.Build()
-	File_sf_substreams_foundational_store_model_v1_model_proto = out.File
-	file_sf_substreams_foundational_store_model_v1_model_proto_rawDesc = nil
-	file_sf_substreams_foundational_store_model_v1_model_proto_goTypes = nil
-	file_sf_substreams_foundational_store_model_v1_model_proto_depIdxs = nil
+	File_sf_substreams_foundational_store_model_v2_model_proto = out.File
+	file_sf_substreams_foundational_store_model_v2_model_proto_rawDesc = nil
+	file_sf_substreams_foundational_store_model_v2_model_proto_goTypes = nil
+	file_sf_substreams_foundational_store_model_v2_model_proto_depIdxs = nil
 }
