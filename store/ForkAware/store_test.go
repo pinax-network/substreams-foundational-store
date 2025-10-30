@@ -89,6 +89,15 @@ func (m *mockStore) GetFirst(request *pbservice.GetFirstRequest) (*pbservice.Get
 	return &pbservice.GetResponse{Entry: &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND}}, nil
 }
 
+func (m *mockStore) GetAllFirst(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
+	entries := make([]*pbmodel.QueriedEntry, 0, len(request.Keys))
+	for _, k := range request.Keys {
+		resp, _ := m.GetFirst(&pbservice.GetFirstRequest{Key: k, BlockNumber: request.BlockNumber, BlockHash: request.BlockHash})
+		entries = append(entries, resp.Entry)
+	}
+	return &pbservice.GetAllResponse{BlockReached: true, Entries: &pbmodel.QueriedEntries{Entries: entries}}, nil
+}
+
 func TestCacheStore(t *testing.T) {
 	// Create a mock store
 	mockStore := newMockStore()

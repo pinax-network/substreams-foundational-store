@@ -135,6 +135,19 @@ func (s *Store) GetFirst(request *pbservice.GetFirstRequest) (*pbservice.GetResp
 	}, nil
 }
 
+// GetAllFirst returns, for each requested key, the first entry with key >= that key
+func (s *Store) GetAllFirst(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
+	entries := make([]*pbmodel.QueriedEntry, 0, len(request.Keys))
+	for _, key := range request.Keys {
+		resp, err := s.GetFirst(&pbservice.GetFirstRequest{Key: key, BlockNumber: request.BlockNumber, BlockHash: request.BlockHash})
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, resp.Entry)
+	}
+	return &pbservice.GetAllResponse{BlockReached: true, Entries: &pbmodel.QueriedEntries{Entries: entries}}, nil
+}
+
 // GetKeyOnly retrieves only the key (no value) for time traversal
 // This is useful when you only need to check if a key exists at a given block
 func (s *Store) GetKeyOnly(key []byte, blockNumber uint64) (*KeyOnlyEntry, error) {

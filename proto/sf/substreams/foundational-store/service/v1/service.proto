@@ -17,6 +17,9 @@ service Store {
   rpc GetAll(GetAllRequest) returns (GetAllResponse);
 
   rpc GetFirst(GetFirstRequest) returns (GetResponse);
+
+  rpc GetAllFirst(GetAllRequest) returns (GetAllResponse);
+
 }
 
 // Specifies which value to retrieve at a specific block

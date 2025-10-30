@@ -226,3 +226,16 @@ func (s *Store) GetFirst(request *pbservice.GetFirstRequest) (*pbservice.GetResp
 		},
 	}, nil
 }
+
+// GetAllFirst retrieves the first entry for each provided key respecting time traversal semantics
+func (s *Store) GetAllFirst(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
+	entries := make([]*pbmodel.QueriedEntry, 0, len(request.Keys))
+	for _, key := range request.Keys {
+		resp, err := s.GetFirst(&pbservice.GetFirstRequest{Key: key, BlockNumber: request.BlockNumber, BlockHash: request.BlockHash})
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, resp.Entry)
+	}
+	return &pbservice.GetAllResponse{BlockReached: true, Entries: &pbmodel.QueriedEntries{Entries: entries}}, nil
+}

@@ -27,6 +27,7 @@ type StoreClient interface {
 	// GetAll retrieves multiple values by keys at a specific block number
 	GetAll(ctx context.Context, in *GetAllRequest, opts ...grpc.CallOption) (*GetAllResponse, error)
 	GetFirst(ctx context.Context, in *GetFirstRequest, opts ...grpc.CallOption) (*GetResponse, error)
+	GetAllFirst(ctx context.Context, in *GetAllRequest, opts ...grpc.CallOption) (*GetAllResponse, error)
 }
 
 type storeClient struct {
@@ -64,6 +65,15 @@ func (c *storeClient) GetFirst(ctx context.Context, in *GetFirstRequest, opts ..
 	return out, nil
 }
 
+func (c *storeClient) GetAllFirst(ctx context.Context, in *GetAllRequest, opts ...grpc.CallOption) (*GetAllResponse, error) {
+	out := new(GetAllResponse)
+	err := c.cc.Invoke(ctx, "/sf.substreams.foundational_store.service.v1.Store/GetAllFirst", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // StoreServer is the server API for Store service.
 // All implementations must embed UnimplementedStoreServer
 // for forward compatibility
@@ -73,6 +83,7 @@ type StoreServer interface {
 	// GetAll retrieves multiple values by keys at a specific block number
 	GetAll(context.Context, *GetAllRequest) (*GetAllResponse, error)
 	GetFirst(context.Context, *GetFirstRequest) (*GetResponse, error)
+	GetAllFirst(context.Context, *GetAllRequest) (*GetAllResponse, error)
 	mustEmbedUnimplementedStoreServer()
 }
 
@@ -88,6 +99,9 @@ func (UnimplementedStoreServer) GetAll(context.Context, *GetAllRequest) (*GetAll
 }
 func (UnimplementedStoreServer) GetFirst(context.Context, *GetFirstRequest) (*GetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFirst not implemented")
+}
+func (UnimplementedStoreServer) GetAllFirst(context.Context, *GetAllRequest) (*GetAllResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAllFirst not implemented")
 }
 func (UnimplementedStoreServer) mustEmbedUnimplementedStoreServer() {}
 
@@ -156,6 +170,24 @@ func _Store_GetFirst_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Store_GetAllFirst_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAllRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StoreServer).GetAllFirst(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sf.substreams.foundational_store.service.v1.Store/GetAllFirst",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StoreServer).GetAllFirst(ctx, req.(*GetAllRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Store_ServiceDesc is the grpc.ServiceDesc for Store service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -174,6 +206,10 @@ var Store_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetFirst",
 			Handler:    _Store_GetFirst_Handler,
+		},
+		{
+			MethodName: "GetAllFirst",
+			Handler:    _Store_GetAllFirst_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

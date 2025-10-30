@@ -96,6 +96,33 @@ func (s *GrpcServer) GetAll(ctx context.Context, req *pbservice.GetAllRequest) (
 	return r, nil
 }
 
+func (s *GrpcServer) GetAllFirst(ctx context.Context, req *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
+
+	executionStart := time.Now()
+	headBlock := s.headBlockFetcher()
+	if headBlock < req.BlockNumber {
+		return &pbservice.GetAllResponse{BlockReached: false}, nil
+	}
+
+	r, err := s.store.GetAllFirst(req)
+	if err != nil {
+		return nil, fmt.Errorf("getting all first keys from store: %w", err)
+	}
+
+	// Set BlockReached = true for top-level response
+	r.BlockReached = true
+
+	s.logger.Info("request stats",
+		zap.Uint64("block_number", req.BlockNumber),
+		zap.Uint64("head_block", headBlock),
+		zap.Int("requested_keys", len(req.Keys)),
+		zap.Int("found_keys", len(r.Entries.Entries)),
+		zap.Duration("execution_time", time.Since(executionStart)),
+		zap.Bool("keep", false),
+	)
+	return r, nil
+}
+
 func (s *GrpcServer) Run(addr string, opts ...grpc.ServerOption) {
 	// Create the dgrpc server with reduced per-call logging
 	grpcLogger := s.logger.Named("grpc").WithOptions(zap.IncreaseLevel(zap.WarnLevel))

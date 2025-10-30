@@ -80,6 +80,13 @@ func (m *SimpleMockStore) GetFirst(request *pbservice.GetFirstRequest) (*pbservi
 	}, nil
 }
 
+func (m *SimpleMockStore) GetAllFirst(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
+	return &pbservice.GetAllResponse{
+		BlockReached: true,
+		Entries:      &pbmodel.QueriedEntries{},
+	}, nil
+}
+
 func (m *SimpleMockStore) FlushUpToBlock(blockNum uint64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

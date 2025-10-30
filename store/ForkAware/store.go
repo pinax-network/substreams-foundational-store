@@ -114,6 +114,13 @@ func (s *Store) GetFirst(request *pbservice.GetFirstRequest) (*pbservice.GetResp
 	return s.wrapped.GetFirst(request)
 }
 
+// GetAllFirst delegates to the wrapped store for simplicity.
+func (s *Store) GetAllFirst(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.wrapped.GetAllFirst(request)
+}
+
 // FlushUpToBlock flushes all entries with block numbers <= blockNum to the wrapped foundational-store.
 func (s *Store) FlushUpToBlock(blockNum uint64) error {
 

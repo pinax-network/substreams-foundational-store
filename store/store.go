@@ -11,6 +11,7 @@ type Store interface {
 	Get(request *pbservice.GetRequest) (*pbservice.GetResponse, error)
 	GetAll(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error)
 	GetFirst(request *pbservice.GetFirstRequest) (*pbservice.GetResponse, error)
+	GetAllFirst(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error)
 }
 
 type ForkawareStore interface {
