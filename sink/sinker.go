@@ -6,6 +6,7 @@ import (
 
 	"github.com/streamingfast/shutter"
 	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v2"
+	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	pbsubstreamsrpc "github.com/streamingfast/substreams/pb/sf/substreams/rpc/v2"
 	sink "github.com/streamingfast/substreams/sink"
@@ -47,8 +48,24 @@ func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrp
 	// Process data if present
 	if data.Output != nil && data.Output.MapOutput != nil && data.Output.MapOutput.Value != nil {
 		entries := &pbmodel.SinkEntries{}
-		if err := data.Output.MapOutput.UnmarshalTo(entries); err != nil {
-			return fmt.Errorf("unmarshaling map output to Entry: %w", err)
+		//fmt.Println(data.Output.MapOutput.TypeUrl)
+		if data.Output.MapOutput.TypeUrl == "type.googleapis.com/sf.substreams.foundational_store.v1.Entries" {
+			legacyEntries := &pbstore.Entries{}
+			if err := data.Output.MapOutput.UnmarshalTo(legacyEntries); err != nil {
+				return fmt.Errorf("unmarshaling map output to Entry: %w", err)
+			}
+			for _, i := range legacyEntries.Entries {
+				entries.Entries = append(entries.Entries, &pbmodel.Entry{
+					Key:   &pbmodel.Key{Bytes: i.Key},
+					Value: i.Value,
+				})
+			}
+
+		} else {
+			if err := data.Output.MapOutput.UnmarshalTo(entries); err != nil {
+				return fmt.Errorf("unmarshaling map output to Entry: %w", err)
+			}
+
 		}
 
 		if err := s.store.SetAll(entries.Entries, data.GetClock().Number); err != nil {
