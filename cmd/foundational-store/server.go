@@ -147,7 +147,7 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	// }()
 	defer dbStatsTicker.Stop()
 
-	sinker := sink.NewSinker(storeImpl, zlog, cursorFilePath)
+	sinker := sink.NewSinker(storeImpl, zlog, cursorFilePath, cursor)
 	server := grpc.NewStoreServer(storeImpl, sinker.HeadBlock, zlog)
 
 	app.SuperviseAndStartUsing(sinker.Shutter, func() {

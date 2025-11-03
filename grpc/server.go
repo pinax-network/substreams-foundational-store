@@ -8,6 +8,8 @@ import (
 	dgrpcServer "github.com/streamingfast/dgrpc/server"
 	"github.com/streamingfast/dgrpc/server/factory"
 	"github.com/streamingfast/shutter"
+	legacy "github.com/streamingfast/substreams-foundational-store/grpc/legacy"
+	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1"
 	pbservice "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v2"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	"go.uber.org/zap"
@@ -132,6 +134,7 @@ func (s *GrpcServer) Run(addr string, opts ...grpc.ServerOption) {
 		dgrpcServer.WithGRPCServerOptions(opts...),
 		dgrpcServer.WithRegisterService(func(gs *grpc.Server) {
 			pbservice.RegisterStoreServer(gs, s)
+			pbstore.RegisterStoreServer(gs, legacy.NewServer(s.store, s.headBlockFetcher, s.logger))
 		}),
 		dgrpcServer.WithHealthCheck(dgrpcServer.HealthCheckOverGRPC|dgrpcServer.HealthCheckOverHTTP, healthCheck),
 	)

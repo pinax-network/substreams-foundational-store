@@ -26,7 +26,7 @@ type Sinker struct {
 	headBlock uint64
 }
 
-func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath string) *Sinker {
+func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath string, cursor *sink.Cursor) *Sinker {
 	logger = logger.Named("foundational-store-sinker")
 
 	shutter := shutter.New()
@@ -37,6 +37,7 @@ func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath st
 		cursorFilePath: cursorFilePath,
 		cursorHistory:  map[string]*sink.Cursor{},
 		Shutter:        shutter,
+		headBlock:      cursor.HeadBlock.Num(),
 	}
 	return sinker
 }

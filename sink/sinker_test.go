@@ -124,7 +124,7 @@ func TestCursorSaveAndLoad(t *testing.T) {
 	cursorFilePath := filepath.Join(tempDir, "test.cursor")
 
 	mockStore := NewSimpleMockStore()
-	handler := NewSinker(mockStore, logger, cursorFilePath)
+	handler := NewSinker(mockStore, logger, cursorFilePath, nil)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -166,7 +166,7 @@ func TestHandleBlockScopedData(t *testing.T) {
 	tempDir := t.TempDir()
 	cursorFilePath := filepath.Join(tempDir, "test.cursor")
 
-	handler := NewSinker(mockStore, logger, cursorFilePath)
+	handler := NewSinker(mockStore, logger, cursorFilePath, nil)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -253,7 +253,7 @@ func TestHandleBlockUndoSignal(t *testing.T) {
 	tempDir := t.TempDir()
 	cursorFilePath := filepath.Join(tempDir, "undo_test.cursor")
 
-	handler := NewSinker(mockStore, logger, cursorFilePath)
+	handler := NewSinker(mockStore, logger, cursorFilePath, nil)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
