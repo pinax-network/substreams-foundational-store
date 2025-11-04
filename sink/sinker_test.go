@@ -60,31 +60,21 @@ func (m *SimpleMockStore) SetAll(entries []*pbmodel.Entry, blockNumber uint64) e
 }
 
 func (m *SimpleMockStore) Get(request *pbservice.GetRequest) (*pbservice.GetResponse, error) {
-	return &pbservice.GetResponse{
-		BlockReached: true,
-		Entry:        &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND},
-	}, nil
+	// Always return NOT_FOUND for simplicity
+	entries := make([]*pbmodel.QueriedEntry, len(request.Keys))
+	for i := range entries {
+		entries[i] = &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND}
+	}
+	return &pbservice.GetResponse{BlockReached: true, Entries: &pbmodel.QueriedEntries{Entries: entries}}, nil
 }
 
-func (m *SimpleMockStore) GetAll(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
-	return &pbservice.GetAllResponse{
-		BlockReached: true,
-		Entries:      &pbmodel.QueriedEntries{},
-	}, nil
-}
-
-func (m *SimpleMockStore) GetFirst(request *pbservice.GetFirstRequest) (*pbservice.GetResponse, error) {
-	return &pbservice.GetResponse{
-		BlockReached: true,
-		Entry:        &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND},
-	}, nil
-}
-
-func (m *SimpleMockStore) GetAllFirst(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
-	return &pbservice.GetAllResponse{
-		BlockReached: true,
-		Entries:      &pbmodel.QueriedEntries{},
-	}, nil
+func (m *SimpleMockStore) GetFirst(request *pbservice.GetRequest) (*pbservice.GetResponse, error) {
+	// Always return NOT_FOUND for simplicity
+	entries := make([]*pbmodel.QueriedEntry, len(request.Keys))
+	for i := range entries {
+		entries[i] = &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND}
+	}
+	return &pbservice.GetResponse{BlockReached: true, Entries: &pbmodel.QueriedEntries{Entries: entries}}, nil
 }
 
 func (m *SimpleMockStore) FlushUpToBlock(blockNum uint64) error {
@@ -123,19 +113,18 @@ func TestCursorSaveAndLoad(t *testing.T) {
 	tempDir := t.TempDir()
 	cursorFilePath := filepath.Join(tempDir, "test.cursor")
 
-	mockStore := NewSimpleMockStore()
-	handler := NewSinker(mockStore, logger, cursorFilePath, nil)
-	defer func() {
-		handler.Shutdown(nil)
-		<-handler.Terminated()
-	}()
-
 	testCursorStr := "XWQh1iJoYAKTDtvllL7yraWwLpc_DFhvVQvlKhhCjYGDiHqspvzCXTgfFUum8f32iBSqMQXahNirXjQmq6AKuJSypu8Sm3NpAXkk8YPs-7TvePP7OgIRBMNqNpHvBoWCMUGBFGuvfOQBoa-4TKneAQh4P55GdmL211oH1PMGIeQTsRE="
-
 	originalCursor, err := sink.NewCursor(testCursorStr)
 	if err != nil {
 		t.Fatalf("Failed to create cursor from test string: %v", err)
 	}
+
+	mockStore := NewSimpleMockStore()
+	handler := NewSinker(mockStore, logger, cursorFilePath, originalCursor)
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
 
 	err = SaveCursorToFile(originalCursor, cursorFilePath, logger)
 	if err != nil {
@@ -166,7 +155,14 @@ func TestHandleBlockScopedData(t *testing.T) {
 	tempDir := t.TempDir()
 	cursorFilePath := filepath.Join(tempDir, "test.cursor")
 
-	handler := NewSinker(mockStore, logger, cursorFilePath, nil)
+	// Create test cursor
+	testCursorStr := "XWQh1iJoYAKTDtvllL7yraWwLpc_DFhvVQvlKhhCjYGDiHqspvzCXTgfFUum8f32iBSqMQXahNirXjQmq6AKuJSypu8Sm3NpAXkk8YPs-7TvePP7OgIRBMNqNpHvBoWCMUGBFGuvfOQBoa-4TKneAQh4P55GdmL211oH1PMGIeQTsRE="
+	testCursor, err := sink.NewCursor(testCursorStr)
+	if err != nil {
+		t.Fatalf("Failed to create cursor: %v", err)
+	}
+
+	handler := NewSinker(mockStore, logger, cursorFilePath, testCursor)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -211,13 +207,6 @@ func TestHandleBlockScopedData(t *testing.T) {
 		},
 	}
 
-	// Create test cursor
-	testCursorStr := "XWQh1iJoYAKTDtvllL7yraWwLpc_DFhvVQvlKhhCjYGDiHqspvzCXTgfFUum8f32iBSqMQXahNirXjQmq6AKuJSypu8Sm3NpAXkk8YPs-7TvePP7OgIRBMNqNpHvBoWCMUGBFGuvfOQBoa-4TKneAQh4P55GdmL211oH1PMGIeQTsRE="
-	testCursor, err := sink.NewCursor(testCursorStr)
-	if err != nil {
-		t.Fatalf("Failed to create cursor: %v", err)
-	}
-
 	// Handle the block scoped data
 	err = handler.HandleBlockScopedData(context.Background(), data, nil, testCursor)
 	if err != nil {
@@ -253,18 +242,18 @@ func TestHandleBlockUndoSignal(t *testing.T) {
 	tempDir := t.TempDir()
 	cursorFilePath := filepath.Join(tempDir, "undo_test.cursor")
 
-	handler := NewSinker(mockStore, logger, cursorFilePath, nil)
-	defer func() {
-		handler.Shutdown(nil)
-		<-handler.Terminated()
-	}()
-
 	// Create test cursor
 	testCursorStr := "XWQh1iJoYAKTDtvllL7yraWwLpc_DFhvVQvlKhhCjYGDiHqspvzCXTgfFUum8f32iBSqMQXahNirXjQmq6AKuJSypu8Sm3NpAXkk8YPs-7TvePP7OgIRBMNqNpHvBoWCMUGBFGuvfOQBoa-4TKneAQh4P55GdmL211oH1PMGIeQTsRE="
 	testCursor, err := sink.NewCursor(testCursorStr)
 	if err != nil {
 		t.Fatalf("Failed to create cursor: %v", err)
 	}
+
+	handler := NewSinker(mockStore, logger, cursorFilePath, testCursor)
+	defer func() {
+		handler.Shutdown(nil)
+		<-handler.Terminated()
+	}()
 
 	// Create undo signal
 	undoSignal := &pbsubstreamsrpc.BlockUndoSignal{

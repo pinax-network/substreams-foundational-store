@@ -39,7 +39,7 @@ func (s *Server) Get(ctx context.Context, req *pbv1.GetRequest) (*pbv1.GetRespon
 	v2req := &pbv2.GetRequest{
 		BlockNumber: req.BlockNumber,
 		BlockHash:   req.BlockHash,
-		Key:         &pbmodel.Key{Bytes: req.Key},
+		Keys:        []*pbmodel.Key{{Bytes: req.Key}},
 	}
 
 	v2resp, err := s.store.Get(v2req)
@@ -48,8 +48,12 @@ func (s *Server) Get(ctx context.Context, req *pbv1.GetRequest) (*pbv1.GetRespon
 	}
 
 	out := &pbv1.GetResponse{BlockReached: true}
-	if v2resp.Entry != nil {
-		code := v2resp.Entry.GetCode()
+	var qe *pbmodel.QueriedEntry
+	if v2resp.GetEntries() != nil && len(v2resp.GetEntries().GetEntries()) > 0 {
+		qe = v2resp.GetEntries().GetEntries()[0]
+	}
+	if qe != nil {
+		code := qe.GetCode()
 		// Map deletion semantics when omit_deleted is true
 		if req.GetOmitDeleted() && code == pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND_FINALIZE {
 			out.Code = pbv1.ResponseCode_RESPONSE_CODE_NOT_FOUND
@@ -60,7 +64,7 @@ func (s *Server) Get(ctx context.Context, req *pbv1.GetRequest) (*pbv1.GetRespon
 		switch code {
 		case pbmodel.ResponseCode_RESPONSE_CODE_FOUND:
 			out.Code = pbv1.ResponseCode_RESPONSE_CODE_FOUND
-			if ent := v2resp.Entry.GetEntry(); ent != nil {
+			if ent := qe.GetEntry(); ent != nil {
 				out.Value = ent.GetValue()
 			}
 		case pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND:
@@ -86,20 +90,24 @@ func (s *Server) GetAll(ctx context.Context, req *pbv1.GetAllRequest) (*pbv1.Get
 	for _, k := range req.Keys {
 		keys = append(keys, &pbmodel.Key{Bytes: k})
 	}
-	v2req := &pbv2.GetAllRequest{
+	v2req := &pbv2.GetRequest{
 		BlockNumber: req.BlockNumber,
 		BlockHash:   req.BlockHash,
 		Keys:        keys,
 	}
 
-	v2resp, err := s.store.GetAll(v2req)
+	v2resp, err := s.store.Get(v2req)
 	if err != nil {
 		return nil, fmt.Errorf("getting all keys from store (legacy): %w", err)
 	}
 
 	out := &pbv1.GetAllResponse{BlockReached: true}
-	out.Entries = make([]*pbv1.ResponseEntry, 0, len(v2resp.GetEntries().GetEntries()))
-	for _, qe := range v2resp.GetEntries().GetEntries() {
+	var v2entries []*pbmodel.QueriedEntry
+	if v2resp.GetEntries() != nil {
+		v2entries = v2resp.GetEntries().GetEntries()
+	}
+	out.Entries = make([]*pbv1.ResponseEntry, 0, len(v2entries))
+	for _, qe := range v2entries {
 		resp := &pbv1.GetResponse{BlockReached: true}
 		code := qe.GetCode()
 		// Omit deleted mapping when requested

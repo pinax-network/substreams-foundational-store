@@ -26,43 +26,12 @@ type KeyOnlyEntry struct {
 }
 
 func (s *Store) Get(request *pbservice.GetRequest) (*pbservice.GetResponse, error) {
-	// Track total execution time
-
-	entry := &Entry{}
-	// Use time traversal query: find highest block <= requested block
-	err := s.selectStatement.Get(entry, request.Key, request.BlockNumber)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// Track no keys found for this call
-			return &pbservice.GetResponse{
-				BlockReached: true,
-				Entry: &pbmodel.QueriedEntry{
-					Code:  pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND,
-					Entry: &pbmodel.Entry{Key: request.Key},
-				},
-			}, nil
-		}
-		return nil, err
-	}
-
-	return &pbservice.GetResponse{
-		BlockReached: true,
-		Entry: &pbmodel.QueriedEntry{
-			Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND,
-			Entry: &pbmodel.Entry{
-				Key: request.Key,
-				Value: &anypb.Any{
-					TypeUrl: s.typeUrl,
-					Value:   entry.Value,
-				},
-			},
-		},
-	}, nil
-}
-
-func (s *Store) GetAll(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
 	// Use time traversal query for multiple keys
-	rows, err := s.selectAnyStatement.Queryx(pq.Array(request.Keys), request.BlockNumber)
+	keys := make([][]byte, len(request.Keys))
+	for i, k := range request.Keys {
+		keys[i] = k.Bytes
+	}
+	rows, err := s.selectAnyStatement.Queryx(pq.Array(keys), request.BlockNumber)
 	if err != nil {
 		return nil, fmt.Errorf("failed to select entries: %w", err)
 	}
@@ -70,82 +39,50 @@ func (s *Store) GetAll(request *pbservice.GetAllRequest) (*pbservice.GetAllRespo
 	var entriesMap = make(map[string]*Entry)
 	for rows.Next() {
 		entry := &Entry{}
-		err := rows.StructScan(entry)
-		if err != nil {
+		if err := rows.StructScan(entry); err != nil {
 			return nil, fmt.Errorf("failed to scan entry: %w", err)
 		}
 		entriesMap[hex.EncodeToString(entry.Key)] = entry
 	}
 
-	var keysFoundCount int
-	out := []*pbmodel.QueriedEntry{}
-	for _, key := range request.Keys {
+	out := make([]*pbmodel.QueriedEntry, len(request.Keys))
+	for i, key := range request.Keys {
 		entry, found := entriesMap[hex.EncodeToString(key.Bytes)]
 		if !found {
-			out = append(out, &pbmodel.QueriedEntry{
-				Code:  pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND,
-				Entry: &pbmodel.Entry{Key: key},
-			})
+			out[i] = &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, Entry: &pbmodel.Entry{Key: key}}
 			continue
 		}
-		keysFoundCount++
-		out = append(out, &pbmodel.QueriedEntry{
+		out[i] = &pbmodel.QueriedEntry{
 			Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND,
 			Entry: &pbmodel.Entry{
-				Key: key,
-				Value: &anypb.Any{
-					TypeUrl: s.typeUrl,
-					Value:   entry.Value,
-				},
+				Key:   key,
+				Value: &anypb.Any{TypeUrl: s.typeUrl, Value: entry.Value},
 			},
-		})
-	}
-
-	return &pbservice.GetAllResponse{
-		BlockReached: true,
-		Entries:      &pbmodel.QueriedEntries{Entries: out},
-	}, nil
-}
-
-// GetFirst retrieves the first entry (by key >= requested) with its latest value
-func (s *Store) GetFirst(request *pbservice.GetFirstRequest) (*pbservice.GetResponse, error) {
-	entry := &Entry{}
-	err := s.selectFirstStmt.Get(entry, request.Key)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return &pbservice.GetResponse{
-				BlockReached: true,
-				Entry:        &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, Entry: &pbmodel.Entry{Key: request.Key}},
-			}, nil
 		}
-		return nil, err
 	}
-	return &pbservice.GetResponse{
-		BlockReached: true,
-		Entry: &pbmodel.QueriedEntry{
-			Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND,
-			Entry: &pbmodel.Entry{
-				Key: request.Key,
-				Value: &anypb.Any{
-					TypeUrl: s.typeUrl,
-					Value:   entry.Value,
-				},
-			},
-		},
-	}, nil
+
+	return &pbservice.GetResponse{BlockReached: true, Entries: &pbmodel.QueriedEntries{Entries: out}}, nil
 }
 
-// GetAllFirst returns, for each requested key, the first entry with key >= that key
-func (s *Store) GetAllFirst(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
-	entries := make([]*pbmodel.QueriedEntry, 0, len(request.Keys))
-	for _, key := range request.Keys {
-		resp, err := s.GetFirst(&pbservice.GetFirstRequest{Key: key, BlockNumber: request.BlockNumber, BlockHash: request.BlockHash})
+// GetFirst retrieves, for each requested key, the first entry (by key >= requested) with its latest value
+func (s *Store) GetFirst(request *pbservice.GetRequest) (*pbservice.GetResponse, error) {
+	out := make([]*pbmodel.QueriedEntry, len(request.Keys))
+	for i, key := range request.Keys {
+		entry := &Entry{}
+		err := s.selectFirstStmt.Get(entry, key)
 		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				out[i] = &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, Entry: &pbmodel.Entry{Key: key}}
+				continue
+			}
 			return nil, err
 		}
-		entries = append(entries, resp.Entry)
+		out[i] = &pbmodel.QueriedEntry{
+			Code:  pbmodel.ResponseCode_RESPONSE_CODE_FOUND,
+			Entry: &pbmodel.Entry{Key: key, Value: &anypb.Any{TypeUrl: s.typeUrl, Value: entry.Value}},
+		}
 	}
-	return &pbservice.GetAllResponse{BlockReached: true, Entries: &pbmodel.QueriedEntries{Entries: entries}}, nil
+	return &pbservice.GetResponse{BlockReached: true, Entries: &pbmodel.QueriedEntries{Entries: out}}, nil
 }
 
 // GetKeyOnly retrieves only the key (no value) for time traversal

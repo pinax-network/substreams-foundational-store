@@ -86,39 +86,42 @@ func (s *Store) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
 	return nil
 }
 
-// Get retrieves a single entry by delegating to the wrapped store and overlaying cache when possible.
+// Get retrieves entries for the provided keys by delegating to the wrapped store and overlaying cache when possible.
 func (s *Store) Get(request *pbservice.GetRequest) (*pbservice.GetResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	// Check cache first
-	if cached, ok := s.cache[string(request.Key.Bytes)]; ok {
-		if cached.blockNumber <= request.BlockNumber {
-			return &pbservice.GetResponse{Entry: &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND, Entry: cached.entry}}, nil
+	resp, err := s.wrapped.Get(request)
+	if err != nil {
+		return nil, err
+	}
+	// Overlay cache results when cached blockNumber <= requested block
+	for i, key := range request.Keys {
+		if cached, ok := s.cache[string(key.Bytes)]; ok {
+			if cached.blockNumber <= request.BlockNumber {
+				resp.Entries.Entries[i] = &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND, Entry: cached.entry}
+			}
 		}
 	}
-	return s.wrapped.Get(request)
+	return resp, nil
 }
 
-// GetAll delegates to the wrapped store for simplicity.
-func (s *Store) GetAll(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
+// GetFirst delegates to the wrapped store and overlays the cache similarly for exact key matches
+func (s *Store) GetFirst(request *pbservice.GetRequest) (*pbservice.GetResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.wrapped.GetAll(request)
-}
-
-// GetFirst delegates to the wrapped store for simplicity.
-func (s *Store) GetFirst(request *pbservice.GetFirstRequest) (*pbservice.GetResponse, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.wrapped.GetFirst(request)
-}
-
-// GetAllFirst delegates to the wrapped store for simplicity.
-func (s *Store) GetAllFirst(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.wrapped.GetAllFirst(request)
+	resp, err := s.wrapped.GetFirst(request)
+	if err != nil {
+		return nil, err
+	}
+	for i, key := range request.Keys {
+		if cached, ok := s.cache[string(key.Bytes)]; ok {
+			if cached.blockNumber <= request.BlockNumber {
+				resp.Entries.Entries[i] = &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND, Entry: cached.entry}
+			}
+		}
+	}
+	return resp, nil
 }
 
 // FlushUpToBlock flushes all entries with block numbers <= blockNum to the wrapped foundational-store.

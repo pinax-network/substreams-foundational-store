@@ -28,8 +28,9 @@ func TestGetAllFirst_Basic_PostgresTimeTraversal(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, ts.store.Set(entry2, 150))
 
-	req := &pbservice.GetAllRequest{
+	req := &pbservice.GetRequest{
 		BlockNumber: 200,
+		BlockHash:   []byte("test_block_hash"),
 		Keys: []*pbmodel.Key{
 			{Bytes: []byte("k1")},
 			{Bytes: []byte("missing")},
@@ -37,7 +38,7 @@ func TestGetAllFirst_Basic_PostgresTimeTraversal(t *testing.T) {
 		},
 	}
 
-	resp, err := ts.store.GetAllFirst(req)
+	resp, err := ts.store.GetFirst(req)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, true, resp.BlockReached)
@@ -90,15 +91,16 @@ func TestGetAllFirst_MultipleValues_ReturnsOldest_PostgresTimeTraversal(t *testi
 	require.NoError(t, err)
 	require.NoError(t, ts.store.Set(entryB2, 500))
 
-	req := &pbservice.GetAllRequest{
+	req := &pbservice.GetRequest{
 		BlockNumber: 999, // after all writes
+		BlockHash:   []byte("test_block_hash"),
 		Keys: []*pbmodel.Key{
 			{Bytes: []byte("k1")},
 			{Bytes: []byte("k2")},
 		},
 	}
 
-	resp, err := ts.store.GetAllFirst(req)
+	resp, err := ts.store.GetFirst(req)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.Equal(t, 2, len(resp.Entries.Entries))

@@ -140,7 +140,7 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 
 	// Retrieve the entry
 	getRequest := &pbservice.GetRequest{
-		Key: &pbmodel.Key{Bytes: key},
+		Keys: []*pbmodel.Key{{Bytes: key}},
 	}
 
 	response, err := ts.store.Get(getRequest)
@@ -148,12 +148,12 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 	require.NotNil(t, response)
 
 	// Verify the response
-	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, response.Entry.Code)
-	assert.Equal(t, ts.typeURL, response.Entry.Entry.Value.TypeUrl)
+	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, response.Entries.Entries[0].Code)
+	assert.Equal(t, ts.typeURL, response.Entries.Entries[0].Entry.Value.TypeUrl)
 
 	// Unmarshal and verify the stored data
 	var retrievedAccountOwner pbtest.TestAccountOwner
-	err = proto.Unmarshal(response.Entry.Entry.Value.Value, &retrievedAccountOwner)
+	err = proto.Unmarshal(response.Entries.Entries[0].Entry.Value.Value, &retrievedAccountOwner)
 	require.NoError(t, err)
 
 	assert.Equal(t, accountOwner.Mint, retrievedAccountOwner.Mint)
@@ -166,7 +166,7 @@ func TestGetNonExistentKey(t *testing.T) {
 
 	// Try to retrieve a non-existent key
 	getRequest := &pbservice.GetRequest{
-		Key: &pbmodel.Key{Bytes: []byte("non-existent-key")},
+		Keys: []*pbmodel.Key{{Bytes: []byte("non-existent-key")}},
 	}
 
 	response, err := ts.store.Get(getRequest)
@@ -174,7 +174,7 @@ func TestGetNonExistentKey(t *testing.T) {
 	require.NotNil(t, response)
 
 	// Verify the response indicates not found
-	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Entry.Code)
+	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Entries.Entries[0].Code)
 }
 
 func TestSetAllAndGetAll(t *testing.T) {
@@ -207,11 +207,13 @@ func TestSetAllAndGetAll(t *testing.T) {
 	require.NoError(t, err)
 
 	// Retrieve all entries
-	getAllRequest := &pbservice.GetAllRequest{
-		Keys: keys,
+	getRequest := &pbservice.GetRequest{
+		BlockNumber: blockNumber,
+		BlockHash:   []byte("test_block_hash"),
+		Keys:        keys,
 	}
 
-	response, err := ts.store.GetAll(getAllRequest)
+	response, err := ts.store.Get(getRequest)
 	require.NoError(t, err)
 	require.NotNil(t, response)
 	require.Len(t, response.Entries.Entries, 3)
@@ -250,11 +252,17 @@ func TestGetAllWithMixedExistence(t *testing.T) {
 	require.NoError(t, err)
 
 	// Try to get both existing and non-existing keys
-	getAllRequest := &pbservice.GetAllRequest{
-		Keys: []*pbmodel.Key{&pbmodel.Key{Bytes: key1}, &pbmodel.Key{Bytes: key2}},
+	keys := []*pbmodel.Key{
+		{Bytes: key1},
+		{Bytes: key2},
+	}
+	getRequest := &pbservice.GetRequest{
+		BlockNumber: blockNumber,
+		BlockHash:   []byte("test_block_hash"),
+		Keys:        keys,
 	}
 
-	response, err := ts.store.GetAll(getAllRequest)
+	response, err := ts.store.Get(getRequest)
 	require.NoError(t, err)
 	require.NotNil(t, response)
 	require.Len(t, response.Entries, 2)
@@ -312,9 +320,11 @@ func TestGetAllWithEmptyKeys(t *testing.T) {
 	ts := setupTestStore(t)
 	defer ts.cleanup()
 
-	// Test GetAll with empty keys slice
-	response, err := ts.store.GetAll(&pbservice.GetAllRequest{
-		Keys: []*pbmodel.Key{},
+	// Test Get with empty keys slice
+	response, err := ts.store.Get(&pbservice.GetRequest{
+		BlockNumber: 100,
+		BlockHash:   []byte("test_block_hash"),
+		Keys:        []*pbmodel.Key{},
 	})
 	require.NoError(t, err)
 	require.NotNil(t, response)
@@ -398,11 +408,11 @@ func TestMultipleOperations(t *testing.T) {
 	// Verify all entries can be retrieved
 	for i := 0; i < 5; i++ {
 		key := []byte(fmt.Sprintf("account-%d", i))
-		getRequest := &pbservice.GetRequest{Key: &pbmodel.Key{Bytes: key}}
+		getRequest := &pbservice.GetRequest{Keys: []*pbmodel.Key{{Bytes: key}}}
 
 		response, err := ts.store.Get(getRequest)
 		require.NoError(t, err)
-		assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, response.Entry.Code)
+		assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, response.Entries.Entries[0].Code)
 	}
 
 	// Test GetAll with all keys
@@ -411,8 +421,12 @@ func TestMultipleOperations(t *testing.T) {
 		allKeys[i] = &pbmodel.Key{Bytes: []byte(fmt.Sprintf("account-%d", i))}
 	}
 
-	getAllRequest := &pbservice.GetAllRequest{Keys: allKeys}
-	response, err := ts.store.GetAll(getAllRequest)
+	getRequest := &pbservice.GetRequest{
+		BlockNumber: 100,
+		BlockHash:   []byte("test_block_hash"),
+		Keys:        allKeys,
+	}
+	response, err := ts.store.Get(getRequest)
 	require.NoError(t, err)
 	assert.Len(t, response.Entries.Entries, 5)
 
@@ -436,23 +450,23 @@ func TestGetFirstOrderingAndNotFound_Postgres(t *testing.T) {
 	}
 
 	// Exact match
-	resp, err := ts.store.GetFirst(&pbservice.GetFirstRequest{Key: &pbmodel.Key{Bytes: []byte("a2")}})
+	resp, err := ts.store.GetFirst(&pbservice.GetRequest{Keys: []*pbmodel.Key{{Bytes: []byte("a2")}}, BlockNumber: 100, BlockHash: []byte("test_block_hash")})
 	require.NoError(t, err)
-	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, resp.Entry.Code)
+	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, resp.Entries.Entries[0].Code)
 	got := &pbtest.TestAccountOwner{}
-	require.NoError(t, resp.Entry.Entry.Value.UnmarshalTo(got))
+	require.NoError(t, resp.Entries.Entries[0].Entry.Value.UnmarshalTo(got))
 	assert.Equal(t, []byte("v2"), got.Owner)
 
 	// Between a2 and b1 -> expect b1
-	resp, err = ts.store.GetFirst(&pbservice.GetFirstRequest{Key: &pbmodel.Key{Bytes: []byte("a3")}})
+	resp, err = ts.store.GetFirst(&pbservice.GetRequest{Keys: []*pbmodel.Key{{Bytes: []byte("a3")}}, BlockNumber: 100, BlockHash: []byte("test_block_hash")})
 	require.NoError(t, err)
-	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, resp.Entry.Code)
+	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, resp.Entries.Entries[0].Code)
 	got = &pbtest.TestAccountOwner{}
-	require.NoError(t, resp.Entry.Entry.Value.UnmarshalTo(got))
+	require.NoError(t, resp.Entries.Entries[0].Entry.Value.UnmarshalTo(got))
 	assert.Equal(t, []byte("v3"), got.Owner)
 
 	// Beyond last key -> not found
-	resp, err = ts.store.GetFirst(&pbservice.GetFirstRequest{Key: &pbmodel.Key{Bytes: []byte("z9")}})
+	resp, err = ts.store.GetFirst(&pbservice.GetRequest{Keys: []*pbmodel.Key{{Bytes: []byte("z9")}}, BlockNumber: 100, BlockHash: []byte("test_block_hash")})
 	require.NoError(t, err)
-	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, resp.Entry.Code)
+	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, resp.Entries.Entries[0].Code)
 }

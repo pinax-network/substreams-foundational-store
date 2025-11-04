@@ -28,8 +28,9 @@ func TestGetAllFirst_Basic_Postgres(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, ts.store.Set(entry2, 100))
 
-	req := &pbservice.GetAllRequest{
+	req := &pbservice.GetRequest{
 		BlockNumber: 200,
+		BlockHash:   []byte("test_block_hash"),
 		Keys: []*pbmodel.Key{
 			{Bytes: []byte("k1")},
 			{Bytes: []byte("missing")},
@@ -37,7 +38,7 @@ func TestGetAllFirst_Basic_Postgres(t *testing.T) {
 		},
 	}
 
-	resp, err := ts.store.GetAllFirst(req)
+	resp, err := ts.store.GetFirst(req)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, true, resp.BlockReached)

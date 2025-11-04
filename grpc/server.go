@@ -39,52 +39,19 @@ func NewStoreServer(store store.Store, headBlockFetcher FetchHeadBlock, logger *
 	}
 }
 
-// Get implements the Get method of the StoreKV service
+// Get implements the unified Get method of the Store service (multi-keys)
 func (s *GrpcServer) Get(ctx context.Context, req *pbservice.GetRequest) (*pbservice.GetResponse, error) {
 	headBlock := s.headBlockFetcher()
 	if headBlock < req.BlockNumber {
 		return &pbservice.GetResponse{BlockReached: false}, nil
 	}
 
+	executionStart := time.Now()
 	r, err := s.store.Get(req)
 	if err != nil {
-		return nil, fmt.Errorf("getting key from store: %w", err)
+		return nil, fmt.Errorf("getting keys from store: %w", err)
 	}
 
-	r.BlockReached = true
-	return r, nil
-}
-
-// GetFirst implements the GetFirst method of the Store service
-func (s *GrpcServer) GetFirst(ctx context.Context, req *pbservice.GetFirstRequest) (*pbservice.GetResponse, error) {
-	headBlock := s.headBlockFetcher()
-	if headBlock < req.BlockNumber {
-		return &pbservice.GetResponse{BlockReached: false}, nil
-	}
-
-	r, err := s.store.GetFirst(req)
-	if err != nil {
-		return nil, fmt.Errorf("getting first key from store: %w", err)
-	}
-	// No block gating for GetFirst as request has no block fields
-	return r, nil
-}
-
-// GetAll implements the GetAll method of the StoreKV service
-func (s *GrpcServer) GetAll(ctx context.Context, req *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
-
-	executionStart := time.Now()
-	headBlock := s.headBlockFetcher()
-	if headBlock < req.BlockNumber {
-		return &pbservice.GetAllResponse{BlockReached: false}, nil
-	}
-
-	r, err := s.store.GetAll(req)
-	if err != nil {
-		return nil, fmt.Errorf("getting all keys from store: %w", err)
-	}
-
-	// Set BlockReached = true for top-level response
 	r.BlockReached = true
 
 	s.logger.Info("request stats",
@@ -98,20 +65,19 @@ func (s *GrpcServer) GetAll(ctx context.Context, req *pbservice.GetAllRequest) (
 	return r, nil
 }
 
-func (s *GrpcServer) GetAllFirst(ctx context.Context, req *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
-
-	executionStart := time.Now()
+// GetFirst implements the unified GetFirst method of the Store service (multi-keys)
+func (s *GrpcServer) GetFirst(ctx context.Context, req *pbservice.GetRequest) (*pbservice.GetResponse, error) {
 	headBlock := s.headBlockFetcher()
 	if headBlock < req.BlockNumber {
-		return &pbservice.GetAllResponse{BlockReached: false}, nil
+		return &pbservice.GetResponse{BlockReached: false}, nil
 	}
 
-	r, err := s.store.GetAllFirst(req)
+	executionStart := time.Now()
+	r, err := s.store.GetFirst(req)
 	if err != nil {
-		return nil, fmt.Errorf("getting all first keys from store: %w", err)
+		return nil, fmt.Errorf("getting first keys from store: %w", err)
 	}
 
-	// Set BlockReached = true for top-level response
 	r.BlockReached = true
 
 	s.logger.Info("request stats",

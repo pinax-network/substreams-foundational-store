@@ -6,13 +6,11 @@ package sf.substreams.foundational_store.v1;
 
 option go_package = "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1;pbstore";
 
-// Store service provides access to foundational store data with fork-aware,
-// block-versioned key-value operations. Designed for high-performance serving
-// of Substreams output data with blockchain reorganization support.
+// DEPRECATED: Use sf.substreams.foundational_store.service.v2.SinkEntries Instead.
 service Store {
-  // Get retrieves a single value by key at a specific block number
+  // DEPRECATED: Use sf.substreams.foundational_store.service.v2.SinkEntries Instead.
   rpc Get(GetRequest) returns (GetResponse);
-  // GetAll retrieves multiple values by keys at a specific block number
+  // DEPRECATED: Use sf.substreams.foundational_store.service.v2.SinkEntries Instead.
   rpc GetAll(GetAllRequest) returns (GetAllResponse);
 }
 

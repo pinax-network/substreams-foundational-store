@@ -36,66 +36,45 @@ func (m *mockStore) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
 }
 
 func (m *mockStore) Get(request *pbservice.GetRequest) (*pbservice.GetResponse, error) {
-	cached, ok := m.entries[string(request.Key.Bytes)]
-	resp := &pbservice.GetResponse{}
-	if !ok || cached.blockNumber > request.BlockNumber {
-		resp.Entry = &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND}
-		return resp, nil
-	}
-	resp.Entry = &pbmodel.QueriedEntry{
-		Code:  pbmodel.ResponseCode_RESPONSE_CODE_FOUND,
-		Entry: cached.entry,
-	}
-	return resp, nil
-}
-
-func (m *mockStore) GetAll(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
-	entries := make([]*pbmodel.QueriedEntry, 0, len(request.Keys))
-	for _, key := range request.Keys {
-		cached, ok := m.entries[string(key.Bytes)]
+	entries := make([]*pbmodel.QueriedEntry, len(request.Keys))
+	for i, k := range request.Keys {
+		cached, ok := m.entries[string(k.Bytes)]
 		if !ok || cached.blockNumber > request.BlockNumber {
-			entries = append(entries, &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND})
+			entries[i] = &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND}
 		} else {
-			entries = append(entries, &pbmodel.QueriedEntry{
-				Code:  pbmodel.ResponseCode_RESPONSE_CODE_FOUND,
-				Entry: cached.entry,
-			})
+			entries[i] = &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND, Entry: cached.entry}
 		}
 	}
-	return &pbservice.GetAllResponse{Entries: &pbmodel.QueriedEntries{Entries: entries}}, nil
+	return &pbservice.GetResponse{Entries: &pbmodel.QueriedEntries{Entries: entries}}, nil
 }
 
-func (m *mockStore) GetFirst(request *pbservice.GetFirstRequest) (*pbservice.GetResponse, error) {
-	// Simple mock: try exact match; otherwise return the lexicographic next key >= requested
-	if cached, ok := m.entries[string(request.Key.Bytes)]; ok {
-		return &pbservice.GetResponse{Entry: &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND, Entry: cached.entry}}, nil
-	}
-	var bestKey string
-	for k := range m.entries {
-		if bestKey == "" {
-			if k >= string(request.Key.Bytes) {
-				bestKey = k
-			}
+func (m *mockStore) GetFirst(request *pbservice.GetRequest) (*pbservice.GetResponse, error) {
+	entries := make([]*pbmodel.QueriedEntry, len(request.Keys))
+	for i, k := range request.Keys {
+		if cached, ok := m.entries[string(k.Bytes)]; ok {
+			entries[i] = &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND, Entry: cached.entry}
 			continue
 		}
-		if k >= string(request.Key.Bytes) && k < bestKey {
-			bestKey = k
+		var bestKey string
+		for key := range m.entries {
+			if bestKey == "" {
+				if key >= string(k.Bytes) {
+					bestKey = key
+				}
+				continue
+			}
+			if key >= string(k.Bytes) && key < bestKey {
+				bestKey = key
+			}
+		}
+		if bestKey != "" {
+			ce := m.entries[bestKey]
+			entries[i] = &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND, Entry: ce.entry}
+		} else {
+			entries[i] = &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND}
 		}
 	}
-	if bestKey != "" {
-		ce := m.entries[bestKey]
-		return &pbservice.GetResponse{Entry: &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_FOUND, Entry: ce.entry}}, nil
-	}
-	return &pbservice.GetResponse{Entry: &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND}}, nil
-}
-
-func (m *mockStore) GetAllFirst(request *pbservice.GetAllRequest) (*pbservice.GetAllResponse, error) {
-	entries := make([]*pbmodel.QueriedEntry, 0, len(request.Keys))
-	for _, k := range request.Keys {
-		resp, _ := m.GetFirst(&pbservice.GetFirstRequest{Key: k, BlockNumber: request.BlockNumber, BlockHash: request.BlockHash})
-		entries = append(entries, resp.Entry)
-	}
-	return &pbservice.GetAllResponse{BlockReached: true, Entries: &pbmodel.QueriedEntries{Entries: entries}}, nil
+	return &pbservice.GetResponse{Entries: &pbmodel.QueriedEntries{Entries: entries}}, nil
 }
 
 func TestCacheStore(t *testing.T) {
@@ -127,12 +106,12 @@ func TestCacheStore(t *testing.T) {
 	}
 
 	// Get entry1 from the ForkAware store
-	resp1, err := cacheStore.Get(&pbservice.GetRequest{BlockNumber: 150, Key: &pbmodel.Key{Bytes: []byte("key1")}})
+	resp1, err := cacheStore.Get(&pbservice.GetRequest{BlockNumber: 150, Keys: []*pbmodel.Key{{Bytes: []byte("key1")}}})
 	if err != nil {
 		t.Fatalf("Failed to get entry1: %v", err)
 	}
-	if resp1.Entry.Code != pbmodel.ResponseCode_RESPONSE_CODE_FOUND {
-		t.Errorf("Expected FOUND response for entry1, got %v", resp1.Entry.Code)
+	if resp1.Entries.Entries[0].Code != pbmodel.ResponseCode_RESPONSE_CODE_FOUND {
+		t.Errorf("Expected FOUND response for entry1, got %v", resp1.Entries.Entries[0].Code)
 	}
 
 	// Flush entries with block numbers <= 200
@@ -148,23 +127,23 @@ func TestCacheStore(t *testing.T) {
 	// Verify that entry1 and entry2 are no longer in the ForkAware by checking that wrapped store's value is returned
 	mockStore.entries["key1"] = mockStoreCachedEntry{blockNumber: 100, entry: &pbmodel.Entry{Key: &pbmodel.Key{Bytes: []byte("key1")}, Value: &anypb.Any{TypeUrl: "test", Value: []byte("modified1")}}}
 
-	resp1, err = cacheStore.Get(&pbservice.GetRequest{BlockNumber: 150, Key: &pbmodel.Key{Bytes: []byte("key1")}})
+	resp1, err = cacheStore.Get(&pbservice.GetRequest{BlockNumber: 150, Keys: []*pbmodel.Key{{Bytes: []byte("key1")}}})
 	if err != nil {
 		t.Fatalf("Failed to get entry1: %v", err)
 	}
-	if got := string(resp1.Entry.Entry.Value.Value); got != "modified1" {
+	if got := string(resp1.Entries.Entries[0].Entry.Value.Value); got != "modified1" {
 		t.Errorf("Expected modified value for entry1, got %s", got)
 	}
 
 	// Verify that entry3 is still in the ForkAware
-	resp3, err := cacheStore.Get(&pbservice.GetRequest{BlockNumber: 350, Key: &pbmodel.Key{Bytes: []byte("key3")}})
+	resp3, err := cacheStore.Get(&pbservice.GetRequest{BlockNumber: 350, Keys: []*pbmodel.Key{{Bytes: []byte("key3")}}})
 	if err != nil {
 		t.Fatalf("Failed to get entry3: %v", err)
 	}
-	if resp3.Entry.Code != pbmodel.ResponseCode_RESPONSE_CODE_FOUND {
-		t.Errorf("Expected FOUND response for entry3, got %v", resp3.Entry.Code)
+	if resp3.Entries.Entries[0].Code != pbmodel.ResponseCode_RESPONSE_CODE_FOUND {
+		t.Errorf("Expected FOUND response for entry3, got %v", resp3.Entries.Entries[0].Code)
 	}
-	if got := string(resp3.Entry.Entry.Value.Value); got != "value3" {
+	if got := string(resp3.Entries.Entries[0].Entry.Value.Value); got != "value3" {
 		t.Errorf("Expected original value for entry3, got %s", got)
 	}
 }
@@ -183,14 +162,14 @@ func TestForkAwareGetFirst_PrefersWrappedOverCache(t *testing.T) {
 	wrappedEntry := &pbmodel.Entry{Key: &pbmodel.Key{Bytes: []byte("a")}, Value: &anypb.Any{TypeUrl: "t", Value: []byte("wrapped-old")}}
 	_ = ms.Set(wrappedEntry, 100)
 
-	resp, err := fa.GetFirst(&pbservice.GetFirstRequest{Key: &pbmodel.Key{Bytes: []byte("a")}})
+	resp, err := fa.GetFirst(&pbservice.GetRequest{Keys: []*pbmodel.Key{{Bytes: []byte("a")}}})
 	if err != nil {
 		t.Fatalf("GetFirst: %v", err)
 	}
-	if resp.Entry.Code != pbmodel.ResponseCode_RESPONSE_CODE_FOUND {
-		t.Fatalf("expected FOUND, got %v", resp.Entry.Code)
+	if resp.Entries.Entries[0].Code != pbmodel.ResponseCode_RESPONSE_CODE_FOUND {
+		t.Fatalf("expected FOUND, got %v", resp.Entries.Entries[0].Code)
 	}
-	if got := string(resp.Entry.Entry.Value.Value); got != "wrapped-old" {
+	if got := string(resp.Entries.Entries[0].Entry.Value.Value); got != "wrapped-old" {
 		t.Fatalf("expected wrapped value, got %q", got)
 	}
 }
@@ -205,12 +184,12 @@ func TestForkAwareGetFirst_WrappedNotFound(t *testing.T) {
 		t.Fatalf("set cache: %v", err)
 	}
 
-	resp, err := fa.GetFirst(&pbservice.GetFirstRequest{Key: &pbmodel.Key{Bytes: []byte("a")}})
+	resp, err := fa.GetFirst(&pbservice.GetRequest{Keys: []*pbmodel.Key{{Bytes: []byte("a")}}})
 	if err != nil {
 		t.Fatalf("GetFirst: %v", err)
 	}
 	// Current ForkAware implementation delegates to wrapped store, so expect NOT_FOUND when wrapped has no match
-	if resp.Entry.Code != pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND {
-		t.Fatalf("expected NOT_FOUND, got %v", resp.Entry.Code)
+	if resp.Entries.Entries[0].Code != pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND {
+		t.Fatalf("expected NOT_FOUND, got %v", resp.Entries.Entries[0].Code)
 	}
 }

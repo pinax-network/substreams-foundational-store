@@ -86,7 +86,7 @@ This command connects to a gRPC server and retrieves a value for the specified k
 		request := &pbservice.GetRequest{
 			BlockNumber: getBlockNumber,
 			BlockHash:   blockHashBytes,
-			Key:         &pbmodel.Key{Bytes: keyBytes},
+			Keys:        []*pbmodel.Key{{Bytes: keyBytes}},
 		}
 
 		// Make the Get request
@@ -108,19 +108,31 @@ This command connects to a gRPC server and retrieves a value for the specified k
 			return nil
 		}
 
-		// Display the response
-		switch resp.Entry.Code {
+		// Display the response (single-key mode: use first entry)
+		var qe *pbmodel.QueriedEntry
+		if resp.GetEntries() != nil && len(resp.GetEntries().GetEntries()) > 0 {
+			qe = resp.GetEntries().GetEntries()[0]
+		}
+		if qe == nil {
+			fmt.Println("No entry returned")
+			return nil
+		}
+		switch qe.Code {
 		case pbmodel.ResponseCode_RESPONSE_CODE_FOUND:
-			fmt.Printf("Type URL: %s\n", resp.Entry.Entry.Value.TypeUrl)
-			protoscopeOutput := protoscope.Write(resp.Entry.Entry.Value.Value, protoscope.WriterOptions{})
-			fmt.Printf("Value: %s\n", protoscopeOutput)
-			fmt.Printf("Value size: %d bytes\n", len(resp.Entry.Entry.Value.Value))
+			if qe.Entry != nil && qe.Entry.Value != nil {
+				fmt.Printf("Type URL: %s\n", qe.Entry.Value.TypeUrl)
+				protoscopeOutput := protoscope.Write(qe.Entry.Value.Value, protoscope.WriterOptions{})
+				fmt.Printf("Value: %s\n", protoscopeOutput)
+				fmt.Printf("Value size: %d bytes\n", len(qe.Entry.Value.Value))
+			} else {
+				fmt.Println("Entry found but value is nil")
+			}
 		case pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND:
 			fmt.Println("Value not found")
 		case pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND_FINALIZE:
 			fmt.Println("Value not found (finalized)")
 		default:
-			fmt.Printf("Unknown response code: %s\n", resp.Entry.Code)
+			fmt.Printf("Unknown response code: %s\n", qe.Code)
 		}
 
 		return nil
