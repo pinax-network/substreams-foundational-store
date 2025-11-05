@@ -18,12 +18,12 @@ func TestGetAllFirst_Basic_Badger(t *testing.T) {
 	owner1 := createAccountOwner("owner-1")
 	entry1, err := createEntry(100, []byte("k1"), owner1, ts.typeURL)
 	require.NoError(t, err)
-	require.NoError(t, ts.store.Set(entry1, 100))
+	require.NoError(t, ts.store.Set(entry1, false, 100))
 
 	owner2 := createAccountOwner("owner-2")
 	entry2, err := createEntry(100, []byte("k2"), owner2, ts.typeURL)
 	require.NoError(t, err)
-	require.NoError(t, ts.store.Set(entry2, 100))
+	require.NoError(t, ts.store.Set(entry2, false, 100))
 
 	req := &pbservice.GetRequest{
 		BlockNumber: 200,

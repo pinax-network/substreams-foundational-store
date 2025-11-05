@@ -30,6 +30,7 @@ type SimpleMockStore struct {
 
 type SimpleSetAllCall struct {
 	Entries     []*pbmodel.Entry
+	IfNotExist  bool
 	BlockNumber uint64
 }
 
@@ -41,11 +42,11 @@ func NewSimpleMockStore() *SimpleMockStore {
 	}
 }
 
-func (m *SimpleMockStore) Set(entry *pbmodel.Entry, blockNumber uint64) error {
-	return m.SetAll([]*pbmodel.Entry{entry}, blockNumber)
+func (m *SimpleMockStore) Set(entry *pbmodel.Entry, IfNotExist bool, blockNumber uint64) error {
+	return m.SetAll([]*pbmodel.Entry{entry}, IfNotExist, blockNumber)
 }
 
-func (m *SimpleMockStore) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
+func (m *SimpleMockStore) SetAll(entries []*pbmodel.Entry, IfNotExist bool, blockNumber uint64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -54,6 +55,7 @@ func (m *SimpleMockStore) SetAll(entries []*pbmodel.Entry, blockNumber uint64) e
 
 	m.setAllCalls = append(m.setAllCalls, SimpleSetAllCall{
 		Entries:     entriesCopy,
+		IfNotExist:  IfNotExist,
 		BlockNumber: blockNumber,
 	})
 	return nil
@@ -77,7 +79,7 @@ func (m *SimpleMockStore) GetFirst(request *pbservice.GetRequest) (*pbservice.Ge
 	return &pbservice.GetResponse{BlockReached: true, Entries: &pbmodel.QueriedEntries{Entries: entries}}, nil
 }
 
-func (m *SimpleMockStore) FlushUpToBlock(blockNum uint64) error {
+func (m *SimpleMockStore) FlushUpToBlock(blockNum uint64, IfNotExist bool) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.flushCalls = append(m.flushCalls, blockNum)

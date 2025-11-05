@@ -135,7 +135,7 @@ func TestStoreAndRetrieveAccountOwner(t *testing.T) {
 	require.NoError(t, err)
 
 	// Store the entry
-	err = ts.store.Set(entry, blockNumber)
+	err = ts.store.Set(entry, false, blockNumber)
 	require.NoError(t, err)
 
 	// Retrieve the entry
@@ -203,7 +203,7 @@ func TestSetAllAndGetAll(t *testing.T) {
 	}
 
 	// Store all entries
-	err := ts.store.SetAll(entries, blockNumber)
+	err := ts.store.SetAll(entries, false, blockNumber)
 	require.NoError(t, err)
 
 	// Retrieve all entries
@@ -248,7 +248,7 @@ func TestGetAllWithMixedExistence(t *testing.T) {
 	entry, err := createEntry(blockNumber, key1, accountOwner, ts.typeURL)
 	require.NoError(t, err)
 
-	err = ts.store.Set(entry, blockNumber)
+	err = ts.store.Set(entry, false, blockNumber)
 	require.NoError(t, err)
 
 	// Try to get both existing and non-existing keys
@@ -282,7 +282,7 @@ func TestSetWithNilEntry(t *testing.T) {
 	defer ts.cleanup()
 
 	// Try to set a nil entry
-	err := ts.store.Set(nil, 100)
+	err := ts.store.Set(nil, false, 100)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "entry cannot be nil")
 }
@@ -302,7 +302,7 @@ func TestSetAllWithNilEntry(t *testing.T) {
 	entries := []*pbmodel.Entry{validEntry, nil}
 
 	// Try to store entries with nil entry
-	err = ts.store.SetAll(entries, blockNumber)
+	err = ts.store.SetAll(entries, false, blockNumber)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "entry cannot be nil")
 }
@@ -312,7 +312,7 @@ func TestEmptySetAll(t *testing.T) {
 	defer ts.cleanup()
 
 	// Test SetAll with empty entries slice
-	err := ts.store.SetAll([]*pbmodel.Entry{}, 100)
+	err := ts.store.SetAll([]*pbmodel.Entry{}, false, 100)
 	require.NoError(t, err)
 }
 
@@ -401,7 +401,7 @@ func TestMultipleOperations(t *testing.T) {
 		entry, err := createEntry(blockNumber, key, accountOwner, ts.typeURL)
 		require.NoError(t, err)
 
-		err = ts.store.Set(entry, blockNumber)
+		err = ts.store.Set(entry, false, blockNumber)
 		require.NoError(t, err)
 	}
 
@@ -446,7 +446,7 @@ func TestGetFirstOrderingAndNotFound_Postgres(t *testing.T) {
 	for i, k := range keys {
 		entry, err := createEntry(100, k, createAccountOwner(fmt.Sprintf("v%d", i+1)), ts.typeURL)
 		require.NoError(t, err)
-		require.NoError(t, ts.store.Set(entry, 100))
+		require.NoError(t, ts.store.Set(entry, false, 100))
 	}
 
 	// Exact match
@@ -469,4 +469,63 @@ func TestGetFirstOrderingAndNotFound_Postgres(t *testing.T) {
 	resp, err = ts.store.GetFirst(&pbservice.GetRequest{Keys: []*pbmodel.Key{{Bytes: []byte("z9")}}, BlockNumber: 100, BlockHash: []byte("test_block_hash")})
 	require.NoError(t, err)
 	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, resp.Entries.Entries[0].Code)
+}
+
+func TestIfNotExist(t *testing.T) {
+	// Setup test store
+	ts := setupTestStore(t)
+	defer ts.cleanup()
+
+	key := []byte("test-key")
+	value1 := "value1"
+	value2 := "value2"
+
+	// Create first entry
+	entry1, err := createEntry(100, key, createAccountOwner(value1), ts.typeURL)
+	require.NoError(t, err)
+
+	// Set first entry normally
+	err = ts.store.Set(entry1, false, 100)
+	require.NoError(t, err)
+
+	// Create second entry with same key but different value
+	entry2, err := createEntry(200, key, createAccountOwner(value2), ts.typeURL)
+	require.NoError(t, err)
+
+	// Try to set second entry with IfNotExist=true, should skip
+	err = ts.store.Set(entry2, true, 200)
+	require.NoError(t, err)
+
+	// Retrieve and check that value is still the first one
+	resp, err := ts.store.Get(&pbservice.GetRequest{Keys: []*pbmodel.Key{{Bytes: key}}, BlockNumber: 300})
+	require.NoError(t, err)
+	require.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, resp.Entries.Entries[0].Code)
+	retrievedAccountOwner := &pbtest.TestAccountOwner{}
+	err = resp.Entries.Entries[0].Entry.Value.UnmarshalTo(retrievedAccountOwner)
+	require.NoError(t, err)
+	assert.Equal(t, value1, string(retrievedAccountOwner.Owner))
+
+	// Test SetAll with IfNotExist
+	key2 := []byte("test-key2")
+	entry3, err := createEntry(100, key2, createAccountOwner("value3"), ts.typeURL)
+	require.NoError(t, err)
+	entry4, err := createEntry(200, key2, createAccountOwner("value4"), ts.typeURL)
+	require.NoError(t, err)
+
+	// Set entry3 normally
+	err = ts.store.SetAll([]*pbmodel.Entry{entry3}, false, 100)
+	require.NoError(t, err)
+
+	// Try to set entry4 with IfNotExist=true, should skip
+	err = ts.store.SetAll([]*pbmodel.Entry{entry4}, true, 200)
+	require.NoError(t, err)
+
+	// Check value is still value3
+	resp, err = ts.store.Get(&pbservice.GetRequest{Keys: []*pbmodel.Key{{Bytes: key2}}, BlockNumber: 300})
+	require.NoError(t, err)
+	require.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, resp.Entries.Entries[0].Code)
+	retrievedAccountOwner = &pbtest.TestAccountOwner{}
+	err = resp.Entries.Entries[0].Entry.Value.UnmarshalTo(retrievedAccountOwner)
+	require.NoError(t, err)
+	assert.Equal(t, "value3", string(retrievedAccountOwner.Owner))
 }

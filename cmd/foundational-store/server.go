@@ -138,13 +138,6 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 
 	// Start periodic database stats logging
 	dbStatsTicker := time.NewTicker(15 * time.Second)
-	// logger := zlog.Named("stats").With(zap.Bool("keep", false))
-
-	// go func() {
-	// 	for range dbStatsTicker.C {
-	// 		sink.LogDatabaseStats(logger)
-	// 	}
-	// }()
 	defer dbStatsTicker.Stop()
 
 	sinker := sink.NewSinker(storeImpl, zlog, cursorFilePath, cursor)

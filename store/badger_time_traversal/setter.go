@@ -28,7 +28,32 @@ func makeTimeTraversalKey(originalKey []byte, blockNumber uint64) []byte {
 }
 
 // Set stores a single entry in Badger with time traversal support
-func (s *Store) Set(entry *pbmodel.Entry, blockNumber uint64) error {
+func (s *Store) Set(entry *pbmodel.Entry, IfNotExist bool, blockNumber uint64) error {
+	if IfNotExist {
+		// For time traversal, check if any version of this key exists
+		err := s.db.View(func(txn *badger.Txn) error {
+			opts := badger.DefaultIteratorOptions
+			opts.PrefetchSize = 10
+			it := txn.NewIterator(opts)
+			defer it.Close()
+
+			prefix := entry.Key.Bytes
+			for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+				// If we find any key with this prefix, it means the key exists
+				return nil
+			}
+			return badger.ErrKeyNotFound
+		})
+		if err == nil {
+			// Key exists, skip this entry
+			return nil
+		}
+		if err != badger.ErrKeyNotFound {
+			return fmt.Errorf("failed to check existence of key: %w", err)
+		}
+		// Key doesn't exist, proceed with insertion
+	}
+
 	// Create composite key with block number
 	compositeKey := makeTimeTraversalKey(entry.Key.Bytes, blockNumber)
 
@@ -52,7 +77,7 @@ func (s *Store) Set(entry *pbmodel.Entry, blockNumber uint64) error {
 }
 
 // SetAll stores multiple entries in Badger with time traversal support
-func (s *Store) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
+func (s *Store) SetAll(entries []*pbmodel.Entry, IfNotExist bool, blockNumber uint64) error {
 	if len(entries) == 0 {
 		return nil
 	}
@@ -62,6 +87,31 @@ func (s *Store) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
 	defer wb.Cancel()
 
 	for _, entry := range entries {
+		if IfNotExist {
+			// For time traversal, check if any version of this key exists
+			err := s.db.View(func(txn *badger.Txn) error {
+				opts := badger.DefaultIteratorOptions
+				opts.PrefetchSize = 10
+				it := txn.NewIterator(opts)
+				defer it.Close()
+
+				prefix := entry.Key.Bytes
+				for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+					// If we find any key with this prefix, it means the key exists
+					return nil
+				}
+				return badger.ErrKeyNotFound
+			})
+			if err == nil {
+				// Key exists, skip this entry
+				continue
+			}
+			if err != badger.ErrKeyNotFound {
+				return fmt.Errorf("failed to check existence of key: %w", err)
+			}
+			// Key doesn't exist, proceed with insertion
+		}
+
 		// Create composite key with block number
 		compositeKey := makeTimeTraversalKey(entry.Key.Bytes, blockNumber)
 

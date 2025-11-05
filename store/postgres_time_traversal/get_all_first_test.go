@@ -21,12 +21,12 @@ func TestGetAllFirst_Basic_PostgresTimeTraversal(t *testing.T) {
 	owner1 := createAccountOwner("owner-1")
 	entry1, err := createEntry(100, []byte("k1"), owner1, ts.typeURL)
 	require.NoError(t, err)
-	require.NoError(t, ts.store.Set(entry1, 100))
+	require.NoError(t, ts.store.Set(entry1, false, 100))
 
 	owner2 := createAccountOwner("owner-2")
 	entry2, err := createEntry(150, []byte("k2"), owner2, ts.typeURL)
 	require.NoError(t, err)
-	require.NoError(t, ts.store.Set(entry2, 150))
+	require.NoError(t, ts.store.Set(entry2, false, 150))
 
 	req := &pbservice.GetRequest{
 		BlockNumber: 200,
@@ -73,23 +73,23 @@ func TestGetAllFirst_MultipleValues_ReturnsOldest_PostgresTimeTraversal(t *testi
 	ownerA := createAccountOwner("owner-A")
 	entryA1, err := createEntry(50, []byte("k1"), ownerA, ts.typeURL)
 	require.NoError(t, err)
-	require.NoError(t, ts.store.Set(entryA1, 50))
+	require.NoError(t, ts.store.Set(entryA1, false, 50))
 
 	ownerA2 := createAccountOwner("owner-A2")
 	entryA2, err := createEntry(200, []byte("k1"), ownerA2, ts.typeURL)
 	require.NoError(t, err)
-	require.NoError(t, ts.store.Set(entryA2, 200))
+	require.NoError(t, ts.store.Set(entryA2, false, 200))
 
 	// k2 also has two values; oldest is owner-B
 	ownerB := createAccountOwner("owner-B")
 	entryB1, err := createEntry(10, []byte("k2"), ownerB, ts.typeURL)
 	require.NoError(t, err)
-	require.NoError(t, ts.store.Set(entryB1, 10))
+	require.NoError(t, ts.store.Set(entryB1, false, 10))
 
 	ownerB2 := createAccountOwner("owner-B2")
 	entryB2, err := createEntry(500, []byte("k2"), ownerB2, ts.typeURL)
 	require.NoError(t, err)
-	require.NoError(t, ts.store.Set(entryB2, 500))
+	require.NoError(t, ts.store.Set(entryB2, false, 500))
 
 	req := &pbservice.GetRequest{
 		BlockNumber: 999, // after all writes

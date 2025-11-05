@@ -2,6 +2,7 @@ package badger
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 
 	"github.com/dgraph-io/badger/v3"
@@ -9,7 +10,23 @@ import (
 )
 
 // Set stores a single entry in Badger
-func (s *Store) Set(entry *pbmodel.Entry, blockNumber uint64) error {
+func (s *Store) Set(entry *pbmodel.Entry, IfNotExist bool, blockNumber uint64) error {
+	if IfNotExist {
+		// Check if key already exists
+		err := s.db.View(func(txn *badger.Txn) error {
+			_, err := txn.Get(entry.Key.Bytes)
+			return err
+		})
+		if err == nil {
+			// Key exists, skip this entry
+			return nil
+		}
+		if !errors.Is(err, badger.ErrKeyNotFound) {
+			return fmt.Errorf("failed to check existence of key: %w", err)
+		}
+		// Key doesn't exist, proceed with insertion
+	}
+
 	// Prepend block_number and block_hash as bytes to the value
 	blockNumBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(blockNumBytes, blockNumber)
@@ -35,7 +52,7 @@ func (s *Store) Set(entry *pbmodel.Entry, blockNumber uint64) error {
 }
 
 // SetAll stores multiple entries in Badger
-func (s *Store) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
+func (s *Store) SetAll(entries []*pbmodel.Entry, IfNotExist bool, blockNumber uint64) error {
 	if len(entries) == 0 {
 		return nil
 	}
@@ -45,6 +62,22 @@ func (s *Store) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
 	defer wb.Cancel()
 
 	for _, entry := range entries {
+		if IfNotExist {
+			// Check if key already exists
+			err := s.db.View(func(txn *badger.Txn) error {
+				_, err := txn.Get(entry.Key.Bytes)
+				return err
+			})
+			if err == nil {
+				// Key exists, skip this entry
+				continue
+			}
+			if !errors.Is(err, badger.ErrKeyNotFound) {
+				return fmt.Errorf("failed to check existence of key: %w", err)
+			}
+			// Key doesn't exist, proceed with insertion
+		}
+
 		// Prepend block_number and block_hash as bytes to the value
 		blockNumBytes := make([]byte, 8)
 		binary.BigEndian.PutUint64(blockNumBytes, blockNumber)

@@ -30,8 +30,10 @@ The foundational store consists of three main components:
 - **Fork-aware storage**: Handles blockchain reorganizations through ForkAware wrapper with in-memory cache and automatic rollback capabilities
 - **Multiple backends**: Support for embedded Badger database and PostgreSQL with unified Store interface
 - **Block-level versioning**: Every entry tagged with block number for precise historical queries and LIB-based finality
+- **Conditional operations**: IfNotExist flag prevents duplicate insertions and ensures data integrity
 - **Streaming ingestion**: Continuous processing of Substreams output with cursor-based resumption
-- **High-performance serving**: gRPC API with Get/GetAll operations and block-reached validation
+- **High-performance serving**: gRPC API with Get/GetFirst operations and block-reached validation
+- **Debug logging**: Optional debug logs when entries are skipped due to existing keys in conditional operations
 - **Production-ready**: Built-in Prometheus metrics, health checks, and operational tooling
 - **Scalable deployment**: Supports multi-instance deployments with flexible endpoint routing
 
@@ -158,40 +160,69 @@ Flags:
 Data is stored as key-value pairs with block-level versioning:
 
 ```protobuf
+// Current v2 API (recommended)
 message Entry {
-  bytes key = 2;
+  Key key = 2;
   google.protobuf.Any value = 4;
 }
 
-message Entries {
+message Key {
+  bytes bytes = 1;
+}
+
+message QueriedEntry {
+  ResponseCode code = 1;
+  Entry entry = 2;
+}
+
+message QueriedEntries {
+  repeated QueriedEntry entries = 2;
+}
+
+// Batch operations with conditional insertion
+message SinkEntries {
   repeated Entry entries = 1;
+  bool if_not_exist = 2;  // Skip insertion if key already exists
 }
 ```
 
 ### API Operations
 
-#### Get Request
+#### Get Request (v2)
 ```protobuf
 message GetRequest {
   uint64 block_number = 1;
-  bool omit_deleted = 3;
-  bytes key = 4;
+  bytes block_hash = 2;
+  repeated Key keys = 3;
 }
-```
-#### GetAll Request
-```protobuf
-message GetAllRequest {
-  uint64 block_number = 1;
-  bool omit_deleted = 3;
-  repeated bytes keys = 4;
+
+message GetResponse {
+  bool block_reached = 1;
+  QueriedEntries entries = 2;
 }
 ```
 
 #### Response Codes
-- `FOUND`: Key exists at specified block
-- `NOT_FOUND`: Key doesn't exist
-- `NOT_FOUND_FINALIZE`: Key deleted after finality
-- `NOT_FOUND_BLOCK_NOT_REACHED`: Block not yet processed
+- `FOUND`: Key exists and value was retrieved successfully
+- `NOT_FOUND`: Key does not exist at the requested block
+- `NOT_FOUND_FINALIZE`: Key was deleted after finality (LIB) -> historical reference
+- `NOT_FOUND_BLOCK_NOT_REACHED`: Requested block number has not been processed yet
+
+### Conditional Operations
+
+The store supports conditional insertion with the `if_not_exist` flag:
+- When `true`, entries are only inserted if the key doesn't already exist
+- Checks both cache and persistent storage for key existence
+- Useful for idempotent operations and preventing duplicate data
+
+**Note**: v1 API is deprecated. Use v2 API for all new implementations.
+
+### API Version History
+
+- **v2** (current): Improved service interface with `Get` and `GetFirst` operations, enhanced data models
+- **v1** (deprecated): Legacy interface with separate `Get` and `GetAll` operations, will be removed in a future version
+
+Migration guide: Replace v1 service calls with v2 equivalents. Update message types to use `sf.substreams.foundational_store.model.v2` and `sf.substreams.foundational_store.service.v2`.
 
 ## Fork Handling
 
@@ -283,7 +314,7 @@ docker run -p 50051:50051 foundational-store server --dsn="badger:///data" --typ
 
 ### Testing
 
-The project includes comprehensive tests:
+The project includes comprehensive tests covering all store implementations:
 
 ```bash
 # Run all tests
@@ -292,14 +323,30 @@ go test ./...
 # Test specific backend
 go test ./store/badger/...
 go test ./store/postgres/...
+go test ./store/badger_time_traversal/...
+go test ./store/postgres_time_traversal/...
 
 # Test with race detection
 go test -race ./...
+
+# Test IfNotExist functionality
+go test -run TestIfNotExist ./...
 ```
+
+### Documentation
+
+Comprehensive API documentation is available in the proto files:
+- `proto/sf/substreams/foundational-store/service/v2/service.proto` - Current gRPC service API
+- `proto/sf/substreams/foundational-store/model/v2/model.proto` - Data model definitions
+- All proto files include detailed comments explaining usage and migration paths
 
 ## License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ## Related Projects
 

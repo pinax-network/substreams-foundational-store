@@ -6,15 +6,35 @@ package sf.substreams.foundational_store.v1;
 
 option go_package = "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/v1;pbstore";
 
-// DEPRECATED: Use sf.substreams.foundational_store.service.v2.SinkEntries Instead.
+// =================================================================================================
+// DEPRECATED SERVICE - DO NOT USE FOR NEW IMPLEMENTATIONS
+// =================================================================================================
+// This entire v1 service is DEPRECATED and will be removed in a future version.
+// Use sf.substreams.foundational_store.service.v2 instead.
+//
+// Migration Guide:
+// - Replace Store service with sf.substreams.foundational_store.service.v2.Store
+// - Replace Get() calls with v2.Store.Get()
+// - Replace GetAll() calls with v2.Store.Get() using multiple keys
+// - Update message types to use sf.substreams.foundational_store.model.v2 types
+//
+// The v1 service provides basic key-value store operations for Substreams modules.
+// All methods and messages in this service are deprecated and should be replaced with their v2 equivalents.
 service Store {
-  // DEPRECATED: Use sf.substreams.foundational_store.service.v2.SinkEntries Instead.
+  // DEPRECATED: Use sf.substreams.foundational_store.service.v2.Store.Get instead.
+  // This method will be removed in a future version.
   rpc Get(GetRequest) returns (GetResponse);
-  // DEPRECATED: Use sf.substreams.foundational_store.service.v2.SinkEntries Instead.
+  // DEPRECATED: Use sf.substreams.foundational_store.service.v2.Store.Get instead with multiple keys.
+  // This method will be removed in a future version.
   rpc GetAll(GetAllRequest) returns (GetAllResponse);
 }
 
-// Specifies which value to retrieve at a specific block
+// =================================================================================================
+// DEPRECATED MESSAGES - DO NOT USE FOR NEW IMPLEMENTATIONS
+// =================================================================================================
+
+// DEPRECATED: Use sf.substreams.foundational_store.service.v2.GetRequest instead.
+// This message will be removed in a future version.
 message GetRequest {
   // Block number for data retrieval
   // Required for gRPC calls, specifies the exact block height for querying
@@ -30,7 +50,8 @@ message GetRequest {
   bytes key = 4;
 }
 
-// Contains the retrieved value and status
+// DEPRECATED: Use sf.substreams.foundational_store.service.v2.GetResponse instead.
+// This message will be removed in a future version.
 message GetResponse {
   bool block_reached = 3;
   ResponseCode code = 4;
@@ -38,7 +59,8 @@ message GetResponse {
   google.protobuf.Any value = 5;
 }
 
-// Specifies multiple values to retrieve at a specific block
+// DEPRECATED: Use sf.substreams.foundational_store.service.v2.GetRequest instead.
+// This message will be removed in a future version.
 message GetAllRequest {
   // Block number for data retrieval
   // Required for gRPC calls, specifies the exact block height for querying
@@ -54,20 +76,23 @@ message GetAllRequest {
   repeated bytes keys = 4;
 }
 
-// Pairs a key with its individual response
+// DEPRECATED: This message is part of the deprecated v1 API.
+// This message will be removed in a future version.
 message ResponseEntry {
   bytes key = 1;
   GetResponse response = 2;
 }
 
-// Contains all retrieved entries with batch-level metadata
+// DEPRECATED: Use sf.substreams.foundational_store.service.v2.GetResponse instead.
+// This message will be removed in a future version.
 message GetAllResponse {
   repeated ResponseEntry entries = 1;
   // Whether the requested block has been processed by the store (applies to all entries)
   bool block_reached = 2;
 }
 
-// Indicates the result of a get operation with detailed status information
+// DEPRECATED: Use sf.substreams.foundational_store.model.v2.ResponseCode instead.
+// This enum will be removed in a future version.
 enum ResponseCode {
   // Default value, should not be used
   RESPONSE_CODE_UNSPECIFIED = 0;
@@ -81,13 +106,15 @@ enum ResponseCode {
   RESPONSE_CODE_NOT_FOUND_BLOCK_NOT_REACHED = 5;
 }
 
-// Represents a key-value pair in the store used for Substreams sink operations
+// DEPRECATED: Use sf.substreams.foundational_store.model.v2.Entry instead.
+// This message will be removed in a future version.
 message Entry {
   bytes key = 2;
   google.protobuf.Any value = 4;
 }
 
-// Container for multiple key-value pairs, typically used as Substreams module output
+// DEPRECATED: Use sf.substreams.foundational_store.model.v2.SinkEntries instead.
+// This message will be removed in a future version.
 message Entries {
   // Collection of entries to be stored atomically at the same block number
   repeated Entry entries = 1;

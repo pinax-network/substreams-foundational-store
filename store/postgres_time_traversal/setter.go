@@ -7,9 +7,22 @@ import (
 	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v2"
 )
 
-func (s *Store) Set(entry *pbmodel.Entry, blockNumber uint64) error {
+func (s *Store) Set(entry *pbmodel.Entry, IfNotExist bool, blockNumber uint64) error {
 	if entry == nil {
 		return fmt.Errorf("entry cannot be nil")
+	}
+
+	if IfNotExist {
+		// Check if key already exists
+		var count int
+		err := s.db.Get(&count, fmt.Sprintf("SELECT COUNT(*) FROM %s.entries WHERE key = $1", s.schemaName), entry.Key)
+		if err != nil {
+			return fmt.Errorf("failed to check existence of key: %w", err)
+		}
+		if count > 0 {
+			// Key already exists, skip insertion
+			return nil
+		}
 	}
 
 	// Use the prepared insert statement to insert the entry
@@ -22,7 +35,7 @@ func (s *Store) Set(entry *pbmodel.Entry, blockNumber uint64) error {
 	return nil
 }
 
-func (s *Store) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
+func (s *Store) SetAll(entries []*pbmodel.Entry, IfNotExist bool, blockNumber uint64) error {
 	if len(entries) == 0 {
 		return nil
 	}
@@ -45,6 +58,20 @@ func (s *Store) SetAll(entries []*pbmodel.Entry, blockNumber uint64) error {
 		if entry == nil {
 			_ = tx.Rollback()
 			return fmt.Errorf("entry cannot be nil")
+		}
+
+		if IfNotExist {
+			// Check if key already exists
+			var count int
+			err := tx.Get(&count, fmt.Sprintf("SELECT COUNT(*) FROM %s.entries WHERE key = $1", s.schemaName), entry.Key)
+			if err != nil {
+				_ = tx.Rollback()
+				return fmt.Errorf("failed to check existence of key: %w", err)
+			}
+			if count > 0 {
+				// Key already exists, skip insertion
+				continue
+			}
 		}
 
 		// Use the block_number from the parameter

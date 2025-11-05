@@ -31,13 +31,18 @@ func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath st
 
 	shutter := shutter.New()
 
+	headBlock := uint64(0)
+	if cursor != nil {
+		headBlock = cursor.HeadBlock.Num()
+	}
+
 	sinker := &Sinker{
 		store:          store,
 		logger:         logger,
 		cursorFilePath: cursorFilePath,
 		cursorHistory:  map[string]*sink.Cursor{},
 		Shutter:        shutter,
-		headBlock:      cursor.HeadBlock.Num(),
+		headBlock:      headBlock,
 	}
 	return sinker
 }
@@ -45,6 +50,8 @@ func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath st
 func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrpc.BlockScopedData, isLive *bool, cursor *sink.Cursor) error {
 
 	s.cursorHistory[data.Clock.Id] = cursor
+
+	lib := cursor.LIB.Num()
 
 	// Process data if present
 	if data.Output != nil && data.Output.MapOutput != nil && data.Output.MapOutput.Value != nil {
@@ -69,15 +76,14 @@ func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrp
 
 		}
 
-		if err := s.store.SetAll(entries.Entries, data.GetClock().Number); err != nil {
+		if err := s.store.SetAll(entries.Entries, entries.IfNotExist, data.GetClock().Number); err != nil {
 			return fmt.Errorf("setting foundational-store entry: %w", err)
 		}
-	}
 
-	lib := cursor.LIB.Num()
-	err := s.store.FlushUpToBlock(lib)
-	if err != nil {
-		return fmt.Errorf("flushing up to block up to lib %d: %w", lib, err)
+		err := s.store.FlushUpToBlock(lib, entries.IfNotExist)
+		if err != nil {
+			return fmt.Errorf("flushing up to block up to lib %d: %w", lib, err)
+		}
 	}
 
 	libCursor := s.cursorHistory[cursor.LIB.ID()]

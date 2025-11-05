@@ -8,19 +8,40 @@ package sf.substreams.foundational_store.service.v2;
 
 option go_package = "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v2;pbservice";
 
+// Store service provides the primary interface for interacting with the Substreams Foundational Store.
+// This service offers block-aware key-value storage operations that are essential for
+// building deterministic and fork-aware blockchain data processing pipelines.
 service Store {
+  // Get retrieves one or more values from the store at a specific block.
+  // Returns entries for all requested keys, with appropriate status codes for missing keys.
   rpc Get(GetRequest) returns (GetResponse);
+  // GetFirst retrieves the first (lexicographically smallest) value that is greater than or equal to each requested key.
+  // Useful for range queries and finding the next key in sorted order.
   rpc GetFirst(GetRequest) returns (GetResponse);
 }
 
-
+// GetRequest specifies the parameters for retrieving values from the store.
+// Used by both Get and GetFirst operations to query the foundational store.
 message GetRequest {
+  // The block number at which to query the data.
+  // This ensures queries are performed against a specific point in the blockchain history.
   uint64 block_number = 1;
+  // The block hash for additional verification and fork-awareness.
+  // Ensures the query is performed against the correct block in case of chain forks.
   bytes block_hash = 2;
+  // The keys to retrieve from the store.
+  // For Get: exact key matches are returned.
+  // For GetFirst: the first key >= each requested key is returned (lexicographically).
   repeated model.v2.Key keys = 3;
 }
 
+// GetResponse contains the results of a store query operation.
+// Provides batch results for multiple keys with consistent block-level metadata.
 message GetResponse {
+  // Indicates whether the requested block has been processed by the store.
+  // When false, some entries may not be available even if they should exist.
   bool block_reached = 1;
+  // The query results for each requested key.
+  // Each entry corresponds to one of the keys in the request, in the same order.
   model.v2.QueriedEntries entries = 2;
 }

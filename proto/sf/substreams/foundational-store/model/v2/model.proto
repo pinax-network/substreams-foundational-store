@@ -1,3 +1,7 @@
+// Protocol buffer definitions for the Substreams Foundational Store model.
+// This package defines the core data structures used for storing and retrieving
+// key-value pairs in a blockchain context with block-aware versioning.
+
 syntax = "proto3";
 
 import "google/protobuf/any.proto";
@@ -6,39 +10,53 @@ package sf.substreams.foundational_store.model.v2;
 
 option go_package = "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v2;pbmodel";
 
+// Key represents a unique identifier for stored entries.
+// The key is stored as raw bytes, allowing for flexible key formats
+// including strings, hashes, or composite keys.
 message Key {
   bytes bytes = 1;
 }
 
+// Keys represents a collection of keys for batch operations.
 message Keys {
   repeated Key keys = 1;
 }
 
-//by both consumer and sinker Substreams
+// Entry represents a single key-value pair stored in the foundational store.
+// Used by both consumer and sinker Substreams modules for data exchange.
+// The entry contains a key and an arbitrary value wrapped in Any type.
 message Entry {
   reserved 1; //backward compatibility
   Key key = 2;
   google.protobuf.Any value = 4;
 }
 
-// Use by sinker Substreams
+// SinkEntries represents a batch of entries to be stored by sinker modules.
+// Contains multiple entries that should be stored atomically, with an option
+// to only store entries if their keys don't already exist.
 message SinkEntries {
   repeated Entry entries = 1;
   bool if_not_exist = 2;
 }
 
-// GETTER: Use by consumer Substreams
+// QueriedEntry represents the result of a get operation for a single key.
+// Contains both the response status and the entry data (if found).
+// Used by consumer Substreams modules to receive query results.
 message QueriedEntry {
   ResponseCode code = 1;
   Entry entry = 2;
 }
 
-// GETTER: Use by consumer Substreams
+// QueriedEntries represents the results of a batch get operation.
+// Contains multiple QueriedEntry results for batch key lookups.
+// Used by consumer Substreams modules for efficient bulk data retrieval.
 message QueriedEntries {
   repeated QueriedEntry entries = 2;
 }
 
-// Indicates the result of a get operation with detailed status information
+// ResponseCode indicates the result status of a get operation.
+// Provides detailed information about whether a key was found,
+// not found, or if there were other issues with the query.
 enum ResponseCode {
   // Default value, should not be used
   RESPONSE_CODE_UNSPECIFIED = 0;
