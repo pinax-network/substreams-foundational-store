@@ -9,6 +9,7 @@ import (
 	"github.com/streamingfast/dgrpc/server/factory"
 	"github.com/streamingfast/shutter"
 	legacy "github.com/streamingfast/substreams-foundational-store/grpc/legacy"
+	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v2"
 	pbstore "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v1"
 	pbservice "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/service/v2"
 	"github.com/streamingfast/substreams-foundational-store/store"
@@ -53,12 +54,17 @@ func (s *GrpcServer) Get(ctx context.Context, req *pbservice.GetRequest) (*pbser
 	}
 
 	r.BlockReached = true
-
+	foundKeyCount := 0
+	for _, entry := range r.Entries.Entries {
+		if entry.Code == pbmodel.ResponseCode_RESPONSE_CODE_FOUND {
+			foundKeyCount++
+		}
+	}
 	s.logger.Info("request stats",
 		zap.Uint64("block_number", req.BlockNumber),
 		zap.Uint64("head_block", headBlock),
 		zap.Int("requested_keys", len(req.Keys)),
-		zap.Int("found_keys", len(r.Entries.Entries)),
+		zap.Int("found_keys", foundKeyCount),
 		zap.Duration("execution_time", time.Since(executionStart)),
 		zap.Bool("keep", false),
 	)

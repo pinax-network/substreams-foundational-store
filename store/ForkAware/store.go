@@ -2,7 +2,6 @@ package ForkAware
 
 import (
 	"fmt"
-	"log"
 	"sync"
 
 	pbmodel "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store/model/v2"
@@ -43,7 +42,6 @@ func (s *Store) SetAll(entries []*pbmodel.Entry, IfNotExist bool, blockNumber ui
 		key := string(entry.Key.Bytes)
 		if IfNotExist {
 			if _, exists := s.cache[key]; exists {
-				log.Printf("debug: skipping insertion of key %s because it already exists in cache", key)
 				continue
 			}
 			toSet = append(toSet, entry)
@@ -68,9 +66,7 @@ func (s *Store) SetAll(entries []*pbmodel.Entry, IfNotExist bool, blockNumber ui
 		}
 		var filtered []*pbmodel.Entry
 		for i, queried := range resp.Entries.Entries {
-			if queried.Code == pbmodel.ResponseCode_RESPONSE_CODE_FOUND {
-				log.Printf("debug: skipping insertion of key %s because it already exists in database", string(toSet[i].Key.Bytes))
-			} else {
+			if queried.Code != pbmodel.ResponseCode_RESPONSE_CODE_FOUND {
 				filtered = append(filtered, toSet[i])
 			}
 		}
@@ -100,46 +96,6 @@ func (s *Store) SetAll(entries []*pbmodel.Entry, IfNotExist bool, blockNumber ui
 	if len(toFlush) > 0 {
 		if err := s.wrapped.SetAll(toFlush, IfNotExist, blockNumber); err != nil {
 			return fmt.Errorf("failed to set entries in wrapped foundational-store: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// Set stores a single entry in the ForkAware store.
-func (s *Store) Set(entry *pbmodel.Entry, IfNotExist bool, blockNumber uint64) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	key := string(entry.Key.Bytes)
-	if IfNotExist {
-		if _, exists := s.cache[key]; exists {
-			log.Printf("debug: skipping insertion of key %s because it already exists in cache", key)
-			return nil // skip setting if key already exists
-		}
-		// Check if exists in wrapped store
-		req := &pbservice.GetRequest{
-			Keys:        []*pbmodel.Key{entry.Key},
-			BlockNumber: blockNumber,
-		}
-		resp, err := s.wrapped.Get(req)
-		if err != nil {
-			return fmt.Errorf("failed to check existence in wrapped store: %w", err)
-		}
-		if resp.Entries.Entries[0].Code == pbmodel.ResponseCode_RESPONSE_CODE_FOUND {
-			log.Printf("debug: skipping insertion of key %s because it already exists in database", key)
-			return nil
-		}
-	}
-
-	s.cache[key] = cachedEntry{
-		entry:       entry,
-		blockNumber: blockNumber,
-	}
-
-	if blockNumber <= s.flushUpToBlock {
-		if err := s.wrapped.SetAll([]*pbmodel.Entry{entry}, IfNotExist, blockNumber); err != nil {
-			return fmt.Errorf("failed to set entry in wrapped store: %w", err)
 		}
 	}
 
