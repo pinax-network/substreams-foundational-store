@@ -2,6 +2,11 @@
 
 A high-performance, multi-backend key-value storage system designed for [Substreams](https://github.com/streamingfast/substreams) ingestion and serving within the StreamingFast ecosystem. The foundational store provides a unified interface to persist and query time-series blockchain data with fork-awareness and efficient batch processing.
 
+## Documentation
+
+- **[Hosting a Foundational Store](doc/hosting-foundational-store.md)**: Complete guide for setting up and running a Foundational Store server
+- **[Consuming a Foundational Store](doc/consuming-foundational-store.md)**: Guide for querying Foundational Stores in Substreams modules
+
 ## StreamingFast Ecosystem Integration
 
 The foundational store operates as a critical component in the StreamingFast data processing pipeline:
@@ -33,9 +38,6 @@ The foundational store consists of three main components:
 - **Conditional operations**: IfNotExist flag prevents duplicate insertions and ensures data integrity
 - **Streaming ingestion**: Continuous processing of Substreams output with cursor-based resumption
 - **High-performance serving**: gRPC API with Get/GetFirst operations and block-reached validation
-- **Debug logging**: Optional debug logs when entries are skipped due to existing keys in conditional operations
-- **Production-ready**: Built-in Prometheus metrics, health checks, and operational tooling
-- **Scalable deployment**: Supports multi-instance deployments with flexible endpoint routing
 
 ## Quick Start
 
@@ -48,30 +50,7 @@ cd substreams-foundational-store
 go build -o foundational-store ./cmd/foundational-store
 ```
 
-### Running the Server
-
-Start a server with Badger backend:
-```bash
-./foundational-store server \
-  --dsn "badger:///path/to/data" \
-  --type-url "your.module.Type" \
-  --manifest-path "../your-substreams-module/substreams.yaml" \
-  --output-module-name "your_output_module" \
-  --endpoint "your-blockchain.streamingfast.io:443" \
-  --start-block 1000000 \
-  --batch-size 1000
-```
-
-Start a server with PostgreSQL backend:
-```bash
-./foundational-store server \
-  --dsn "postgres://user:pass@localhost:5432/database" \
-  --type-url "your.module.Type" \
-  --manifest-path "../your-substreams-module/substreams.yaml" \
-  --output-module-name "your_output_module" \
-  --endpoint "your-blockchain.streamingfast.io:443" \
-  --prometheus-addr "localhost:9103"
-```
+See [Hosting a Foundational Store](doc/hosting-foundational-store.md) for complete setup and configuration instructions.
 
 ## Storage Backends
 
@@ -91,67 +70,23 @@ Enterprise-grade relational database for distributed deployments:
 --dsn "postgres://user:password@host:port/database?sslmode=require"
 ```
 
+See [Hosting a Foundational Store](doc/hosting-foundational-store.md) for backend-specific configuration and tuning.
+
 ## Configuration
 
-```bash
-foundational-store --help
-account-list   Extract accounts from a CSV file and save them to a binary file
-completion     Generate autocompletion scripts
-get            Get a value from the foundational-store using gRPC
-getall         Get multiple values from the foundational-store using gRPC
-loader         Load data into a foundational-store
-lookup         Lookup keys with a prefix in a Badger foundational-store
-perf           Performance testing for the foundational-store
-server         Start the gRPC server
-```
-```bash
-foundational-store server --help
-Start the gRPC server that provides access to the foundational-store.
-Supports PostgreSQL, Badger.
+The `foundational-store` binary provides the following commands:
 
-
-Flags:
-  --addr string               Address to listen on (default ":50051")
-  --dsn string                DSN for the store (e.g. badger:///... or postgres://...)
-  --type-url string           Protobuf type URL for stored values
-  --manifest-path string      Path to Substreams manifest
-  --output-module-name string Name of the output module
-  --batch-size int            Number of entries per batch (default 1000)
-  --max-batch-time duration   Max wait before flushing batch (default 30s)
-  --flush-queue-size int      Async flush queue buffer size (default 3)
-  --workers int               Number of parallel workers (default 10)
-  --cursor-file-path string   Path to cursor file (default "state.cursor")
-  --prometheus-addr string    Prometheus metrics address (default "localhost:9102")
-  --start-block string        Starting block
-  --stop-block string         Stop block (default "0")
-  --undo-buffer-size int      Number of blocks kept buffered for forks
-  ... (other flags for headers, API keys, retries, insecure mode, etc.)
-```
 ```bash
-foundational-store loader --help
-Usage:
-  foundational-store loader [flags]
+foundational-store [command]
 
-Flags:
-  --file string      Path to CSV file (default "/path/to/initialized_accounts.csv")
-  --dsn string       DSN connection string (Postgres/Badger)
-  --batch-size int   Batch size for insertion (default 1000)
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  get         Get a value from the foundational-store using gRPC
+  help        Help about any command
+  server      Start the gRPC server
 ```
-```bash
-foundational-store perf --help
-Usage:
-  foundational-store perf [flags]
 
-Flags:
-  --account-file string   Path to account.bin file
-  --dsn string            DSN for the store
-  --duration duration     Duration of the test (default 1m)
-  --num-accounts int      Number of accounts in multi-account query (default 4000)
-  --num-clients int       Concurrent clients (default 20)
-  --num-workers int       Workers for Badger backend (default 10)
-  --run-concurrent        Run concurrent multi-account queries
-  --type-url string       Type URL for stored values
-```
+See [Hosting a Foundational Store](doc/hosting-foundational-store.md) for detailed server configuration options and usage examples.
 
 ## Data Model
 
@@ -188,32 +123,15 @@ message SinkEntries {
 
 ### API Operations
 
-#### Get Request (v2)
-```protobuf
-message GetRequest {
-  uint64 block_number = 1;
-  bytes block_hash = 2;
-  repeated Key keys = 3;
-}
+The Foundational Store provides gRPC APIs for data retrieval with block-aware querying.
 
-message GetResponse {
-  bool block_reached = 1;
-  QueriedEntries entries = 2;
-}
-```
-
-#### Response Codes
-- `FOUND`: Key exists and value was retrieved successfully
-- `NOT_FOUND`: Key does not exist at the requested block
-- `NOT_FOUND_FINALIZE`: Key was deleted after finality (LIB) -> historical reference
-- `NOT_FOUND_BLOCK_NOT_REACHED`: Requested block number has not been processed yet
+See [Consuming a Foundational Store](doc/consuming-foundational-store.md) for detailed API usage, response handling, and code examples.
 
 ### Conditional Operations
 
-The store supports conditional insertion with the `if_not_exist` flag:
-- When `true`, entries are only inserted if the key doesn't already exist
-- Checks both cache and persistent storage for key existence
-- Useful for idempotent operations and preventing duplicate data
+The store supports conditional insertion with the `if_not_exist` flag for data integrity during ingestion.
+
+See [Hosting a Foundational Store](doc/hosting-foundational-store.md) for details on using `SinkEntries` and conditional operations.
 
 **Note**: v1 API is deprecated. Use v2 API for all new implementations.
 
@@ -242,43 +160,6 @@ The foundational store implements sophisticated fork-awareness through a layered
 3. **Cursor Management**: Persistent state tracking with LIB-based cursor history cleanup
 4. **Head Block Tracking**: Real-time block progression for client synchronization validation
 
-## Performance Tuning
-
-### Batch Configuration
-
-Optimize for your workload:
-
-```bash
-# High throughput, larger batches
---batch-size 5000 --max-batch-time 60s --flush-queue-size 5
-
-# Low latency, smaller batches
---batch-size 500 --max-batch-time 10s --flush-queue-size 2
-```
-
-### Backend-Specific Tuning
-
-**Badger:**
-- Adjust `--workers` based on CPU cores
-- Use SSD storage for better performance
-- Monitor memory usage for large datasets
-
-**PostgreSQL:**
-- Configure connection pooling
-- Tune `shared_buffers` and `work_mem`
-- Use appropriate indexes for query patterns
-
-## Monitoring
-
-### Prometheus Metrics
-
-Built-in metrics available on `--prometheus-addr` (default: `localhost:9102`):
-
-- `foundational_store_blocks_processed_total`: Blocks processed counter
-- `foundational_store_entries_processed_total`: Entries processed counter
-- `foundational_store_batch_flush_duration_seconds`: Flush operation latency
-- `foundational_store_grpc_requests_total`: gRPC request counters
-- `foundational_store_cursor_save_errors_total`: Cursor save error counter
 
 ### Health Checks
 
@@ -287,58 +168,14 @@ Monitor service health through:
 - Cursor file updates for ingestion progress
 - Prometheus `/metrics` endpoint availability
 
-## Development
-
-### Building
-
-```bash
-# Build binary
-go build -o foundational-store ./cmd/foundational-store
-
-# Run tests
-go test ./...
-
-# Generate protobuf
-buf generate
-```
-
-### Docker
-
-```bash
-# Build image
-docker build -t foundational-store .
-
-# Run container
-docker run -p 50051:50051 foundational-store server --dsn="badger:///data" --type-url="your.type"
-```
-
-### Testing
-
-The project includes comprehensive tests covering all store implementations:
-
-```bash
-# Run all tests
-go test ./...
-
-# Test specific backend
-go test ./store/badger/...
-go test ./store/postgres/...
-go test ./store/badger_time_traversal/...
-go test ./store/postgres_time_traversal/...
-
-# Test with race detection
-go test -race ./...
-
-# Test IfNotExist functionality
-go test -run TestIfNotExist ./...
-```
 
 ### Documentation
 
 Comprehensive API documentation is available in the proto files:
 - `proto/sf/substreams/foundational-store/service/v2/service.proto` - Current gRPC service API
 - `proto/sf/substreams/foundational-store/model/v2/model.proto` - Data model definitions
-- All proto files include detailed comments explaining usage and migration paths
+
+See the [doc/](doc/) folder for user guides and examples.
 
 ## License
 
