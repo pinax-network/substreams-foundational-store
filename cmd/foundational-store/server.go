@@ -165,24 +165,31 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 			defer conn.Close()
 
 			client := pbrouter.NewStoreManagerClient(conn)
+			ctx := cmd.Context()
+
+			ping := func() {
+				_, err := client.Ping(ctx, &pbrouter.PingRequest{
+					ModuleOutputHash: substreamsClient.OutputModuleHash(),
+					Network:          substreamsClient.Network,
+				})
+				if err != nil {
+					zlog.Error("ping failed", zap.Error(err))
+				} else {
+					zlog.Info("ping successful")
+				}
+			}
+
+			ping()
+
 			ticker := time.NewTicker(30 * time.Second)
 			defer ticker.Stop()
 
-			ctx := cmd.Context()
 			for {
 				select {
 				case <-ctx.Done():
 					return
 				case <-ticker.C:
-					_, err := client.Ping(ctx, &pbrouter.PingRequest{
-						ModuleOutputHash: substreamsClient.OutputModuleHash(),
-						Network:          substreamsClient.Network,
-					})
-					if err != nil {
-						zlog.Error("ping failed", zap.Error(err))
-					} else {
-						zlog.Info("ping successful")
-					}
+					ping()
 				}
 			}
 		}()
