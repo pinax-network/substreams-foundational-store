@@ -175,13 +175,13 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 					return
 				case <-ticker.C:
 					_, err := client.Ping(ctx, &pbrouter.PingRequest{
-						ModuleOutputHash: "",
-						Network:          "",
+						ModuleOutputHash: substreamsClient.OutputModuleHash(),
+						Network:          substreamsClient.Network,
 					})
 					if err != nil {
 						zlog.Error("ping failed", zap.Error(err))
 					} else {
-						zlog.Debug("ping successful")
+						zlog.Info("ping successful")
 					}
 				}
 			}
