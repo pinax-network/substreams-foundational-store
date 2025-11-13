@@ -168,14 +168,18 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
 			ping := func() {
-				_, err := client.Ping(ctx, &pbrouter.PingRequest{
+				resp, err := client.Ping(ctx, &pbrouter.PingRequest{
 					ModuleOutputHash: substreamsClient.OutputModuleHash(),
 					Network:          substreamsClient.Network,
 				})
 				if err != nil {
 					zlog.Error("ping failed", zap.Error(err))
-				} else {
+				} else if resp == nil {
+					zlog.Error("ping failed: nil response")
+				} else if resp.Code == pbrouter.PingResponse_pong {
 					zlog.Info("ping successful")
+				} else {
+					zlog.Error("ping failed", zap.String("code", resp.Code.String()), zap.String("reason", resp.GetFailureReason()))
 				}
 			}
 
