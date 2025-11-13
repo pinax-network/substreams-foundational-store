@@ -22,7 +22,11 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type StoreClient interface {
+	// Get retrieves one or more values from the store at a specific block.
+	// Returns entries for all requested keys, with appropriate status codes for missing keys.
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
+	// GetFirst retrieves the first (lexicographically smallest) value that is greater than or equal to each requested key.
+	// Useful for range queries and finding the next key in sorted order.
 	GetFirst(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
 }
 
@@ -56,7 +60,11 @@ func (c *storeClient) GetFirst(ctx context.Context, in *GetRequest, opts ...grpc
 // All implementations must embed UnimplementedStoreServer
 // for forward compatibility
 type StoreServer interface {
+	// Get retrieves one or more values from the store at a specific block.
+	// Returns entries for all requested keys, with appropriate status codes for missing keys.
 	Get(context.Context, *GetRequest) (*GetResponse, error)
+	// GetFirst retrieves the first (lexicographically smallest) value that is greater than or equal to each requested key.
+	// Useful for range queries and finding the next key in sorted order.
 	GetFirst(context.Context, *GetRequest) (*GetResponse, error)
 	mustEmbedUnimplementedStoreServer()
 }

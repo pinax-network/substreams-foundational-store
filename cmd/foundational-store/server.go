@@ -11,6 +11,7 @@ import (
 	"github.com/streamingfast/cli"
 	"github.com/streamingfast/logging"
 	"github.com/streamingfast/substreams-foundational-store/grpc"
+	pbrouter "github.com/streamingfast/substreams-foundational-store/pb/sf/substreams/foundational-store-management/router/v2"
 	"github.com/streamingfast/substreams-foundational-store/sink"
 	"github.com/streamingfast/substreams-foundational-store/store"
 	"github.com/streamingfast/substreams-foundational-store/store/ForkAware"
@@ -19,6 +20,7 @@ import (
 	"github.com/streamingfast/substreams-foundational-store/store/postgres"
 	"github.com/streamingfast/substreams-foundational-store/store/postgres_time_traversal"
 	"go.uber.org/zap"
+	grpcclient "google.golang.org/grpc"
 
 	subsink "github.com/streamingfast/substreams/sink"
 )
@@ -48,6 +50,7 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	outputModuleName, _ := cmd.Flags().GetString("output-module-name")
 	cursorFilePath, _ := cmd.Flags().GetString("cursor-file-path")
 	noTimeTraversal, _ := cmd.Flags().GetBool("no-time-traversal")
+	storeManagerAddr, _ := cmd.Flags().GetString("store-manager-address")
 
 	if serverDSN == "" {
 		return fmt.Errorf("dsn is required")
@@ -152,6 +155,39 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 		server.Run(serverAddr)
 	})
 
+	if storeManagerAddr != "" {
+		go func() {
+			conn, err := grpcclient.Dial(storeManagerAddr, grpcclient.WithInsecure())
+			if err != nil {
+				zlog.Error("failed to dial store manager", zap.Error(err))
+				return
+			}
+			defer conn.Close()
+
+			client := pbrouter.NewStoreManagerClient(conn)
+			ticker := time.NewTicker(30 * time.Second)
+			defer ticker.Stop()
+
+			ctx := cmd.Context()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					_, err := client.Ping(ctx, &pbrouter.PingRequest{
+						ModuleOutputHash: "",
+						Network:          "",
+					})
+					if err != nil {
+						zlog.Error("ping failed", zap.Error(err))
+					} else {
+						zlog.Debug("ping successful")
+					}
+				}
+			}
+		}()
+	}
+
 	appErr := app.WaitForTermination(zlog, 5*time.Second, 15*time.Second)
 	if appErr != nil {
 		zlog.Error("application error", zap.Error(appErr))
@@ -178,6 +214,7 @@ func init() {
 	ServerCmd.Flags().Duration("max-batch-time", 30*time.Second, "Maximum time to wait before flushing a partial batch")
 	ServerCmd.Flags().Int("flush-queue-size", 3, "Size of the async flush queue buffer")
 	ServerCmd.Flags().Bool("no-time-traversal", false, "Disable time traversal mode and use original badger store implementation")
+	ServerCmd.Flags().String("store-manager-address", "", "Address of the store manager to ping every 30 seconds")
 
 	ServerCmd.MarkFlagRequired("dsn")
 	ServerCmd.MarkFlagRequired("type-url")

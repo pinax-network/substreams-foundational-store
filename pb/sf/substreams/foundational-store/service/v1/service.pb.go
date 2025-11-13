@@ -22,7 +22,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Indicates the result of a get operation with detailed status information
+// DEPRECATED: Use sf.substreams.foundational_store.model.v2.ResponseCode instead.
+// This enum will be removed in a future version.
 type ResponseCode int32
 
 const (
@@ -83,7 +84,8 @@ func (ResponseCode) EnumDescriptor() ([]byte, []int) {
 	return file_sf_substreams_foundational_store_service_v1_service_proto_rawDescGZIP(), []int{0}
 }
 
-// Specifies which value to retrieve at a specific block
+// DEPRECATED: Use sf.substreams.foundational_store.service.v2.GetRequest instead.
+// This message will be removed in a future version.
 type GetRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Block number for data retrieval
@@ -158,7 +160,8 @@ func (x *GetRequest) GetKey() []byte {
 	return nil
 }
 
-// Contains the retrieved value and status
+// DEPRECATED: Use sf.substreams.foundational_store.service.v2.GetResponse instead.
+// This message will be removed in a future version.
 type GetResponse struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	BlockReached bool                   `protobuf:"varint,3,opt,name=block_reached,json=blockReached,proto3" json:"block_reached,omitempty"`
@@ -220,7 +223,8 @@ func (x *GetResponse) GetValue() *anypb.Any {
 	return nil
 }
 
-// Specifies multiple values to retrieve at a specific block
+// DEPRECATED: Use sf.substreams.foundational_store.service.v2.GetRequest instead.
+// This message will be removed in a future version.
 type GetAllRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Block number for data retrieval
@@ -295,7 +299,8 @@ func (x *GetAllRequest) GetKeys() [][]byte {
 	return nil
 }
 
-// Pairs a key with its individual response
+// DEPRECATED: This message is part of the deprecated v1 API.
+// This message will be removed in a future version.
 type ResponseEntry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           []byte                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -348,7 +353,8 @@ func (x *ResponseEntry) GetResponse() *GetResponse {
 	return nil
 }
 
-// Contains all retrieved entries with batch-level metadata
+// DEPRECATED: Use sf.substreams.foundational_store.service.v2.GetResponse instead.
+// This message will be removed in a future version.
 type GetAllResponse struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Entries []*ResponseEntry       `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
@@ -402,7 +408,8 @@ func (x *GetAllResponse) GetBlockReached() bool {
 	return false
 }
 
-// Represents a key-value pair in the store used for Substreams sink operations
+// DEPRECATED: Use sf.substreams.foundational_store.model.v2.Entry instead.
+// This message will be removed in a future version.
 type Entry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           []byte                 `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
@@ -455,7 +462,8 @@ func (x *Entry) GetValue() *anypb.Any {
 	return nil
 }
 
-// Container for multiple key-value pairs, typically used as Substreams module output
+// DEPRECATED: Use sf.substreams.foundational_store.model.v2.SinkEntries instead.
+// This message will be removed in a future version.
 type Entries struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Collection of entries to be stored atomically at the same block number

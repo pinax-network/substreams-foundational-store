@@ -23,11 +23,20 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// GetRequest specifies the parameters for retrieving values from the store.
+// Used by both Get and GetFirst operations to query the foundational store.
 type GetRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BlockNumber   uint64                 `protobuf:"varint,1,opt,name=block_number,json=blockNumber,proto3" json:"block_number,omitempty"`
-	BlockHash     []byte                 `protobuf:"bytes,2,opt,name=block_hash,json=blockHash,proto3" json:"block_hash,omitempty"`
-	Keys          []*v2.Key              `protobuf:"bytes,3,rep,name=keys,proto3" json:"keys,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The block number at which to query the data.
+	// This ensures queries are performed against a specific point in the blockchain history.
+	BlockNumber uint64 `protobuf:"varint,1,opt,name=block_number,json=blockNumber,proto3" json:"block_number,omitempty"`
+	// The block hash for additional verification and fork-awareness.
+	// Ensures the query is performed against the correct block in case of chain forks.
+	BlockHash []byte `protobuf:"bytes,2,opt,name=block_hash,json=blockHash,proto3" json:"block_hash,omitempty"`
+	// The keys to retrieve from the store.
+	// For Get: exact key matches are returned.
+	// For GetFirst: the first key >= each requested key is returned (lexicographically).
+	Keys          []*v2.Key `protobuf:"bytes,3,rep,name=keys,proto3" json:"keys,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -83,10 +92,16 @@ func (x *GetRequest) GetKeys() []*v2.Key {
 	return nil
 }
 
+// GetResponse contains the results of a store query operation.
+// Provides batch results for multiple keys with consistent block-level metadata.
 type GetResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BlockReached  bool                   `protobuf:"varint,1,opt,name=block_reached,json=blockReached,proto3" json:"block_reached,omitempty"`
-	Entries       *v2.QueriedEntries     `protobuf:"bytes,2,opt,name=entries,proto3" json:"entries,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Indicates whether the requested block has been processed by the store.
+	// When false, some entries may not be available even if they should exist.
+	BlockReached bool `protobuf:"varint,1,opt,name=block_reached,json=blockReached,proto3" json:"block_reached,omitempty"`
+	// The query results for each requested key.
+	// Each entry corresponds to one of the keys in the request, in the same order.
+	Entries       *v2.QueriedEntries `protobuf:"bytes,2,opt,name=entries,proto3" json:"entries,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

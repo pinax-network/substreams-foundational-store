@@ -22,9 +22,11 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type StoreClient interface {
-	// DEPRECATED: Use sf.substreams.foundational_store.service.v2.SinkEntries Instead.
+	// DEPRECATED: Use sf.substreams.foundational_store.service.v2.Store.Get instead.
+	// This method will be removed in a future version.
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
-	// DEPRECATED: Use sf.substreams.foundational_store.service.v2.SinkEntries Instead.
+	// DEPRECATED: Use sf.substreams.foundational_store.service.v2.Store.Get instead with multiple keys.
+	// This method will be removed in a future version.
 	GetAll(ctx context.Context, in *GetAllRequest, opts ...grpc.CallOption) (*GetAllResponse, error)
 }
 
@@ -58,9 +60,11 @@ func (c *storeClient) GetAll(ctx context.Context, in *GetAllRequest, opts ...grp
 // All implementations must embed UnimplementedStoreServer
 // for forward compatibility
 type StoreServer interface {
-	// DEPRECATED: Use sf.substreams.foundational_store.service.v2.SinkEntries Instead.
+	// DEPRECATED: Use sf.substreams.foundational_store.service.v2.Store.Get instead.
+	// This method will be removed in a future version.
 	Get(context.Context, *GetRequest) (*GetResponse, error)
-	// DEPRECATED: Use sf.substreams.foundational_store.service.v2.SinkEntries Instead.
+	// DEPRECATED: Use sf.substreams.foundational_store.service.v2.Store.Get instead with multiple keys.
+	// This method will be removed in a future version.
 	GetAll(context.Context, *GetAllRequest) (*GetAllResponse, error)
 	mustEmbedUnimplementedStoreServer()
 }
