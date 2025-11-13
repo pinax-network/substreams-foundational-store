@@ -168,6 +168,7 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
 			ping := func() {
+				zlog.Info("pinging store manager", zap.String("module_output_hash", substreamsClient.OutputModuleHash()), zap.String("network", substreamsClient.Network))
 				resp, err := client.Ping(ctx, &pbrouter.PingRequest{
 					ModuleOutputHash: substreamsClient.OutputModuleHash(),
 					Network:          substreamsClient.Network,
