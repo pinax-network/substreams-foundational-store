@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -124,32 +125,60 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	}
 
 	app := cli.NewApplication(cmd.Context())
+	ping := func() {}
+	headBlock := func() uint64 { return math.MaxUint64 }
 
-	// Create a substreams sink using Viper configuration
-	substreamsClient, err := subsink.NewFromViper(
-		cmd,
-		"",
-		manifestPath,
-		outputModuleName,
-		"substreams-foundational-store",
-		zlog,
-		tracer, // tracer is nil
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create substreams sink: %w", err)
+	if manifestPath != "" {
+		zlog.Info("using manifest file", zap.String("path", manifestPath))
+		// Create a substreams sink using Viper configuration
+		substreamsClient, err := subsink.NewFromViper(
+			cmd,
+			"",
+			manifestPath,
+			outputModuleName,
+			"substreams-foundational-store",
+			zlog,
+			tracer, // tracer is nil
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create substreams sink: %w", err)
+		}
+
+		sinker := sink.NewSinker(storeImpl, zlog, cursorFilePath, cursor)
+		headBlock = sinker.HeadBlock
+
+		conn, err := grpcclient.Dial(storeManagerAddr, grpcclient.WithInsecure())
+		if err != nil {
+			return fmt.Errorf("dialing store manager: %w", err)
+		}
+		defer conn.Close()
+
+		client := pbrouter.NewStoreManagerClient(conn)
+
+		ping = func() {
+			zlog.Info("pinging store manager", zap.String("module_output_hash", substreamsClient.OutputModuleHash()), zap.String("network", substreamsClient.Pkg.Network))
+			resp, err := client.Ping(cmd.Context(), &pbrouter.PingRequest{
+				ModuleOutputHash: substreamsClient.OutputModuleHash(),
+				Network:          substreamsClient.Pkg.Network,
+			})
+			if err != nil {
+				zlog.Error("ping failed", zap.Error(err))
+			} else if resp == nil {
+				zlog.Error("ping failed: nil response")
+			} else if resp.Code == pbrouter.PingResponse_pong {
+				zlog.Info("ping successful")
+			} else {
+				zlog.Error("ping failed", zap.String("code", resp.Code.String()), zap.String("reason", resp.GetFailureReason()))
+			}
+		}
+
+		app.SuperviseAndStartUsing(sinker.Shutter, func() {
+			substreamsClient.Run(cmd.Context(), cursor, sinker)
+			sinker.Shutdown(substreamsClient.Err())
+		})
 	}
 
-	// Start periodic database stats logging
-	dbStatsTicker := time.NewTicker(15 * time.Second)
-	defer dbStatsTicker.Stop()
-
-	sinker := sink.NewSinker(storeImpl, zlog, cursorFilePath, cursor)
-	server := grpc.NewStoreServer(storeImpl, sinker.HeadBlock, zlog)
-
-	app.SuperviseAndStartUsing(sinker.Shutter, func() {
-		substreamsClient.Run(cmd.Context(), cursor, sinker)
-		sinker.Shutdown(substreamsClient.Err())
-	})
+	server := grpc.NewStoreServer(storeImpl, headBlock, zlog)
 
 	app.SuperviseAndStartUsing(server, func() {
 		server.Run(serverAddr)
@@ -157,33 +186,8 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 
 	if storeManagerAddr != "" {
 		go func() {
-			conn, err := grpcclient.Dial(storeManagerAddr, grpcclient.WithInsecure())
-			if err != nil {
-				zlog.Error("failed to dial store manager", zap.Error(err))
-				return
-			}
-			defer conn.Close()
 
-			client := pbrouter.NewStoreManagerClient(conn)
 			ctx := cmd.Context()
-
-			ping := func() {
-				zlog.Info("pinging store manager", zap.String("module_output_hash", substreamsClient.OutputModuleHash()), zap.String("network", substreamsClient.Pkg.Network))
-				resp, err := client.Ping(ctx, &pbrouter.PingRequest{
-					ModuleOutputHash: substreamsClient.OutputModuleHash(),
-					Network:          substreamsClient.Pkg.Network,
-				})
-				if err != nil {
-					zlog.Error("ping failed", zap.Error(err))
-				} else if resp == nil {
-					zlog.Error("ping failed: nil response")
-				} else if resp.Code == pbrouter.PingResponse_pong {
-					zlog.Info("ping successful")
-				} else {
-					zlog.Error("ping failed", zap.String("code", resp.Code.String()), zap.String("reason", resp.GetFailureReason()))
-				}
-			}
-
 			ping()
 
 			ticker := time.NewTicker(30 * time.Second)
@@ -207,8 +211,6 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 		os.Exit(1)
 	}
 
-	// TODO: Double check, probably not require
-	<-sinker.Terminated() // final batch flush process
 	return nil
 }
 
