@@ -553,7 +553,7 @@ func TestGetFirstOrderingAndNotFound_PostgresTimeTraversal(t *testing.T) {
 	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, resp.Entries.Entries[0].Code)
 	got = &pbtest.TestAccountOwner{}
 	require.NoError(t, resp.Entries.Entries[0].Entry.Value.UnmarshalTo(got))
-	assert.Equal(t, []byte("v2"), got.Owner)
+	assert.Equal(t, []byte("v3"), got.Owner)
 
 	// Between a2 and b1 -> return b1
 	resp, err = ts.store.GetFirst(&pbservice.GetRequest{Keys: []*pbmodel.Key{{Bytes: []byte("a3")}}, BlockNumber: 100, BlockHash: []byte("test_block_hash")})
