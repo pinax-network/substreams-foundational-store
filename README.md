@@ -4,8 +4,8 @@ A high-performance, multi-backend key-value storage system designed for [Substre
 
 ## Documentation
 
-- **[Hosting a Foundational Store](doc/hosting-foundational-store.md)**: Complete guide for setting up and running a Foundational Store server
-- **[Consuming a Foundational Store](doc/consuming-foundational-store.md)**: Guide for querying Foundational Stores in Substreams modules
+- **[Hosting a Foundational Store](https://docs.substreams.dev/tutorials/hosting-foundational-stores)**: Complete guide for setting up and running a Foundational Store server
+- **[Consuming a Foundational Store](https://docs.substreams.dev/tutorials/consuming-foundational-store)**: Guide for querying Foundational Stores in Substreams modules
 
 ## StreamingFast Ecosystem Integration
 
@@ -50,7 +50,7 @@ cd substreams-foundational-store
 go build -o foundational-store ./cmd/foundational-store
 ```
 
-See [Hosting a Foundational Store](doc/hosting-foundational-store.md) for complete setup and configuration instructions.
+See [Hosting a Foundational Store](https://docs.substreams.dev/tutorials/hosting-foundational-stores) for complete setup and configuration instructions.
 
 ## Storage Backends
 
@@ -70,7 +70,7 @@ Enterprise-grade relational database for distributed deployments:
 --dsn "postgres://user:password@host:port/database?sslmode=require"
 ```
 
-See [Hosting a Foundational Store](doc/hosting-foundational-store.md) for backend-specific configuration and tuning.
+See [Hosting a Foundational Store](https://docs.substreams.dev/tutorials/hosting-foundational-stores) for backend-specific configuration and tuning.
 
 ## Configuration
 
@@ -86,7 +86,7 @@ Available Commands:
   server      Start the gRPC server
 ```
 
-See [Hosting a Foundational Store](doc/hosting-foundational-store.md) for detailed server configuration options and usage examples.
+See [Hosting a Foundational Store](https://docs.substreams.dev/tutorials/hosting-foundational-stores) for detailed server configuration options and usage examples.
 
 ## Data Model
 
@@ -125,13 +125,13 @@ message SinkEntries {
 
 The Foundational Store provides gRPC APIs for data retrieval with block-aware querying.
 
-See [Consuming a Foundational Store](doc/consuming-foundational-store.md) for detailed API usage, response handling, and code examples.
+See [Consuming a Foundational Store](https://docs.substreams.dev/tutorials/consuming-foundational-store) for detailed API usage, response handling, and code examples.
 
 ### Conditional Operations
 
 The store supports conditional insertion with the `if_not_exist` flag for data integrity during ingestion.
 
-See [Hosting a Foundational Store](doc/hosting-foundational-store.md) for details on using `SinkEntries` and conditional operations.
+See [Hosting a Foundational Store](https://docs.substreams.dev/tutorials/hosting-foundational-stores) for details on using `SinkEntries` and conditional operations.
 
 **Note**: v1 API is deprecated. Use v2 API for all new implementations.
 
@@ -175,7 +175,7 @@ Comprehensive API documentation is available in the proto files:
 - `proto/sf/substreams/foundational-store/service/v2/service.proto` - Current gRPC service API
 - `proto/sf/substreams/foundational-store/model/v2/model.proto` - Data model definitions
 
-See the [doc/](doc/) folder for user guides and examples.
+User guides and examples are available on [docs.substreams.dev](https://docs.substreams.dev/).
 
 ## License
 
