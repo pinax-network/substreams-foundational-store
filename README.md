@@ -4,11 +4,11 @@ A high-performance, multi-backend key-value storage system designed for [Substre
 
 ## Documentation
 
-📚 **All documentation is available at [substreams.dev](https://docs.substreams.dev/references/foundational-store-reference)**
+📚 **All documentation is available at [substreams.dev](https://docs.substreams.dev/reference-material/foundational-store-reference)**
 
 For setup guides, architecture details, API reference, and usage examples, please visit the official documentation:
 
-- [Foundational Store Reference](https://docs.substreams.dev/references/foundational-store-reference) - Complete technical documentation
+- [Foundational Store Reference](https://docs.substreams.dev/reference-material/foundational-store-reference) - Complete technical documentation
 - [Hosting a Foundational Store](https://docs.substreams.dev/tutorials/hosting-foundational-stores) - Setup and configuration
 - [Consuming a Foundational Store](https://docs.substreams.dev/tutorials/consuming-foundational-store) - Integration guide
 
