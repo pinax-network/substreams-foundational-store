@@ -167,7 +167,7 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 func init() {
 	subsink.AddFlagsToSet(ServerCmd.Flags())
 
-	ServerCmd.Flags().String("addr", ":50051", "Address to listen on")
+	ServerCmd.Flags().String("addr", ":50051", "Address(es) to listen on. Comma-separated for multiple listeners (e.g. ':9000,*:9001'). A '*' in an address enables TLS using a built-in self-signed (snakeoil) certificate; without '*' the server uses plain-text.")
 	ServerCmd.Flags().String("dsn", "", "DSN for the foundational-store (e.g. badger:///path/to/db or postgres://user:pass@host:port/dbname)")
 	ServerCmd.Flags().String("type-url", "", "any.Any type URL are stripped at storage, this needs to be the domain specific type URL like 'sf.substreams.spl-initialized-account.v2.AccountOwner', used by the server to reconstruct the correct any.Any value at retrieval time")
 	ServerCmd.Flags().Int("workers", 10, "Number of workers for parallel operations")

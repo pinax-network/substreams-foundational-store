@@ -3,6 +3,8 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
 	"time"
 
 	dgrpcServer "github.com/streamingfast/dgrpc/server"
@@ -22,7 +24,7 @@ type GrpcServer struct {
 	*shutter.Shutter
 	pbservice.UnimplementedStoreServer
 	store            store.Store
-	dgrpcServer      dgrpcServer.Server
+	dgrpcServers     []dgrpcServer.Server
 	headBlockFetcher FetchHeadBlock
 	logger           *zap.Logger
 }
@@ -34,7 +36,6 @@ func NewStoreServer(store store.Store, headBlockFetcher FetchHeadBlock, logger *
 	return &GrpcServer{
 		Shutter:          shutter.New(),
 		store:            store,
-		dgrpcServer:      nil,
 		headBlockFetcher: headBlockFetcher,
 		logger:           logger,
 	}
@@ -97,25 +98,45 @@ func (s *GrpcServer) GetFirst(ctx context.Context, req *pbservice.GetRequest) (*
 	return r, nil
 }
 
-func (s *GrpcServer) Run(addr string, opts ...grpc.ServerOption) {
-	// Create the dgrpc server with reduced per-call logging
+func (s *GrpcServer) Run(listenAddr string, opts ...grpc.ServerOption) {
 	grpcLogger := s.logger.Named("grpc").WithOptions(zap.IncreaseLevel(zap.WarnLevel))
-	s.dgrpcServer = factory.ServerFromOptions(
-		dgrpcServer.WithLogger(grpcLogger),
-		dgrpcServer.WithPlainTextServer(),
-		dgrpcServer.WithGRPCServerOptions(opts...),
-		dgrpcServer.WithRegisterService(func(gs *grpc.Server) {
-			pbservice.RegisterStoreServer(gs, s)
-			pbstore.RegisterStoreServer(gs, legacy.NewServer(s.store, s.headBlockFetcher, s.logger))
-		}),
-		dgrpcServer.WithHealthCheck(dgrpcServer.HealthCheckOverGRPC|dgrpcServer.HealthCheckOverHTTP, healthCheck),
-	)
 
-	s.dgrpcServer.OnTerminated(func(err error) {
-		s.Shutter.Shutdown(err)
-	})
+	for _, addr := range strings.Split(listenAddr, ",") {
+		addr = strings.TrimSpace(addr)
 
-	s.dgrpcServer.Launch(addr)
+		var tlsOpt dgrpcServer.Option
+		if strings.Contains(addr, "*") {
+			tlsOpt = dgrpcServer.WithInsecureServer()
+			addr = strings.ReplaceAll(addr, "*", "")
+		} else {
+			tlsOpt = dgrpcServer.WithPlainTextServer()
+		}
+
+		srv := factory.ServerFromOptions(
+			dgrpcServer.WithLogger(grpcLogger),
+			tlsOpt,
+			dgrpcServer.WithGRPCServerOptions(opts...),
+			dgrpcServer.WithRegisterService(func(gs *grpc.Server) {
+				pbservice.RegisterStoreServer(gs, s)
+				pbstore.RegisterStoreServer(gs, legacy.NewServer(s.store, s.headBlockFetcher, s.logger))
+			}),
+			dgrpcServer.WithHealthCheck(dgrpcServer.HealthCheckOverGRPC|dgrpcServer.HealthCheckOverHTTP, healthCheck),
+		)
+
+		srv.OnTerminated(func(err error) {
+			s.Shutter.Shutdown(err)
+		})
+
+		s.dgrpcServers = append(s.dgrpcServers, srv)
+		go srv.Launch(addr)
+	}
+
+	wg := sync.WaitGroup{}
+	for _, srv := range s.dgrpcServers {
+		wg.Add(1)
+		srv.OnTerminated(func(_ error) { wg.Done() })
+	}
+	wg.Wait()
 }
 
 func healthCheck(ctx context.Context) (isReady bool, out interface{}, err error) {
@@ -133,8 +154,8 @@ func healthCheck(ctx context.Context) (isReady bool, out interface{}, err error)
 }
 
 func (s *GrpcServer) Shutdown(err error) {
-	if server := s.dgrpcServer; server != nil {
-		server.Shutdown(15 * time.Second)
+	for _, srv := range s.dgrpcServers {
+		srv.Shutdown(15 * time.Second)
 	}
 
 	s.Shutter.Shutdown(err)
