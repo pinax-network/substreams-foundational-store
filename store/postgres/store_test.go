@@ -265,15 +265,15 @@ func TestGetAllWithMixedExistence(t *testing.T) {
 	response, err := ts.store.Get(getRequest)
 	require.NoError(t, err)
 	require.NotNil(t, response)
-	require.Len(t, response.Entries, 2)
+	require.Len(t, response.Entries.Entries, 2)
 
 	// Verify first entry was found
-	assert.Equal(t, key1, response.Entries.Entries[0].Entry.Key)
+	assert.Equal(t, key1, response.Entries.Entries[0].Entry.Key.Bytes)
 	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_FOUND, response.Entries.Entries[0].Code)
 	assert.Equal(t, ts.typeURL, response.Entries.Entries[0].Entry.Value.TypeUrl)
 
 	// Verify second entry was not found
-	assert.Equal(t, key2, response.Entries.Entries[1].Entry.Key)
+	assert.Equal(t, key2, response.Entries.Entries[1].Entry.Key.Bytes)
 	assert.Equal(t, pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, response.Entries.Entries[1].Code)
 }
 
@@ -328,7 +328,7 @@ func TestGetAllWithEmptyKeys(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, response)
-	assert.Empty(t, response.Entries)
+	assert.Empty(t, response.Entries.Entries)
 }
 
 func TestStoreCreation(t *testing.T) {

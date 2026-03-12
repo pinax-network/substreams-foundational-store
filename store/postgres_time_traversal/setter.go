@@ -15,7 +15,7 @@ func (s *Store) Set(entry *pbmodel.Entry, IfNotExist bool, blockNumber uint64) e
 	if IfNotExist {
 		// Check if key already exists
 		var count int
-		err := s.db.Get(&count, fmt.Sprintf("SELECT COUNT(*) FROM %s.entries WHERE key = $1", s.schemaName), entry.Key)
+		err := s.db.Get(&count, fmt.Sprintf("SELECT COUNT(*) FROM %s.entries WHERE key = $1", s.schemaName), entry.Key.Bytes)
 		if err != nil {
 			return fmt.Errorf("failed to check existence of key: %w", err)
 		}
@@ -27,7 +27,7 @@ func (s *Store) Set(entry *pbmodel.Entry, IfNotExist bool, blockNumber uint64) e
 
 	// Use the prepared insert statement to insert the entry
 	// The statement expects: block_number, key, value, create_time
-	_, err := s.insertStatement.Exec(blockNumber, entry.Key, entry.Value.Value, time.Now())
+	_, err := s.insertStatement.Exec(blockNumber, entry.Key.Bytes, entry.Value.Value, time.Now())
 	if err != nil {
 		return fmt.Errorf("failed to insert entry: %w", err)
 	}
@@ -63,7 +63,7 @@ func (s *Store) SetAll(entries []*pbmodel.Entry, IfNotExist bool, blockNumber ui
 		if IfNotExist {
 			// Check if key already exists
 			var count int
-			err := tx.Get(&count, fmt.Sprintf("SELECT COUNT(*) FROM %s.entries WHERE key = $1", s.schemaName), entry.Key)
+			err := tx.Get(&count, fmt.Sprintf("SELECT COUNT(*) FROM %s.entries WHERE key = $1", s.schemaName), entry.Key.Bytes)
 			if err != nil {
 				_ = tx.Rollback()
 				return fmt.Errorf("failed to check existence of key: %w", err)
@@ -75,7 +75,7 @@ func (s *Store) SetAll(entries []*pbmodel.Entry, IfNotExist bool, blockNumber ui
 		}
 
 		// Use the block_number from the parameter
-		_, err := insertStmt.Exec(blockNumber, entry.Key, entry.Value.Value, time.Now())
+		_, err := insertStmt.Exec(blockNumber, entry.Key.Bytes, entry.Value.Value, time.Now())
 		if err != nil {
 			_ = tx.Rollback()
 			return fmt.Errorf("failed to insert entry: %w", err)

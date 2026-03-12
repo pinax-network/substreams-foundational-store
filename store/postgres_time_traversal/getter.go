@@ -69,7 +69,7 @@ func (s *Store) GetFirst(request *pbservice.GetRequest) (*pbservice.GetResponse,
 	out := make([]*pbmodel.QueriedEntry, len(request.Keys))
 	for i, key := range request.Keys {
 		entry := &Entry{}
-		err := s.selectFirstStmt.Get(entry, key)
+		err := s.selectFirstStmt.Get(entry, key.Bytes)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				out[i] = &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, Entry: &pbmodel.Entry{Key: key}}

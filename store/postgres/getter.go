@@ -22,7 +22,11 @@ type Entry struct {
 }
 
 func (s *Store) Get(request *pbservice.GetRequest) (*pbservice.GetResponse, error) {
-	rows, err := s.selectAnyStatement.Queryx(pq.Array(request.Keys))
+	keys := make([][]byte, len(request.Keys))
+	for i, k := range request.Keys {
+		keys[i] = k.Bytes
+	}
+	rows, err := s.selectAnyStatement.Queryx(pq.Array(keys))
 	if err != nil {
 		return nil, fmt.Errorf("failed to select entries: %w", err)
 	}
@@ -57,7 +61,7 @@ func (s *Store) GetFirst(request *pbservice.GetRequest) (*pbservice.GetResponse,
 	entries := make([]*pbmodel.QueriedEntry, len(request.Keys))
 	for i, key := range request.Keys {
 		entry := &Entry{}
-		err := s.selectFirstStmt.Get(entry, key)
+		err := s.selectFirstStmt.Get(entry, key.Bytes)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				entries[i] = &pbmodel.QueriedEntry{Code: pbmodel.ResponseCode_RESPONSE_CODE_NOT_FOUND, Entry: &pbmodel.Entry{Key: key}}
