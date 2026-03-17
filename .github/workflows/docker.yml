@@ -71,6 +71,10 @@ jobs:
   slack-notifications:
     needs: [build-and-push-image]
     runs-on: ubuntu-22.04
+    env:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+    # Check if the environment variable is not empty
+    if: ${{ env.SLACK_WEBHOOK != '' }}
     steps:
       - name: Slack notification
         env:
