@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 
@@ -27,6 +28,11 @@ func NewStore(dsn *store.DSN, typeUrl string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open connection to postgres: %w", err)
 	}
+
+	db.SetMaxOpenConns(200)
+	db.SetMaxIdleConns(200)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(1 * time.Minute)
 
 	err = runDatabaseScript(ctx, db, dsn.Schema())
 	if err != nil {

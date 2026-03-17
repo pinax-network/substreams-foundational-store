@@ -3,6 +3,7 @@ package postgres_time_traversal
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 
@@ -29,6 +30,11 @@ func NewStore(dsn *store.DSN, typeUrl string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open connection to postgres: %w", err)
 	}
+
+	db.SetMaxOpenConns(200)
+	db.SetMaxIdleConns(200)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(1 * time.Minute)
 
 	err = runDatabaseScript(ctx, db, dsn.Schema())
 	if err != nil {
@@ -61,9 +67,9 @@ func (s *Store) prepareStatements() error {
 
 	// Time traversal select: find the entry with the highest block number <= requested block number
 	selectEntry := fmt.Sprintf(`
-		select * from %s.entries 
-		where key = $1 and block_number <= $2 
-		order by block_number desc 
+		select * from %s.entries
+		where key = $1 and block_number <= $2
+		order by block_number desc
 		limit 1;`, s.schemaName)
 	selectStatement, err := s.db.Preparex(selectEntry)
 	if err != nil {
@@ -73,8 +79,8 @@ func (s *Store) prepareStatements() error {
 
 	// Time traversal select for multiple keys
 	selectAny := fmt.Sprintf(`
-		select distinct on (key) * from %s.entries 
-		where key = any($1) and block_number <= $2 
+		select distinct on (key) * from %s.entries
+		where key = any($1) and block_number <= $2
 		order by key, block_number desc;`, s.schemaName)
 	selectAnyStatement, err := s.db.Preparex(selectAny)
 	if err != nil {
@@ -84,9 +90,9 @@ func (s *Store) prepareStatements() error {
 
 	// Key-only select: returns only the key (no value) for the highest block <= requested block
 	selectKeyOnly := fmt.Sprintf(`
-		select key, block_number from %s.entries 
-		where key = $1 and block_number <= $2 
-		order by block_number desc 
+		select key, block_number from %s.entries
+		where key = $1 and block_number <= $2
+		order by block_number desc
 		limit 1;`, s.schemaName)
 	selectKeyOnlyStatement, err := s.db.Preparex(selectKeyOnly)
 	if err != nil {
@@ -96,8 +102,8 @@ func (s *Store) prepareStatements() error {
 
 	// Key-only select for multiple keys
 	selectAllKeyOnly := fmt.Sprintf(`
-		select distinct on (key) key, block_number from %s.entries 
-		where key = any($1) and block_number <= $2 
+		select distinct on (key) key, block_number from %s.entries
+		where key = any($1) and block_number <= $2
 		order by key, block_number desc;`, s.schemaName)
 	selectAllKeyOnlyStatement, err := s.db.Preparex(selectAllKeyOnly)
 	if err != nil {
@@ -107,9 +113,9 @@ func (s *Store) prepareStatements() error {
 
 	// Prepare GetFirst: first key >= $1 with oldest block for that key
 	selectFirst := fmt.Sprintf(`
-		select * from %s.entries 
-		where key >= $1 
-		order by key asc, block_number asc 
+		select * from %s.entries
+		where key >= $1
+		order by key asc, block_number asc
 		limit 1;`, s.schemaName)
 	selectFirstStmt, err := s.db.Preparex(selectFirst)
 	if err != nil {
