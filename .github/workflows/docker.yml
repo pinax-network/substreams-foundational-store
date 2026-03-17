@@ -71,11 +71,11 @@ jobs:
   slack-notifications:
     needs: [build-and-push-image]
     runs-on: ubuntu-22.04
-    if: ${{ secrets.SLACK_WEBHOOK != '' }}
     steps:
       - name: Slack notification
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        if: ${{ env.SLACK_WEBHOOK != '' }}
         uses: Ilshidur/action-slack@2.0.2
         with:
           args: |
