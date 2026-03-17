@@ -60,7 +60,7 @@ func (s *GrpcServer) Get(ctx context.Context, req *pbservice.GetRequest) (*pbser
 			foundKeyCount++
 		}
 	}
-	s.logger.Info("request stats",
+	s.logger.Debug("request stats",
 		zap.Uint64("block_number", req.BlockNumber),
 		zap.Uint64("head_block", headBlock),
 		zap.Int("requested_keys", len(req.Keys)),
@@ -86,7 +86,7 @@ func (s *GrpcServer) GetFirst(ctx context.Context, req *pbservice.GetRequest) (*
 
 	r.BlockReached = true
 
-	s.logger.Info("request stats",
+	s.logger.Debug("request stats",
 		zap.Uint64("block_number", req.BlockNumber),
 		zap.Uint64("head_block", headBlock),
 		zap.Int("requested_keys", len(req.Keys)),
