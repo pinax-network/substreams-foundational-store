@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: foundational-store-postgres
+    environment:
+      POSTGRES_DB: foundational_store
+      POSTGRES_USER: fs
+      POSTGRES_PASSWORD: devpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fs -d foundational_store"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  pgweb:
+    image: sosedoff/pgweb
+    container_name: foundational-store-pgweb
+    ports:
+      - "8081:8081"
+    environment:
+      DATABASE_URL: postgres://fs:devpassword@postgres:5432/foundational_store?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
