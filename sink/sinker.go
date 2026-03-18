@@ -17,6 +17,7 @@ type Sinker struct {
 	store          store.ForkawareStore
 	logger         *zap.Logger
 	cursorFilePath string
+	insertAlways   bool
 
 	cursorHistory map[string]*sink.Cursor
 
@@ -26,7 +27,7 @@ type Sinker struct {
 	headBlock uint64
 }
 
-func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath string, cursor *sink.Cursor) *Sinker {
+func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath string, cursor *sink.Cursor, insertAlways bool) *Sinker {
 	logger = logger.Named("foundational-store-sinker")
 
 	shutter := shutter.New()
@@ -40,6 +41,7 @@ func NewSinker(store store.ForkawareStore, logger *zap.Logger, cursorFilePath st
 		store:          store,
 		logger:         logger,
 		cursorFilePath: cursorFilePath,
+		insertAlways:   insertAlways,
 		cursorHistory:  map[string]*sink.Cursor{},
 		Shutter:        shutter,
 		headBlock:      headBlock,
@@ -76,11 +78,17 @@ func (s *Sinker) HandleBlockScopedData(ctx context.Context, data *pbsubstreamsrp
 
 		}
 
-		if err := s.store.SetAll(entries.Entries, entries.IfNotExist, data.GetClock().Number); err != nil {
+		// Override IfNotExist if insertAlways flag is set
+		ifNotExist := entries.IfNotExist
+		if s.insertAlways {
+			ifNotExist = false
+		}
+
+		if err := s.store.SetAll(entries.Entries, ifNotExist, data.GetClock().Number); err != nil {
 			return fmt.Errorf("setting foundational-store entry: %w", err)
 		}
 
-		err := s.store.FlushUpToBlock(lib, entries.IfNotExist)
+		err := s.store.FlushUpToBlock(lib, ifNotExist)
 		if err != nil {
 			return fmt.Errorf("flushing up to block up to lib %d: %w", lib, err)
 		}

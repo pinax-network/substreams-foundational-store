@@ -49,6 +49,7 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	outputModuleName, _ := cmd.Flags().GetString("output-module-name")
 	cursorFilePath, _ := cmd.Flags().GetString("cursor-file-path")
 	noTimeTraversal, _ := cmd.Flags().GetBool("no-time-traversal")
+	insertAlways, _ := cmd.Flags().GetBool("insert-always")
 
 	if serverDSN == "" {
 		return fmt.Errorf("dsn is required")
@@ -148,7 +149,7 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	// 	}
 	// }()
 
-	sinker := sink.NewSinker(storeImpl, zlog, cursorFilePath, cursor)
+	sinker := sink.NewSinker(storeImpl, zlog, cursorFilePath, cursor, insertAlways)
 	server := grpc.NewStoreServer(storeImpl, sinker.HeadBlock, zlog)
 
 	app.SuperviseAndStartUsing(sinker.Shutter, func() {
@@ -186,6 +187,7 @@ func init() {
 	ServerCmd.Flags().Duration("max-batch-time", 30*time.Second, "Maximum time to wait before flushing a partial batch")
 	ServerCmd.Flags().Int("flush-queue-size", 3, "Size of the async flush queue buffer")
 	ServerCmd.Flags().Bool("no-time-traversal", false, "Disable time traversal mode and use original badger store implementation")
+	ServerCmd.Flags().Bool("insert-always", false, "Always insert entries, ignoring IfNotExist flag from module (eliminates existence checks for better performance)")
 
 	ServerCmd.MarkFlagRequired("dsn")
 	ServerCmd.MarkFlagRequired("type-url")

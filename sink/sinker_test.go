@@ -122,7 +122,7 @@ func TestCursorSaveAndLoad(t *testing.T) {
 	}
 
 	mockStore := NewSimpleMockStore()
-	handler := NewSinker(mockStore, logger, cursorFilePath, originalCursor)
+	handler := NewSinker(mockStore, logger, cursorFilePath, originalCursor, false)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -164,7 +164,7 @@ func TestHandleBlockScopedData(t *testing.T) {
 		t.Fatalf("Failed to create cursor: %v", err)
 	}
 
-	handler := NewSinker(mockStore, logger, cursorFilePath, testCursor)
+	handler := NewSinker(mockStore, logger, cursorFilePath, testCursor, false)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
@@ -251,7 +251,7 @@ func TestHandleBlockUndoSignal(t *testing.T) {
 		t.Fatalf("Failed to create cursor: %v", err)
 	}
 
-	handler := NewSinker(mockStore, logger, cursorFilePath, testCursor)
+	handler := NewSinker(mockStore, logger, cursorFilePath, testCursor, false)
 	defer func() {
 		handler.Shutdown(nil)
 		<-handler.Terminated()
