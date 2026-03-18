@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"strings"
@@ -142,12 +141,12 @@ func serverCmdE(cmd *cobra.Command, args []string) error {
 	dbStatsTicker := time.NewTicker(15 * time.Second)
 	defer dbStatsTicker.Stop()
 
-	go func() {
-		zlog.Info("starting pprof HTTP server", zap.String("addr", "0.0.0.0:9999"))
-		if err := http.ListenAndServe("0.0.0.0:9999", nil); err != nil {
-			zlog.Error("pprof HTTP server failed", zap.Error(err))
-		}
-	}()
+	// go func() {
+	// 	zlog.Info("starting pprof HTTP server", zap.String("addr", "0.0.0.0:9999"))
+	// 	if err := http.ListenAndServe("0.0.0.0:9999", nil); err != nil {
+	// 		zlog.Error("pprof HTTP server failed", zap.Error(err))
+	// 	}
+	// }()
 
 	sinker := sink.NewSinker(storeImpl, zlog, cursorFilePath, cursor)
 	server := grpc.NewStoreServer(storeImpl, sinker.HeadBlock, zlog)
